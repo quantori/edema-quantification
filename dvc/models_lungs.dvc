@@ -1,0 +1,6 @@
+wdir: ../models
+outs:
+- md5: c507f2b6e57c861d215352636670f640.dir
+  size: 652331242
+  nfiles: 9
+  path: models_lungs
