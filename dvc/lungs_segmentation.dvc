@@ -1,0 +1,6 @@
+wdir: ../dataset
+outs:
+- md5: 95c70f19f8ac9d8a6a459643008b5158.dir
+  size: 2601526152
+  nfiles: 20431
+  path: lungs_segmentation
