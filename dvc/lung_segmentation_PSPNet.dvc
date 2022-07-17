@@ -1,0 +1,5 @@
+wdir: ../models/lung_segmentation/PSPNet
+outs:
+- md5: f4fb3a730199b344d991256f4f087e1f
+  size: 119250191
+  path: weights.pth
