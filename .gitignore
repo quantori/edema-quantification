@@ -145,3 +145,8 @@ calculations/
 
 # Logs directory
 logs/
+
+# DVC files
+.dvc/config.local
+.dvc/tmp
+.dvc/cache

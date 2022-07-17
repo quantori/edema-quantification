@@ -1,6 +1,0 @@
-wdir: ../dataset
-outs:
-- md5: ffe144e9e82d8f2de83e9f6fe975c3b5.dir
-  size: 2891653753
-  nfiles: 2619
-  path: inference_dataset
