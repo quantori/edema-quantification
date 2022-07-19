@@ -11,7 +11,7 @@ import segmentation_models_pytorch as smp
 from tools.datasets import InferenceDataset
 from tools.models import LungSegmentation, SegmentationModel
 from tools.utils import extract_model_opts, get_list_of_files
-
+from tools.Boundary_extraction import MorphologicalTransformations
 
 def inference(
     model: LungSegmentation,
@@ -21,7 +21,9 @@ def inference(
 ) -> None:
     model.eval()
     output_lungs_dir = os.path.join(output_dir, 'lungs')
+    output_boundary_dir = os.path.join(output_dir, 'boundary')
     os.makedirs(output_lungs_dir) if not os.path.exists(output_lungs_dir) else False
+    os.makedirs(output_boundary_dir) if not os.path.exists(output_boundary_dir) else False
     data = {
         'dataset': [],
         'filename': [],
@@ -37,9 +39,8 @@ def inference(
         filename = os.path.split(image_path)[-1]
         dataset_name = image_path.split(os.sep)[-3]
 
-        mask_lungs = model.predict(source_img)
-        #mask_lungs_cropped=model.get_segment_crop(source_img)
-        cv2.imwrite(os.path.join(output_lungs_dir, filename), mask_lungs * 255) #mask_lungs_cropped*255)
+        mask_lungs = model.predict(source_img) #segmented masks
+        cv2.imwrite(os.path.join(output_lungs_dir, filename), mask_lungs * 255)
 
         data['dataset'].append(dataset_name)
         data['filename'].append(filename)
@@ -49,6 +50,17 @@ def inference(
         csv_save_path = os.path.join(output_dir, csv_name)
         df = pd.DataFrame(data,index=None,columns=['dataset','filename','lungs_mask'])
         df.to_csv(csv_save_path, index=False)
+
+        morph = MorphologicalTransformations(
+            image_file=os.path.join(output_lungs_dir, filename), #segmented image path
+            level=3
+        )
+        image_src = morph.binarize_this()
+        boundary = morph.extract_boundary(image_src)
+        lung_image = image_path
+        image_bound = morph.visualize_boundary(lung_image,boundary)
+        #cv2.imwrite(os.path.join(output_lungs_dir, filename), image_bound)
+        cv2.imwrite(os.path.join(output_boundary_dir, filename), image_bound)
 
 
 if __name__ == '__main__':
@@ -129,7 +141,7 @@ if __name__ == '__main__':
         args.threshold,
         args.lungs_input_size,
         lung_preprocessing_params,
-        crop_type='single_crop',
+        crop_type='no_crop',
     )
 
     inference(model, dataset, args.output_dir, args.csv_name)
