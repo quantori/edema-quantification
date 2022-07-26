@@ -5,6 +5,8 @@ from typing import Dict, List, Union
 
 import cv2
 import numpy as np
+from PIL import Image
+from torch.utils.data import Dataset
 
 
 def get_file_list(
@@ -263,3 +265,105 @@ def normalize_image(
     b = target_max - a * image.max()
     image_norm = (a * image + b).astype(target_type)
     return image_norm
+
+class BoundaryDataset(Dataset):
+    def __init__(self,
+                 img_paths: List[str],
+                 input_size: Union[int, List[int]] = (1024, 1024)):
+        self.img_paths = img_paths
+        self.input_size = (input_size, input_size) if isinstance(input_size, int) else input_size
+
+    def __len__(self):
+        return len(self.img_paths)
+
+    def __getitem__(self, idx):
+        img_path = self.img_paths[idx]
+        img = cv2.imread(img_path)
+        img = cv2.resize(img, self.input_size)
+        return img, img_path
+
+class MorphologicalTransformations:
+    def __init__(self,
+        level :int,
+        image_file:str,):
+
+        self.level = 3 if level < 3 else level
+        self.image_file = image_file
+        self.MAX_PIXEL = 255
+        self.MIN_PIXEL = 0
+        self.MID_PIXEL = self.MAX_PIXEL // 2
+        self.kernel = np.full(shape=(level, level), fill_value=255)
+
+
+    def read_this(self):
+        image_src = cv2.imread(self.image_file, 0)
+        return image_src
+
+    def convert_binary(self, thresh_val):
+        color_1 = self.MAX_PIXEL
+        color_2 = self.MIN_PIXEL
+        image_src = self.read_this()
+        if thresh_val not in ['Otsu', 'Manual', 'Triangle']:
+            print('invalid value for threshold , choose from : Otsu, Triangle or Manual')
+        if thresh_val == 'Manual':
+            threshold_value = self.MID_PIXEL
+        if thresh_val == 'Otsu':
+            threshold_otsu = cv2.threshold(image_src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            threshold_value = threshold_otsu[0]
+        if thresh_val == 'Triangle':
+            threshold_traingle = cv2.threshold(image_src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
+            threshold_value = threshold_traingle[0]
+
+        initial_conv = np.where((image_src <= threshold_value), image_src, color_1)
+        final_conv = np.where((initial_conv > threshold_value), initial_conv, color_2)
+
+        return final_conv
+
+    def get_flat_submatrices(self, image_src, h_reduce, w_reduce):
+        image_shape = image_src.shape
+        flat_submats = np.array([
+            image_src[i:(i + self.level), j:(j + self.level)]
+            for i in range(image_shape[0] - h_reduce) for j in range(image_shape[1] - w_reduce)
+        ])
+        return flat_submats
+
+    def erode_image(self, image_src):
+        orig_shape = image_src.shape
+        pad_width = self.level - 2
+
+        image_pad = np.pad(array=image_src, pad_width=pad_width, mode='constant')
+        pimg_shape = image_pad.shape
+
+        h_reduce, w_reduce = (pimg_shape[0] - orig_shape[0]), (pimg_shape[1] - orig_shape[1])
+        flat_submats = self.get_flat_submatrices(
+            image_src=image_pad, h_reduce=h_reduce, w_reduce=w_reduce
+        )
+
+        image_eroded = np.array([255 if (i == self.kernel).all() else 0 for i in flat_submats])
+        image_eroded = image_eroded.reshape(orig_shape)
+        return image_eroded
+
+    def erosion(self,image_src):
+        kernel = np.ones((6, 6), 'uint8')
+        erode_img = cv2.erode(image_src, kernel, cv2.BORDER_REFLECT, iterations=1)
+        return erode_img
+
+    def extract_boundary(self, image_src):
+        image_eroded = self.erosion(image_src=image_src)
+        ext_bound = image_src - image_eroded
+        return ext_bound
+
+    def visualize_boundary(self, image_src, boundary):  # boundary is the output from extract_boundary function
+        alpha = 0.5
+        beta = (1.0 - alpha)
+        boundary = np.expand_dims(boundary, axis=-1)
+        res_bound = cv2.resize(boundary , dsize=(1024, 1024), interpolation=cv2.INTER_CUBIC)
+
+        image = Image.open(image_src)
+        image = image.resize((1024, 1024), Image.ANTIALIAS)
+        lung = np.expand_dims(image, axis=-1)
+        dst = cv2.addWeighted(res_bound, alpha, lung, beta, 0.0, dtype=cv2.CV_64F)
+        backtorgb = cv2.cvtColor(dst.astype(np.uint8), cv2.COLOR_GRAY2RGB)
+        return backtorgb
+
+

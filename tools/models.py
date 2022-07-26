@@ -12,7 +12,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 
 
-os.makedirs('logs', exist_ok=True)
+os.makedirs('logs',exist_ok=True)
 logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%d.%m.%Y %I:%M:%S',
@@ -180,7 +180,7 @@ class LungSegmentation:
     ) -> np.ndarray:
 
         img = cv2.imread(img_path)
-        img = cv2.resize(img, self.input_size)
+        #img = cv2.resize(img, self.input_size)
         img_tensor = torch.unsqueeze(self.preprocess_image(img), dim=0).to(self.device)
         mask = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
         if self.raw_output:
@@ -194,9 +194,9 @@ class LungSegmentation:
 if __name__ == '__main__':
 
     model_name = 'Unet++'
-    img_path = 'dataset/image.png'
+    img_path = "C:/Users/Sunil/Desktop/Batch/00000032_001.png"
     model = LungSegmentation(
-        model_dir=f'models/lung_segmentation/{model_name}',
+        model_dir=f'models\lung_segmentation\{model_name}',
         threshold=0.50,
         device='auto',
         raw_output=True,

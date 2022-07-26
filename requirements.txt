@@ -10,3 +10,4 @@ torch==1.10.2
 torchvision==0.11.3
 tqdm
 dvc[s3]==2.13.0
+Pillow
