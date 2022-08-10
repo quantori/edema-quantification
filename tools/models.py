@@ -8,7 +8,6 @@ import cv2
 import smp
 import torch
 import numpy as np
-from PIL import Image
 import torchvision.transforms as transforms
 
 
@@ -57,7 +56,7 @@ class LungSegmentation:
                 transforms.ToTensor(),
                 transforms.Resize(
                     size=self.input_size,
-                    interpolation=Image.BICUBIC,
+                    interpolation=transforms.InterpolationMode.BICUBIC,
                 ),
                 transforms.Normalize(
                     mean=self.preprocessing['mean'],
@@ -180,7 +179,6 @@ class LungSegmentation:
     ) -> np.ndarray:
 
         img = cv2.imread(img_path)
-        #img = cv2.resize(img, self.input_size)
         img_tensor = torch.unsqueeze(self.preprocess_image(img), dim=0).to(self.device)
         mask = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
         if self.raw_output:
@@ -193,14 +191,14 @@ class LungSegmentation:
 
 if __name__ == '__main__':
 
-    model_name = 'Unet++'
-    img_path = "C:/Users/Sunil/Desktop/Batch/00000032_001.png"
+    model_name = 'DeepLabV3+'
+    img_path = "dataset/image.png"
     model = LungSegmentation(
-        model_dir=f'models\lung_segmentation\{model_name}',
+        model_dir=f'models/lung_segmentation/{model_name}',
         threshold=0.50,
         device='auto',
         raw_output=True,
     )
     mask = model(img_path)
     mask = cv2.resize(mask, (1024, 1024))
-    cv2.imwrite(f'dataset/xmask_{model_name}.png', mask)
+    cv2.imwrite(f'dataset/mask_{model_name}.png', mask)
