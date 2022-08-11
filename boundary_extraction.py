@@ -1,11 +1,12 @@
 import os
+import cv2
 import logging
 import argparse
-import cv2
 from pathlib import Path
-from typing import Union
+
+from tqdm import tqdm
 from tools.models import LungSegmentation
-from tools.utils import MorphologicalTransformations
+from tools.utils import MorphologicalTransformations, get_file_list
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -19,51 +20,65 @@ logger = logging.getLogger(__name__)
 
 
 def boundary_extraction(
-        folder_dir: str,
+        img_dir: str,
+        model_dir: str,
         output_dir: str,
-        model_name: str,
-        thresh_type:str,
-        thresh_val
+        thresh_method: str = 'otsu',
+        thresh_val: float = 0.5,
 ) -> None:
 
+    logger.info(f'Settings..................:')
+    logger.info(f'Image directory...........: {img_dir}')
+    logger.info(f'Output directory..........: {output_dir}')
+    logger.info(f'Threshold method..........: {thresh_method.capitalize()}')
+    logger.info(f'Threshold value...........: {thresh_val}')
+
     model = LungSegmentation(
-        model_dir=f'models/lung_segmentation/{model_name}',
+        model_dir=model_dir,
         threshold=0.50,
         device='auto',
         raw_output=True,
     )
 
-    for images in os.listdir(folder_dir):
-        # check if the image ends with png or jpg or jpeg
-        if images.endswith(".png") or images.endswith(".jpg") or images.endswith(".jpeg"):
-            img_path = folder_dir + '/' + images
-            mask_lungs = model(img_path)  # segmented masks
-            cv2.imwrite(f'dataset/output/masks/mask_{images}.png', mask_lungs)
-        morph = MorphologicalTransformations(
-            image_file=f'dataset/output/masks/mask_{images}.png'
-        )
-        """logger.info(f'Settings..................:')
-        logger.info(f'folder dir.................: {folder_dir}')
-        logger.info(f'output_dir ................: {output_dir}')
-        logger.info(f'Model name................: {model_name}')
-        logger.info(f'Threshold.................: {thresh_type}')"""
+    img_paths = get_file_list(
+        src_dirs=img_dir,
+        ext_list=[
+            '.png',
+            '.jpg',
+            '.jpeg',
+            '.bmp',
+        ]
+    )
 
-        binarized_mask = morph.binary(thresh_type, thresh_val) #takes both threshold value and thresh type
+    for img_path in tqdm(img_paths, desc='Boundary extraction', unit=' images'):
+        # img_path = img_dir + '/' + img_path
+        mask = model(img_path)
+        cv2.imwrite(f'dataset/output/masks/mask_{img_path}.png', mask)
+        morph = MorphologicalTransformations(
+            image_file=f'dataset/output/masks/mask_{img_path}.png'
+        )
+
+        binarized_mask = morph.binary(thresh_method, thresh_val)
         boundary = morph.extract_boundary(binarized_mask)
         image_bound = morph.visualize_boundary(img_path, boundary)
-        filename = os.path.split(images)[-1]
-        cv2.imwrite(os.path.join(output_dir,filename),image_bound)
+        filename = os.path.split(img_path)[-1]
+        cv2.imwrite(os.path.join(output_dir, filename), image_bound)
 
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser("boundary extraction")
-    parser.add_argument("--dataset_dir", type=str, default="dataset/data")
-    parser.add_argument("--output_dir", type=str, default="dataset/output/boundary")
-    parser.add_argument("--model_name", type=str, default="Unet++")
-    parser.add_argument("--threshold_type", type=str, default="Triangle")
-    parser.add_argument("--threshold_value", type=float, default=None)
+    parser = argparse.ArgumentParser(description='Boundary extraction')
+    parser.add_argument('--img_dir', default='dataset/img', type=str)
+    parser.add_argument('--model_dir', default='models/lung_segmentation/DeepLabV3+', type=str)
+    parser.add_argument('--threshold_method', default='otsu', type=str, choices=['otsu', 'triangle', 'manual'])
+    parser.add_argument('--threshold_value', type=float, default=None)
+    parser.add_argument('--output_dir', default='dataset/output/boundary', type=str)
     args = parser.parse_args()
 
-    boundary_extraction(args.dataset_dir, args.output_dir, args.model_name, args.threshold_type, args.threshold_value)
-
+    boundary_extraction(
+        img_dir=args.img_dir,
+        model_dir=args.model_dir,
+        output_dir=args.output_dir,
+        thresh_method=args.threshold_method,
+        thresh_val=args.threshold_value,
+    )
