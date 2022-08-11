@@ -1,4 +1,5 @@
 import os
+import logging
 import warnings
 from pathlib import Path
 from typing import Dict, List, Union
@@ -285,9 +286,10 @@ class BoundaryDataset(Dataset):
 
 
 class MorphologicalTransformations:
-    def __init__(self,
-        image_file:str,
-                 ):
+    def __init__(
+            self,
+            image_file: str,
+    ):
 
         self.image_file = image_file
         self.MAX_PIXEL = 255
@@ -297,43 +299,56 @@ class MorphologicalTransformations:
         image_src = cv2.imread(self.image_file, 0)
         return image_src
 
-    def binary(self, thresh_type,thresh_val=None):
+    def binary(
+            self,
+            thresh_method: str = 'otsu',
+            thresh_val: float = None,
+    ):
         color_1 = self.MAX_PIXEL
         color_2 = self.MIN_PIXEL
         image_src = self.read_image()
-        if thresh_type not in ['Otsu', 'Triangle','Manual']:
-            print('invalid value for threshold , choose from : Otsu or Triangle ')
-        if thresh_type == 'Otsu':
-            threshold_otsu = cv2.threshold(image_src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            threshold_value = threshold_otsu[0]
-        elif thresh_type == 'Triangle':
-            threshold_traingle = cv2.threshold(image_src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
-            threshold_value = threshold_traingle[0]
-        elif thresh_type == 'Manual':
+
+        assert thresh_method in ['otsu', 'triangle', 'manual'], f'Invalid thresh_method: {thresh_method}'
+
+        if thresh_method == 'otsu':
+            threshold_value, _ = cv2.threshold(image_src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        elif thresh_method == 'triangle':
+            threshold_value, _ = cv2.threshold(image_src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
+        elif thresh_method == 'manual':
             threshold_value = thresh_val
         else:
-            print("Invalid Threshold") #logs?
+            logging.warning(f'Invalid threshold')
 
         initial_conv = np.where((image_src <= threshold_value), image_src, color_1)
         final_conv = np.where((initial_conv > threshold_value), initial_conv, color_2)
 
         return final_conv
 
-    def erosion(self,image_src):
+    def erosion(
+            self,
+            image_src,
+    ):
         kernel = np.ones((6, 6), 'uint8')
         erode_img = cv2.erode(image_src, kernel, cv2.BORDER_REFLECT, iterations=1)
         return erode_img
 
-    def extract_boundary(self, image_src):
+    def extract_boundary(
+            self,
+            image_src,
+    ):
         image_eroded = self.erosion(image_src=image_src)
         ext_bound = image_src - image_eroded
         return ext_bound
 
-    def visualize_boundary(self, image_src, boundary):  # boundary is the output from extract_boundary function
+    @staticmethod
+    def visualize_boundary(
+            image_src,
+            boundary,
+    ):  # boundary is the output from extract_boundary function
         alpha = 0.5
-        beta = (1.0 - alpha)
+        beta = 1.0 - alpha
         boundary = np.expand_dims(boundary, axis=-1)
-        res_bound = cv2.resize(boundary , dsize=(1024, 1024), interpolation=cv2.INTER_CUBIC)
+        res_bound = cv2.resize(boundary, dsize=(1024, 1024), interpolation=cv2.INTER_CUBIC)
 
         image = Image.open(image_src)
         image = image.resize((1024, 1024), Image.ANTIALIAS)
