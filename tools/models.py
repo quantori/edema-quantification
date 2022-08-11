@@ -1,7 +1,6 @@
 import os
 import json
 import logging
-from pathlib import Path
 from typing import Any
 
 import cv2
@@ -9,17 +8,6 @@ import smp
 import torch
 import numpy as np
 import torchvision.transforms as transforms
-
-
-os.makedirs('logs',exist_ok=True)
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%d.%m.%Y %I:%M:%S',
-    filename='logs/{:s}.log'.format(Path(__file__).stem),
-    filemode='w',
-    level=logging.INFO,
-)
-logger = logging.getLogger(__name__)
 
 
 class LungSegmentation:
@@ -87,13 +75,13 @@ class LungSegmentation:
         self.model.eval()
 
         # Log model parameters
-        logger.info(f'Settings..................:')
-        logger.info(f'Model dir.................: {model_dir}')
-        logger.info(f'Model name................: {self.model_name}')
-        logger.info(f'Input size................: {self.input_size}')
-        logger.info(f'Threshold.................: {self.threshold}')
-        logger.info(f'Raw output................: {self.raw_output}')
-        logger.info(f'Device....................: {self.device.upper()}')
+        logging.info(f'Model.....................:')
+        logging.info(f'Model dir.................: {model_dir}')
+        logging.info(f'Model name................: {self.model_name}')
+        logging.info(f'Input size................: {self.input_size}')
+        logging.info(f'Threshold.................: {self.threshold}')
+        logging.info(f'Raw output................: {self.raw_output}')
+        logging.info(f'Device....................: {self.device.upper()}')
 
     def build_model(self) -> Any:
         if self.model_name == 'Unet':
