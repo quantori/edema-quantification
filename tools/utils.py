@@ -6,7 +6,7 @@ from typing import Dict, List, Union
 
 import cv2
 import numpy as np
-from PIL import Image
+
 
 
 def get_file_list(
