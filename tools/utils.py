@@ -273,8 +273,6 @@ class MorphologicalTransformations:
             thresh_method: str,
             thresh_val: float,
     ):
-
-
         self.thresh_method = 'otsu'
         self.thresh_val = None
 
