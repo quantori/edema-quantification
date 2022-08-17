@@ -7,7 +7,6 @@ from typing import Dict, List, Union
 import cv2
 import numpy as np
 from PIL import Image
-from torch.utils.data import Dataset
 
 
 def get_file_list(
@@ -268,45 +267,29 @@ def normalize_image(
     return image_norm
 
 
-class BoundaryDataset(Dataset):
-    def __init__(self,
-                 img_paths: List[str],
-                 input_size: Union[int, List[int]] = (1024, 1024)):
-        self.img_paths = img_paths
-        self.input_size = (input_size, input_size) if isinstance(input_size, int) else input_size
-
-    def __len__(self):
-        return len(self.img_paths)
-
-    def __getitem__(self, idx):
-        img_path = self.img_paths[idx]
-        img = cv2.imread(img_path)
-        img = cv2.resize(img, self.input_size)
-        return img, img_path
-
-
 class MorphologicalTransformations:
     def __init__(
+            self,
+            thresh_method: str,
+            thresh_val: float,
+    ):
+
+
+        self.thresh_method = 'otsu'
+        self.thresh_val = None
+
+    def read_image(self,image_file):
+        image_src = cv2.imread(image_file, 0)
+        return image_src
+
+    def binarize(
             self,
             image_file: str,
     ):
 
-        self.image_file = image_file
-        self.MAX_PIXEL = 255
-        self.MIN_PIXEL = 0
-
-    def read_image(self):
-        image_src = cv2.imread(self.image_file, 0)
-        return image_src
-
-    def binary(
-            self,
-            thresh_method: str = 'otsu',
-            thresh_val: float = None,
-    ):
-        color_1 = self.MAX_PIXEL
-        color_2 = self.MIN_PIXEL
-        image_src = self.read_image()
+        thresh_method= self.thresh_method
+        thresh_val=self.thresh_val
+        image_src = self.read_image(image_file)
 
         assert thresh_method in ['otsu', 'triangle', 'manual'], f'Invalid thresh_method: {thresh_method}'
 
@@ -319,8 +302,8 @@ class MorphologicalTransformations:
         else:
             logging.warning(f'Invalid threshold')
 
-        initial_conv = np.where((image_src <= threshold_value), image_src, color_1)
-        final_conv = np.where((initial_conv > threshold_value), initial_conv, color_2)
+        initial_conv = np.where((image_src <= threshold_value), image_src, 255)
+        final_conv = np.where((initial_conv > threshold_value), initial_conv, 0)
 
         return final_conv
 
@@ -350,8 +333,7 @@ class MorphologicalTransformations:
         boundary = np.expand_dims(boundary, axis=-1)
         res_bound = cv2.resize(boundary, dsize=(1024, 1024), interpolation=cv2.INTER_CUBIC)
 
-        image = Image.open(image_src)
-        image = image.resize((1024, 1024), Image.ANTIALIAS)
+        image=cv2.imread(image_src, cv2.IMREAD_GRAYSCALE)
         lung = np.expand_dims(image, axis=-1)
         dst = cv2.addWeighted(res_bound, alpha, lung, beta, 0.0, dtype=cv2.CV_64F)
         backtorgb = cv2.cvtColor(dst.astype(np.uint8), cv2.COLOR_GRAY2RGB)

@@ -26,6 +26,10 @@ def boundary_extraction(
         thresh_method: str = 'otsu',
         thresh_val: float = 0.5,
 ) -> None:
+    output_masks= os.path.join(output_dir, 'masks')
+    output_boundary = os.path.join(output_dir, 'boundary')
+    os.makedirs(output_masks) if not os.path.exists(output_masks) else False
+    os.makedirs(output_boundary) if not os.path.exists(output_boundary) else False
 
     logger.info(f'Settings..................:')
     logger.info(f'Image directory...........: {img_dir}')
@@ -49,20 +53,18 @@ def boundary_extraction(
             '.bmp',
         ]
     )
-
-    for img_path in tqdm(img_paths, desc='Boundary extraction', unit=' images'):
-        # img_path = img_dir + '/' + img_path
+    morph = MorphologicalTransformations('otsu',None)
+    for image_path in tqdm(img_paths, desc='Boundary extraction', unit=' images'):
+        img_path = os.path.normpath(image_path)
         mask = model(img_path)
-        cv2.imwrite(f'dataset/output/masks/mask_{img_path}.png', mask)
-        morph = MorphologicalTransformations(
-            image_file=f'dataset/output/masks/mask_{img_path}.png'
-        )
-
-        binarized_mask = morph.binary(thresh_method, thresh_val)
+        img_name = Path(img_path).name
+        mask_path = (os.path.join(output_masks, img_name))
+        cv2.imwrite(mask_path, mask)
+        binarized_mask = morph.binarize(mask_path)
         boundary = morph.extract_boundary(binarized_mask)
         image_bound = morph.visualize_boundary(img_path, boundary)
-        filename = os.path.split(img_path)[-1]
-        cv2.imwrite(os.path.join(output_dir, filename), image_bound)
+
+        cv2.imwrite(os.path.join(output_boundary, img_name), image_bound)
 
 
 if __name__ == '__main__':
@@ -72,7 +74,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_dir', default='models/lung_segmentation/DeepLabV3+', type=str)
     parser.add_argument('--threshold_method', default='otsu', type=str, choices=['otsu', 'triangle', 'manual'])
     parser.add_argument('--threshold_value', type=float, default=None)
-    parser.add_argument('--output_dir', default='dataset/output/boundary', type=str)
+    parser.add_argument('--output_dir', default='dataset/output', type=str)
     args = parser.parse_args()
 
     boundary_extraction(
