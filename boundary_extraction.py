@@ -92,7 +92,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Boundary extraction')
     parser.add_argument('--img_dir', default='dataset/img', type=str)
     parser.add_argument('--model_dir', default='models/lung_segmentation/DeepLabV3+', type=str)
-    parser.add_argument('--output_size', default=(1024, 1024), nargs='+')
+    parser.add_argument('--output_size', default=(1024, 1024), type=int, nargs='+')
     parser.add_argument('--threshold_method', default='otsu', type=str, choices=['otsu', 'triangle', 'manual'])
     parser.add_argument('--threshold_value', type=int, default=None)
     parser.add_argument('--save_dir', default='dataset/output', type=str)
