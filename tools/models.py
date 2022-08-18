@@ -87,7 +87,7 @@ class LungSegmentation:
         if self.model_name == 'Unet':
             model = smp.Unet(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -95,7 +95,7 @@ class LungSegmentation:
         elif self.model_name == 'Unet++':
             model = smp.UnetPlusPlus(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -103,7 +103,7 @@ class LungSegmentation:
         elif self.model_name == 'DeepLabV3':
             model = smp.DeepLabV3(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -111,7 +111,7 @@ class LungSegmentation:
         elif self.model_name == 'DeepLabV3+':
             model = smp.DeepLabV3Plus(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -119,7 +119,7 @@ class LungSegmentation:
         elif self.model_name == 'FPN':
             model = smp.FPN(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -127,7 +127,7 @@ class LungSegmentation:
         elif self.model_name == 'Linknet':
             model = smp.Linknet(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -135,7 +135,7 @@ class LungSegmentation:
         elif self.model_name == 'PSPNet':
             model = smp.PSPNet(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -143,7 +143,7 @@ class LungSegmentation:
         elif self.model_name == 'PAN':
             model = smp.PAN(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -151,7 +151,7 @@ class LungSegmentation:
         elif self.model_name == 'MAnet':
             model = smp.MAnet(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -180,7 +180,7 @@ class LungSegmentation:
 if __name__ == '__main__':
 
     model_name = 'DeepLabV3+'
-    img_path = "dataset/image.png"
+    img_path = "dataset/img/image.png"
     model = LungSegmentation(
         model_dir=f'models/lung_segmentation/{model_name}',
         threshold=0.50,
