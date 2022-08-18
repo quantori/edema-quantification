@@ -2,11 +2,11 @@ import os
 import logging
 import warnings
 from pathlib import Path
+from PIL import Image, ImageFilter
 from typing import Dict, List, Union, Tuple
 
 import cv2
 import numpy as np
-
 
 
 def get_file_list(
@@ -301,31 +301,24 @@ class BorderExtractor:
     @staticmethod
     def extract_boundary(
             mask: np.ndarray,
-            kernel_size: Tuple[int, int] = (5, 5),
     ) -> np.ndarray:
-        kernel = np.ones(kernel_size, dtype=np.uint8)
-        mask_erode = cv2.erode(mask, kernel, cv2.BORDER_REFLECT, iterations=1)
-        mask_border = mask - mask_erode
+        _mask = Image.fromarray(mask)
+        _mask = _mask.filter(ImageFilter.ModeFilter(size=7))
+        _mask = np.asarray(_mask)
+        mask_border = cv2.Canny(image=_mask, threshold1=100, threshold2=200)
         return mask_border
 
     @staticmethod
-    def overlay_border(
+    def overlay_mask(
             image: np.ndarray,
-            mask_border: np.ndarray,
-            alpha: float = 0.5,
+            mask: np.ndarray,
             output_size: Tuple[int, int] = (1024, 1024),
+            color: Tuple[int, int, int] = (255, 255, 0),
     ) -> np.ndarray:
 
-        beta = 1.0 - alpha
-
-        mask_border = np.expand_dims(mask_border, axis=-1)
-        mask_border = cv2.resize(mask_border, dsize=output_size, interpolation=cv2.INTER_NEAREST)
-
-        image = np.expand_dims(image, axis=-1)
+        mask = cv2.resize(mask, dsize=output_size, interpolation=cv2.INTER_NEAREST)
         image = cv2.resize(image, dsize=output_size, interpolation=cv2.INTER_CUBIC)
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        image[mask == 255] = color
 
-        _img_output = cv2.addWeighted(mask_border, alpha, image, beta, 0.0, dtype=cv2.CV_64F)
-        _img_output = _img_output.astype(np.uint8)
-        img_output = cv2.cvtColor(_img_output, cv2.COLOR_GRAY2RGB)
-
-        return img_output
+        return image
