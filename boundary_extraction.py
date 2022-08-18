@@ -38,7 +38,6 @@ def boundary_extraction(
     logger.info(f'Settings..................:')
     logger.info(f'Image directory...........: {img_dir}')
     logger.info(f'Output directory..........: {save_dir}')
-    logger.info(f'Model name................: {model_name}')
     logger.info(f'Output size...............: {output_size}')
     logger.info(f'Threshold method..........: {thresh_method.capitalize()}')
     logger.info(f'Threshold value...........: {thresh_val}')
@@ -50,7 +49,7 @@ def boundary_extraction(
             '.jpg',
             '.jpeg',
             '.bmp',
-        ]
+        ],
     )
     logger.info(f'Number of images..........: {len(img_paths)}')
 
@@ -77,13 +76,12 @@ def boundary_extraction(
         mask_bin = extractor.binarize(mask=mask)
         mask_border = extractor.extract_boundary(
             mask=mask_bin,
-            kernel_size=(5, 5),
         )
-        img_output = extractor.overlay_border(
+        img_output = extractor.overlay_mask(
             image=img_input,
-            mask_border=mask_border,
-            alpha=0.50,
+            mask=mask_border,
             output_size=output_size,
+            color=(255, 255, 0),
         )
         img_output_path = os.path.join(border_dir, img_name)
         cv2.imwrite(img_output_path, img_output)
@@ -93,7 +91,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Boundary extraction')
     parser.add_argument('--img_dir', default='dataset/img', type=str)
-    parser.add_argument('--model_dir', default='models/lung_segmentation/DeepLabV3', type=str)
+    parser.add_argument('--model_dir', default='models/lung_segmentation/DeepLabV3+', type=str)
     parser.add_argument('--output_size', default=(1024, 1024), nargs='+')
     parser.add_argument('--threshold_method', default='otsu', type=str, choices=['otsu', 'triangle', 'manual'])
     parser.add_argument('--threshold_value', type=int, default=None)
