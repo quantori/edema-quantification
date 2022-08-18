@@ -2,7 +2,7 @@ import os
 import logging
 import warnings
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 import cv2
 import numpy as np
@@ -267,74 +267,65 @@ def normalize_image(
     return image_norm
 
 
-class MorphologicalTransformations:
+class BorderExtractor:
     def __init__(
             self,
             thresh_method: str,
-            thresh_val: float,
-    ):
-        self.thresh_method = 'otsu'
-        self.thresh_val = None
+            thresh_val: int,
+    ) -> None:
 
-    def read_image(self,image_file):
-        image_src = cv2.imread(image_file, 0)
-        return image_src
+        self.thresh_method = thresh_method
+        self.thresh_val = thresh_val
+        assert self.thresh_method in ['otsu', 'triangle', 'manual'], f'Invalid thresh_method: {self.thresh_method}'
+
+        if thresh_method == 'manual' and not isinstance(thresh_val, int):
+            raise ValueError(f'Manual thresholding requires a thresholding value to be set. The thresh_val is {thresh_val}')
 
     def binarize(
             self,
-            image_file: str,
-    ):
+            mask: np.ndarray,
+    ) -> np.ndarray:
 
-        thresh_method= self.thresh_method
-        thresh_val=self.thresh_val
-        image_src = self.read_image(image_file)
-
-        assert thresh_method in ['otsu', 'triangle', 'manual'], f'Invalid thresh_method: {thresh_method}'
-
-        if thresh_method == 'otsu':
-            threshold_value, _ = cv2.threshold(image_src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        elif thresh_method == 'triangle':
-            threshold_value, _ = cv2.threshold(image_src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
-        elif thresh_method == 'manual':
-            threshold_value = thresh_val
+        mask_bin = mask.copy()
+        if self.thresh_method == 'otsu':
+            thresh_value, mask_bin = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        elif self.thresh_method == 'triangle':
+            thresh_value, mask_bin = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE)
+        elif self.thresh_method == 'manual':
+            thresh_value, mask_bin = cv2.threshold(mask, self.thresh_val, 255, cv2.THRESH_BINARY)
         else:
-            logging.warning(f'Invalid threshold')
+            logging.warning(f'Invalid threshold: {self.thresh_val}')
 
-        initial_conv = np.where((image_src <= threshold_value), image_src, 255)
-        final_conv = np.where((initial_conv > threshold_value), initial_conv, 0)
-
-        return final_conv
-
-    def erosion(
-            self,
-            image_src,
-    ):
-        kernel = np.ones((6, 6), 'uint8')
-        erode_img = cv2.erode(image_src, kernel, cv2.BORDER_REFLECT, iterations=1)
-        return erode_img
-
-    def extract_boundary(
-            self,
-            image_src,
-    ):
-        image_eroded = self.erosion(image_src=image_src)
-        ext_bound = image_src - image_eroded
-        return ext_bound
+        return mask_bin
 
     @staticmethod
-    def visualize_boundary(
-            image_src,
-            boundary,
-    ):  # boundary is the output from extract_boundary function
-        alpha = 0.5
+    def extract_boundary(
+            mask: np.ndarray,
+            kernel_size: Tuple[int, int] = (5, 5),
+    ) -> np.ndarray:
+        kernel = np.ones(kernel_size, dtype=np.uint8)
+        mask_erode = cv2.erode(mask, kernel, cv2.BORDER_REFLECT, iterations=1)
+        mask_border = mask - mask_erode
+        return mask_border
+
+    @staticmethod
+    def overlay_border(
+            image: np.ndarray,
+            mask_border: np.ndarray,
+            alpha: float = 0.5,
+            output_size: Tuple[int, int] = (1024, 1024),
+    ) -> np.ndarray:
+
         beta = 1.0 - alpha
-        boundary = np.expand_dims(boundary, axis=-1)
-        res_bound = cv2.resize(boundary, dsize=(1024, 1024), interpolation=cv2.INTER_CUBIC)
 
-        image=cv2.imread(image_src, cv2.IMREAD_GRAYSCALE)
-        lung = np.expand_dims(image, axis=-1)
-        dst = cv2.addWeighted(res_bound, alpha, lung, beta, 0.0, dtype=cv2.CV_64F)
-        backtorgb = cv2.cvtColor(dst.astype(np.uint8), cv2.COLOR_GRAY2RGB)
-        return backtorgb
+        mask_border = np.expand_dims(mask_border, axis=-1)
+        mask_border = cv2.resize(mask_border, dsize=output_size, interpolation=cv2.INTER_NEAREST)
 
+        image = np.expand_dims(image, axis=-1)
+        image = cv2.resize(image, dsize=output_size, interpolation=cv2.INTER_CUBIC)
 
+        _img_output = cv2.addWeighted(mask_border, alpha, image, beta, 0.0, dtype=cv2.CV_64F)
+        _img_output = _img_output.astype(np.uint8)
+        img_output = cv2.cvtColor(_img_output, cv2.COLOR_GRAY2RGB)
+
+        return img_output
