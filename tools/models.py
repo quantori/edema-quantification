@@ -1,26 +1,13 @@
 import os
 import json
 import logging
-from pathlib import Path
 from typing import Any
 
 import cv2
 import smp
 import torch
 import numpy as np
-from PIL import Image
 import torchvision.transforms as transforms
-
-
-os.makedirs('logs', exist_ok=True)
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%d.%m.%Y %I:%M:%S',
-    filename='logs/{:s}.log'.format(Path(__file__).stem),
-    filemode='w',
-    level=logging.INFO,
-)
-logger = logging.getLogger(__name__)
 
 
 class LungSegmentation:
@@ -57,7 +44,7 @@ class LungSegmentation:
                 transforms.ToTensor(),
                 transforms.Resize(
                     size=self.input_size,
-                    interpolation=Image.BICUBIC,
+                    interpolation=transforms.InterpolationMode.BICUBIC,
                 ),
                 transforms.Normalize(
                     mean=self.preprocessing['mean'],
@@ -88,19 +75,19 @@ class LungSegmentation:
         self.model.eval()
 
         # Log model parameters
-        logger.info(f'Settings..................:')
-        logger.info(f'Model dir.................: {model_dir}')
-        logger.info(f'Model name................: {self.model_name}')
-        logger.info(f'Input size................: {self.input_size}')
-        logger.info(f'Threshold.................: {self.threshold}')
-        logger.info(f'Raw output................: {self.raw_output}')
-        logger.info(f'Device....................: {self.device.upper()}')
+        logging.info(f'Model.....................:')
+        logging.info(f'Model dir.................: {model_dir}')
+        logging.info(f'Model name................: {self.model_name}')
+        logging.info(f'Input size................: {self.input_size}')
+        logging.info(f'Threshold.................: {self.threshold}')
+        logging.info(f'Raw output................: {self.raw_output}')
+        logging.info(f'Device....................: {self.device.upper()}')
 
     def build_model(self) -> Any:
         if self.model_name == 'Unet':
             model = smp.Unet(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -108,7 +95,7 @@ class LungSegmentation:
         elif self.model_name == 'Unet++':
             model = smp.UnetPlusPlus(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -116,7 +103,7 @@ class LungSegmentation:
         elif self.model_name == 'DeepLabV3':
             model = smp.DeepLabV3(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -124,7 +111,7 @@ class LungSegmentation:
         elif self.model_name == 'DeepLabV3+':
             model = smp.DeepLabV3Plus(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -132,7 +119,7 @@ class LungSegmentation:
         elif self.model_name == 'FPN':
             model = smp.FPN(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -140,7 +127,7 @@ class LungSegmentation:
         elif self.model_name == 'Linknet':
             model = smp.Linknet(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -148,7 +135,7 @@ class LungSegmentation:
         elif self.model_name == 'PSPNet':
             model = smp.PSPNet(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -156,7 +143,7 @@ class LungSegmentation:
         elif self.model_name == 'PAN':
             model = smp.PAN(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -164,7 +151,7 @@ class LungSegmentation:
         elif self.model_name == 'MAnet':
             model = smp.MAnet(
                 encoder_name=self.encoder_name,
-                encoder_weights=self.encoder_weights,
+                encoder_weights=None,
                 in_channels=self.input_channels,
                 classes=self.num_classes,
                 activation=self.activation,
@@ -180,7 +167,6 @@ class LungSegmentation:
     ) -> np.ndarray:
 
         img = cv2.imread(img_path)
-        img = cv2.resize(img, self.input_size)
         img_tensor = torch.unsqueeze(self.preprocess_image(img), dim=0).to(self.device)
         mask = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
         if self.raw_output:
@@ -193,8 +179,8 @@ class LungSegmentation:
 
 if __name__ == '__main__':
 
-    model_name = 'Unet++'
-    img_path = 'dataset/image.png'
+    model_name = 'DeepLabV3+'
+    img_path = "dataset/img/image.png"
     model = LungSegmentation(
         model_dir=f'models/lung_segmentation/{model_name}',
         threshold=0.50,
@@ -203,4 +189,4 @@ if __name__ == '__main__':
     )
     mask = model(img_path)
     mask = cv2.resize(mask, (1024, 1024))
-    cv2.imwrite(f'dataset/xmask_{model_name}.png', mask)
+    cv2.imwrite(f'dataset/mask_{model_name}.png', mask)
