@@ -14,4 +14,3 @@ dvc[s3]==2.13.0
 Pillow
 black==22.6.0
 openpyxl
-
