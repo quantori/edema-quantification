@@ -52,8 +52,9 @@ def combine_metadata(
         num_images = len(img_paths)
 
         dicom_ids = [str(Path(img_path).stem) for img_path in img_paths]
-        df_paths = pd.DataFrame(list(zip(dicom_ids, img_paths)), columns=['dicom_id', 'Path'])
+        df_paths = pd.DataFrame(list(zip(dicom_ids, img_paths)), columns=['dicom_id', 'Image path'])
         df_out = df_out.merge(df_paths, on=['dicom_id'], how='left')
+        df_out['Image name'] = df_out.apply(lambda row: Path(str(row['Image path'])).name, axis=1)
     else:
         num_images = None
 
