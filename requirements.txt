@@ -1,6 +1,6 @@
-numpy
+numpy==1.23.2
 opencv-python==4.5.5.64
-pandas
+pandas==1.4.3
 scikit-image==0.19.3
 scikit-learn
 torch==1.8.1                    # Linknet and PSPNet are not working with torch >= 1.8.1
@@ -9,8 +9,10 @@ efficientnet-pytorch==0.7.1
 timm==0.3.2                     # Linknet and PSPNet are not tested with timm >= 0.3.2
 pretrainedmodels==0.7.4
 ptflops==0.6.5
-tqdm
+tqdm==4.64.0
 dvc[s3]==2.13.0
-Pillow
+Pillow==9.2.0
 black==22.6.0
 openpyxl==3.0.10
+matplotlib==3.5.3
+joblib==1.1.0
