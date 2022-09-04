@@ -53,15 +53,21 @@ def combine_metadata(
 
         dicom_ids = [str(Path(img_path).stem) for img_path in img_paths]
         df_paths = pd.DataFrame(list(zip(dicom_ids, img_paths)), columns=['dicom_id', 'Image path'])
+        df_paths['Image path'] = df_paths.apply(
+            func=lambda row: os.path.relpath(str(row['Image path']), start=save_dir),
+            axis=1,
+        )
+        df_paths['Image name'] = df_paths.apply(
+            func=lambda row: Path(str(row['Image path'])).name,
+            axis=1,
+        )
         df_out = df_out.merge(df_paths, on=['dicom_id'], how='left')
-        df_out['Image name'] = df_out.apply(lambda row: Path(str(row['Image path'])).name, axis=1)
     else:
         num_images = None
 
     logger.info(f'Number of images..........: {num_images}')
 
-    suffix = 'chexpert' if 'chexpert' in findings_csv else 'negbio'
-    meta_path = os.path.join(save_dir, f'metadata_{suffix}.csv')
+    meta_path = os.path.join(save_dir, 'metadata.csv')
     cols = {
         'dicom_id': 'DICOM ID',
         'subject_id': 'Subject ID',
@@ -91,11 +97,11 @@ def combine_metadata(
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Combine metadata')
-    parser.add_argument('--metadata_csv', default='dataset/mimic/mimic-cxr-2.0.0-metadata.csv.gz', type=str)
-    parser.add_argument('--findings_path', default='dataset/mimic/mimic-cxr-2.0.0-chexpert.csv.gz', type=str)
-    parser.add_argument('--split_csv', default='dataset/mimic/mimic-cxr-2.0.0-split.csv.gz', type=str)
+    parser.add_argument('--metadata_csv', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-metadata.csv.gz', type=str)
+    parser.add_argument('--findings_path', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-chexpert.csv.gz', type=str)
+    parser.add_argument('--split_csv', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-split.csv.gz', type=str)
     parser.add_argument('--dataset_dir', default=None, type=str)
-    parser.add_argument('--save_dir', default='dataset/mimic', type=str)
+    parser.add_argument('--save_dir', default='dataset/MIMIC-CXR', type=str)
     args = parser.parse_args()
 
     combine_metadata(
