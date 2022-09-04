@@ -40,7 +40,7 @@ def process_single_study(
     )
 
     # Save paired images of a study
-    study_dir = os.path.join(save_dir, f'{subject_id}', f'{study_id}')
+    study_dir = os.path.join(save_dir, 'images', f'{subject_id}', f'{study_id}')
     if save_pairs_only:
 
         if is_correct_view and len(df_study) == 2:
@@ -93,8 +93,6 @@ def extract_subset(
         None
     """
 
-    assert disease in DISEASES, f'Incorrect disease: {disease}. Should be one of {DISEASES}'
-
     logger.info(f'Metadata CSV..............: {metadata_csv}')
     logger.info(f'Disease...................: {disease}')
     logger.info(f'Save pairs only...........: {save_pairs_only}')
@@ -117,9 +115,8 @@ def extract_subset(
     )
     df_out = pd.concat(result)
     df_out.reset_index(drop=True, inplace=True)
-    df_out.sort_values(['Subject ID', 'Study ID', 'View'], inplace=True)
-    suffix = '_paired' if save_pairs_only else ''
-    save_path = os.path.join('dataset', f'metadata_{disease.lower()}{suffix}.csv')
+    df_out.sort_values(['Subject ID', 'ID'], inplace=True)
+    save_path = os.path.join(save_dir, f'metadata.csv')
     df_out.to_csv(
         save_path,
         index=False,
