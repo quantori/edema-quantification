@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 def process_single_study(
         group: str,
+        dataset_dir: str,
         save_pairs_only: bool,
         save_dir: str,
 ) -> pd.DataFrame:
@@ -40,15 +41,17 @@ def process_single_study(
     )
 
     # Save paired images of a study
-    study_dir = os.path.join(save_dir, 'images', f'{subject_id}', f'{study_id}')
+    study_dir = os.path.join(save_dir, 'files', f'{subject_id}', f'{study_id}')
     if save_pairs_only:
 
         if is_correct_view and len(df_study) == 2:
             os.makedirs(study_dir, exist_ok=True)
-            for idx, src_path in df_study['Image path'].iteritems():
+            for idx, _src_path in df_study['Image path'].iteritems():
+                src_path = os.path.join(dataset_dir, _src_path)
                 img_name = Path(src_path).name
                 dst_path = os.path.join(study_dir, img_name)
-                df_study.at[idx, 'Image path'] = dst_path
+                _dst_path = os.path.relpath(dst_path, start=save_dir)
+                df_study.at[idx, 'Image path'] = _dst_path
                 df_study.at[idx, 'Image name'] = img_name
                 try:
                     shutil.copy(src_path, dst_path)
@@ -62,10 +65,12 @@ def process_single_study(
     # Save all images of a study
     else:
         os.makedirs(study_dir, exist_ok=True)
-        for idx, src_path in df_study['Image path'].iteritems():
+        for idx, _src_path in df_study['Image path'].iteritems():
+            src_path = os.path.join(dataset_dir, _src_path)
             img_name = Path(src_path).name
             dst_path = os.path.join(study_dir, img_name)
-            df_study.at[idx, 'Image path'] = dst_path
+            _dst_path = os.path.relpath(dst_path, start=save_dir)
+            df_study.at[idx, 'Image path'] = _dst_path
             df_study.at[idx, 'Image name'] = img_name
             try:
                 shutil.copy(src_path, dst_path)
@@ -75,8 +80,8 @@ def process_single_study(
 
 
 def extract_subset(
-        metadata_csv: str,
-        disease: str,
+        dataset_dir: str,
+        finding: str,
         save_pairs_only: bool,
         save_dir: str,
 ) -> None:
@@ -84,8 +89,8 @@ def extract_subset(
     """
 
     Args:
-        metadata_csv: a path to a MIMIC metadata CSV file
-        disease: one of the diseases to be extracted
+        dataset_dir: a path to the MIMIC-CXR dataset
+        finding: one of the findings to be extracted
         save_pairs_only: if True, save only the paired cases (frontal and lateral images)
         save_dir: directory where the output files will be saved
 
@@ -93,24 +98,25 @@ def extract_subset(
         None
     """
 
-    logger.info(f'Metadata CSV..............: {metadata_csv}')
-    logger.info(f'Disease...................: {disease}')
+    logger.info(f'Dataset dir...............: {dataset_dir}')
+    logger.info(f'Finding...................: {finding}')
     logger.info(f'Save pairs only...........: {save_pairs_only}')
     logger.info(f'Save dir..................: {save_dir}')
 
     # Read the source data frame and filter it by the required disease
+    metadata_csv = os.path.join(dataset_dir, 'metadata.csv')
     df = pd.read_csv(metadata_csv)
-    df_disease = df[df[disease] == 1]
+    df_finding = df[df[finding] == 1]
 
     # Processing of the required dataframe
-    groups = df_disease.groupby(['Study ID'])
+    groups = df_finding.groupby(['Study ID'])
     processing_func = partial(
         process_single_study,
-        save_dir=save_dir,
+        dataset_dir=dataset_dir,
         save_pairs_only=save_pairs_only,
+        save_dir=save_dir,
     )
-    num_cores = -1
-    result = Parallel(n_jobs=num_cores)(
+    result = Parallel(n_jobs=-1)(
         delayed(processing_func)(group) for group in tqdm(groups, desc='Dataset conversion', unit=' study')
     )
     df_out = pd.concat(result)
@@ -121,12 +127,12 @@ def extract_subset(
         save_path,
         index=False,
     )
-    logger.info(f'Source images.............: {len(df_disease["DICOM ID"].unique())}')
-    logger.info(f'Output images.............: {len(df_out["DICOM ID"].unique())}')
-    logger.info(f'Source subjects...........: {len(df_disease["Subject ID"].unique())}')
+    logger.info(f'Source subjects...........: {len(df_finding["Subject ID"].unique())}')
     logger.info(f'Output subjects...........: {len(df_out["Subject ID"].unique())}')
-    logger.info(f'Source studies............: {len(df_disease["Study ID"].unique())}')
+    logger.info(f'Source studies............: {len(df_finding["Study ID"].unique())}')
     logger.info(f'Output studies............: {len(df_out["Study ID"].unique())}')
+    logger.info(f'Source images.............: {len(df_finding["DICOM ID"].unique())}')
+    logger.info(f'Output images.............: {len(df_out["DICOM ID"].unique())}')
     logger.info('Complete')
 
 
@@ -150,15 +156,15 @@ if __name__ == '__main__':
     ]
 
     parser = argparse.ArgumentParser(description='Extract MIMIC subset')
-    parser.add_argument('--metadata_csv', default='dataset/mimic/metadata_chexpert.csv', type=str)
+    parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR', type=str)
     parser.add_argument('--disease', default='Edema', type=str, choices=DISEASES)
     parser.add_argument('--save_pairs_only', action='store_true')
-    parser.add_argument('--save_dir', default='dataset/mimic_edema', type=str)
+    parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema', type=str)
     args = parser.parse_args()
 
     extract_subset(
-        metadata_csv=args.metadata_csv,
-        disease=args.disease,
+        dataset_dir=args.dataset_dir,
+        finding=args.disease,
         save_pairs_only=args.save_pairs_only,
         save_dir=args.save_dir,
     )
