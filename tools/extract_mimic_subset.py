@@ -3,6 +3,7 @@ import shutil
 import logging
 import argparse
 from pathlib import Path
+from typing import Tuple
 from functools import partial
 from joblib import Parallel, delayed
 
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def process_single_study(
-        group: str,
+        group: Tuple[int, pd.DataFrame],
         dataset_dir: str,
         save_pairs_only: bool,
         save_dir: str,
