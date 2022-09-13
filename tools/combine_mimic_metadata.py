@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+
 from utils import get_file_list
 
 os.makedirs('logs', exist_ok=True)
