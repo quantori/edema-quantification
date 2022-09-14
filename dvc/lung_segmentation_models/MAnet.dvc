@@ -1,4 +1,4 @@
-wdir: ../models/lung_segmentation/MAnet
+wdir: ../../models/lung_segmentation_models/MAnet
 outs:
 - md5: 785ead3b302ca813644aa945b5e26c3b
   size: 54276223
