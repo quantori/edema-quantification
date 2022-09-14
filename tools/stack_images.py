@@ -27,7 +27,7 @@ def stack_single_study(
         group: Tuple[int, pd.DataFrame],
         img_height: int,
         save_dir: str,
-) -> None:
+) -> pd.DataFrame:
 
     _, df_study = group
     df_study.reset_index(drop=True, inplace=True)
@@ -53,8 +53,34 @@ def stack_single_study(
     subject_name = df_study.loc[0, 'Subject ID']
     study_name = df_study.loc[0, 'Study ID']
     img_name = f'{subject_name}_{study_name}_{img_frontal.shape[1]}_{img_lateral.shape[1]}.png'
-    save_path = os.path.join(save_dir, img_name)
+    save_path = os.path.join(save_dir, 'files', img_name)
     cv2.imwrite(save_path, img_out)
+
+    # Change study metadata
+    df_out = df_frontal.copy(deep=True)
+    df_out.reset_index(drop=True, inplace=True)
+
+    # Update DICOM IDs
+    dicom_id_frontal = df_frontal.iloc[0]['DICOM ID']
+    dicom_id_lateral = df_lateral.iloc[0]['DICOM ID']
+    dicom_id_idx = df_out.columns.get_loc('DICOM ID')
+    df_out.insert(dicom_id_idx+1, 'DICOM ID LL', dicom_id_lateral)
+    df_out.at[0, 'DICOM ID'] = dicom_id_frontal
+    df_out.rename(columns={'DICOM ID': 'DICOM ID FR'}, inplace=True)
+
+    # Update view values
+    df_out.at[0, 'View'] = 'STACKED'
+    df_out.at[0, 'View Code'] = 'stacked'
+
+    # Update image dimensions
+    df_out.at[0, 'Height'] = img_out.shape[0]
+    df_out.at[0, 'Width'] = img_out.shape[1]
+    width_idx = df_out.columns.get_loc('Width')
+    df_out.insert(width_idx + 1, 'Width FR', img_frontal.shape[1])
+    df_out.insert(width_idx + 2, 'Width LL', img_lateral.shape[1])
+    df_out.at[0, 'Image path'] = os.path.relpath(save_path, start=save_dir)
+    df_out.at[0, 'Image name'] = img_name
+    return df_out
 
 
 def stack_images(
@@ -89,14 +115,23 @@ def stack_images(
     groups = df.groupby(['Study ID'])
 
     # Multiprocessing of the dataset
-    os.makedirs(save_dir, exist_ok=True)
+    img_dir = os.path.join(save_dir, 'files')
+    os.makedirs(img_dir, exist_ok=True)
     processing_func = partial(
         stack_single_study,
         img_height=img_height,
         save_dir=save_dir,
     )
     result = Parallel(n_jobs=-1)(
-        delayed(processing_func)(group) for group in tqdm(groups, desc='Stacking', unit=' study')
+        delayed(processing_func)(group) for group in tqdm(groups, desc='Stacking images', unit=' study')
+    )
+    df_out = pd.concat(result)
+    df_out.reset_index(drop=True, inplace=True)
+    df_out.sort_values(['Subject ID', 'ID'], inplace=True)
+    save_path = os.path.join(save_dir, f'metadata.csv')
+    df_out.to_csv(
+        save_path,
+        index=False,
     )
 
 
