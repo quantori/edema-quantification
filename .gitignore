@@ -132,7 +132,7 @@ dmypy.json
 dataset/
 
 # Models
-models/
+*.pth
 
 # Different computations
 calculations/
