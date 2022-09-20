@@ -16,3 +16,4 @@ black==22.6.0
 openpyxl==3.0.10
 matplotlib==3.5.3
 joblib==1.1.0
+imutils==0.5.4

@@ -131,8 +131,11 @@ dmypy.json
 # Dataset
 dataset/
 
+# Dataset on DVC
+!dvc/dataset/
+
 # Models
-models/
+*.pth
 
 # Different computations
 calculations/

@@ -1,0 +1,5 @@
+wdir: ../../dataset
+outs:
+- md5: b4210931e1d78de42a09aa9c3fe1e5a8
+  size: 12266455148
+  path: MIMIC-CXR-Edema.zip
