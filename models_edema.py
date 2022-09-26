@@ -8,6 +8,7 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 from torchvision import transforms
+from torchsummary import summary
 
 
 class SqueezeNet(nn.Module):
@@ -35,6 +36,7 @@ class SqueezeNet(nn.Module):
         self.model = torch.hub.load(
             "pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=pretrained
         )
+        del self.model.classifier
 
         self.preprocessed = preprocessed
 
@@ -111,7 +113,7 @@ class EdemaNet(pl.LightningModule):
         # automatically to gpu)
         self.prototype_layer = nn.Parameter(torch.rand(prototype_shape), requires_grad=True)
 
-        # Last fully connected layer for the classification of edema features. The bias is not used
+        # last fully connected layer for the classification of edema features. The bias is not used
         # in the original paper
         self.last_layer = nn.Linear(self.num_prototypes, num_classes, bias=False)
 
@@ -200,3 +202,11 @@ class EdemaNet(pl.LightningModule):
             )
 
             return transient_layers
+
+
+if __name__ == "__main__":
+
+    sq_net = SqueezeNet()
+    # del sq_net.model.classifier
+    summary(sq_net.model, )
+
