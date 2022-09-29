@@ -8,6 +8,7 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 from torchvision import transforms
+from torchvision.models import squeezenet
 from torchsummary import summary
 
 
@@ -102,6 +103,7 @@ class EdemaNet(pl.LightningModule):
 
         self.transient_layers_type = transient_layers_type
         self.num_prototypes = prototype_shape[0]
+        self.prototype_shape = prototype_shape
 
         # encoder
         self.encoder = encoder
@@ -111,7 +113,7 @@ class EdemaNet(pl.LightningModule):
 
         # prototypes layer (do not make this just a tensor, since it will not be moved
         # automatically to gpu)
-        self.prototype_layer = nn.Parameter(torch.rand(prototype_shape), requires_grad=True)
+        self.prototype_layer = nn.Parameter(torch.rand(self.prototype_shape), requires_grad=True)
 
         # last fully connected layer for the classification of edema features. The bias is not used
         # in the original paper
@@ -142,9 +144,10 @@ class EdemaNet(pl.LightningModule):
             torch.nn.Sequential: transient layers as the PyTorch Sequential class.
         """
 
-        first_transient_layer_in_channels = [
-            i for i in encoder.modules() if isinstance(i, nn.Conv2d)
-        ][-1].out_channels
+        first_transient_layer_in_channels = (
+            2 * [i for i in encoder.modules() if isinstance(i, nn.Conv2d)][-1].out_channels
+        )
+        print(first_transient_layer_in_channels)
 
         # automatic adjustment of the transient-layer channels for matching with the prototype
         # channels. The activation functions of the intermediate and last transient layers are ReLU
@@ -207,6 +210,10 @@ class EdemaNet(pl.LightningModule):
 if __name__ == "__main__":
 
     sq_net = SqueezeNet()
-    # del sq_net.model.classifier
-    summary(sq_net.model, )
-
+    # summary(sq_net.model, (3, 224, 224))
+    edema_net = EdemaNet(sq_net.model, 5, prototype_shape=(1, 512, 1, 1))
+    print(edema_net._make_transient_layers(sq_net.model))
+    # for module in sq_net.model.modules():
+    #     print(module)
+    # print(dict(sq_net.model.named_children()))
+    # print(sq_net.model.children()[0])
