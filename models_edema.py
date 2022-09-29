@@ -3,13 +3,11 @@
 The description to be filled...
 """
 
-from typing import Any, Tuple
+from typing import Tuple
 import torch
 from torch import nn
 import pytorch_lightning as pl
 from torchvision import transforms
-from torchvision.models import squeezenet
-from torchsummary import summary
 
 
 class SqueezeNet(nn.Module):
