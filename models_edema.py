@@ -142,10 +142,15 @@ class EdemaNet(pl.LightningModule):
             torch.nn.Sequential: transient layers as the PyTorch Sequential class.
         """
 
-        first_transient_layer_in_channels = (
-            2 * [i for i in encoder.modules() if isinstance(i, nn.Conv2d)][-1].out_channels
-        )
-        print(first_transient_layer_in_channels)
+        if encoder.__class__.__name__ == "SqueezeNet":
+            first_transient_layer_in_channels = (
+                2 * [i for i in encoder.modules() if isinstance(i, nn.Conv2d)][-1].out_channels
+            )
+            print(first_transient_layer_in_channels)
+        else:
+            first_transient_layer_in_channels = [
+                i for i in encoder.modules() if isinstance(i, nn.Conv2d)
+            ][-1].out_channels
 
         # automatic adjustment of the transient-layer channels for matching with the prototype
         # channels. The activation functions of the intermediate and last transient layers are ReLU
@@ -211,6 +216,7 @@ if __name__ == "__main__":
     # summary(sq_net.model, (3, 224, 224))
     edema_net = EdemaNet(sq_net.model, 5, prototype_shape=(1, 512, 1, 1))
     print(edema_net._make_transient_layers(sq_net.model))
+    # print(sq_net.model.__class__.__name__)
     # for module in sq_net.model.modules():
     #     print(module)
     # print(dict(sq_net.model.named_children()))
