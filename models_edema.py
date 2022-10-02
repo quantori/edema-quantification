@@ -39,8 +39,6 @@ class SqueezeNet(nn.Module):
 
         self.preprocessed = preprocessed
 
-        # self.l1 = nn.Sequential(nn.Linear(28 * 28, 64), nn.ReLU(), nn.Linear(64, 3))
-
     def forward(self, x):
 
         if self.preprocessed:
@@ -118,8 +116,16 @@ class EdemaNet(pl.LightningModule):
         self.last_layer = nn.Linear(self.num_prototypes, num_classes, bias=False)
 
     def forward(self, x):
-        pass
-        # return torch.relu(self.l1(x.view(x.size(0), -1)))
+        # x is of dimension (batch, 4, spatial, spatial). The one extra channel is fine annotations
+        x = x[:, 0:3, :, :]  # (no view; create slice. When no fa is available this will return x)
+        distances = self.prototype_distances(x)
+
+    def prototype_distances(self, x):
+        """Returns prototype distances.
+
+        Args:
+            x (Any): raw input.
+        """
 
     def training_step(self, batch, batch_idx):
         pass
