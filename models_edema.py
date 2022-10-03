@@ -17,12 +17,6 @@ class SqueezeNet(nn.Module):
     3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The
     images have to be loaded in to a range of [0, 1] and then normalized using
     mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
-
-    Args:
-        nn (_type_): _description_
-
-    Returns:
-        torch.nn.Module: SqueezeNet.
     """
 
     def __init__(
@@ -30,6 +24,13 @@ class SqueezeNet(nn.Module):
         preprocessed: bool = True,
         pretrained: bool = True,
     ):
+        """SqueezeNet encoder.
+
+        Args:
+            preprocessed (bool, optional): _description_. Defaults to True.
+            pretrained (bool, optional): _description_. Defaults to True.
+        """
+
         super().__init__()
 
         self.model = torch.hub.load(
@@ -76,16 +77,6 @@ class EdemaNet(pl.LightningModule):
     A complete model is implemented (includes the encoder, transient, prototype and fully connected
     layers). The transient layers are required to concatenate the main encoder layers with the
     prototype layer. The encoder is the variable part of EdemaNet, which is passed as an argument.
-
-    Args:
-        encoder (nn.Module): encoder layers implemented as a distinct class.
-        num_classes (int): the number of feature classes.
-        prototype_shape (Tuple): the shape of the prototypes (batch, channels, H, W).
-        transient_layers_type (str): the architecture of the transient layers. If == 'bottleneck',
-                                     the number of channels is adjusted automatically.
-
-    Returns:
-        pl.LightningModule: EdemaNet.
     """
 
     def __init__(
@@ -95,6 +86,17 @@ class EdemaNet(pl.LightningModule):
         prototype_shape: Tuple,
         transient_layers_type: str = "bottleneck",
     ):
+        """PyTorch Lightning model class.
+
+        Args:
+            encoder (nn.Module): encoder layers implemented as a distinct class.
+            num_classes (int): the number of feature classes.
+            prototype_shape (Tuple): the shape of the prototypes (batch, channels, H, W).
+            transient_layers_type (str, optional): the architecture of the transient layers. If ==
+                                                   'bottleneck', the number of channels is adjusted
+                                                   automatically.
+        """
+
         super().__init__()
 
         self.transient_layers_type = transient_layers_type
@@ -118,14 +120,56 @@ class EdemaNet(pl.LightningModule):
     def forward(self, x):
         # x is of dimension (batch, 4, spatial, spatial). The one extra channel is fine annotations
         x = x[:, 0:3, :, :]  # (no view; create slice. When no fa is available this will return x)
+
+        x = self.encoder(x)
+        x = self.transient_layers(x)
         distances = self.prototype_distances(x)
 
     def prototype_distances(self, x):
         """Returns prototype distances.
 
+        Slices through the image in the latent space and calculates a p-norm distance between the
+        image patches and prototypes.
+
         Args:
-            x (Any): raw input.
+            x (Any): image after convolution layers.
         """
+
+        # x is the conv output, shape=[Batch * channel * conv output shape]
+        batch = x.shape[0]
+
+        # if the input is (batch, 512, 14, 14) and the kernel_size = (1, 1), the output will be
+        # (batch, 512=512*1*1, 228=14*14)
+        expanded_x = nn.Unfold(kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(x)
+        expanded_x = expanded_x.unsqueeze(0).permute(0, 1, 3, 2)
+        # expanded shape = [1, batch, number of such blocks, channel*proto_shape[2]*proto_shape[3]]
+        expanded_x = expanded_x.contiguous().view(
+            1, -1, self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
+        )
+        expanded_proto = nn.Unfold(kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(
+            self.prototype_vectors
+        ).unsqueeze(0)
+        # expanded proto shape = [1, proto num, channel*proto_shape[2]*proto_shape[3], 1]
+        expanded_distances = torch.cdist(
+            expanded_x, expanded_proto.contiguous().view(1, expanded_proto.shape[1], -1)
+        )
+        # [1, Batch * number of blocks in x, num proto]
+        expanded_distances = torch.reshape(
+            expanded_distances, shape=(batch, -1, self.prototype_shape[0])
+        ).permute(0, 2, 1)
+        # print(expanded_distances.shape)
+        # distances = nn.Fold(output_size=(x.shape[2] - self.prototype_shape[2] + 1, x.shape[3]- self.prototype_shape[3] + 1), kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(expanded_distances)
+        distances = torch.reshape(
+            expanded_distances,
+            shape=(
+                batch,
+                self.prototype_shape[0],
+                x.shape[2] - self.prototype_shape[2] + 1,
+                x.shape[3] - self.prototype_shape[3] + 1,
+            ),
+        )
+        # distance shape = [batch, proto num, conv output shape]
+        return distances
 
     def training_step(self, batch, batch_idx):
         pass
