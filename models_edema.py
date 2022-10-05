@@ -138,27 +138,52 @@ class EdemaNet(pl.LightningModule):
         # x is the conv output, shape=[Batch * channel * conv output shape]
         batch = x.shape[0]
 
-        # if the input is (batch, 512, 14, 14) and the kernel_size = (1, 1), the output will be
-        # (batch, 512=512*1*1, 228=14*14)
+        # if the input is (batch, 512, 14, 14) and the kernel_size=(1, 1), the output will be
+        # (batch, 512=512*1*1, 196=14*14)
         expanded_x = nn.Unfold(kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(x)
-        expanded_x = expanded_x.unsqueeze(0).permute(0, 1, 3, 2)
+
         # expanded shape = [1, batch, number of such blocks, channel*proto_shape[2]*proto_shape[3]]
+        expanded_x = expanded_x.unsqueeze(0).permute(0, 1, 3, 2)
+
+        # change the input tensor into contiguous in memory tensor (make a copy). The output of the
+        # view() (if input=(1, batch, 196, 512)) -> a tensor of (1, batch*196, 512=512*1*1)
+        # dimension (if the prototype dimensions are (num_prototypes, 512, 1, 1)). -1 means that
+        # this dimension is calculated based on other dimensions
         expanded_x = expanded_x.contiguous().view(
             1, -1, self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
         )
+
+        # if the input tensor is (num_prototypes, 512, 1, 1) and the kernel_size=(1, 1), the output
+        # is (1, num_prototypes, 512=512*1*1, 1=1*1).
+        # Expanded proto shape = [1, proto num, channel*proto_shape[2]*proto_shape[3], 1]
         expanded_proto = nn.Unfold(kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(
-            self.prototype_vectors
+            self.prototype_layer
         ).unsqueeze(0)
-        # expanded proto shape = [1, proto num, channel*proto_shape[2]*proto_shape[3], 1]
-        expanded_distances = torch.cdist(
-            expanded_x, expanded_proto.contiguous().view(1, expanded_proto.shape[1], -1)
-        )
-        # [1, Batch * number of blocks in x, num proto]
+
+        # if the input is (1, num_prototypes, 512, 1), the output is (1, num_prototypes, 512=512*1)
+        expanded_proto = expanded_proto.contiguous().view(1, expanded_proto.shape[1], -1)
+
+        # the output is (1, Batch * number of blocks in x, num_prototypes). If expanded_x is
+        # (1, batch*196, 512) and expanded_proto is (1, num_prototypes, 512), the output shape is
+        # (1, batch*196, num_prototypes). The default p value for the p-norm distance = 2 (euclidean
+        # distance)
+        expanded_distances = torch.cdist(expanded_x, expanded_proto)
+
+        # (1, batch*196, num_prototypes) -> (batch, num_prototypes, 1*196)
         expanded_distances = torch.reshape(
             expanded_distances, shape=(batch, -1, self.prototype_shape[0])
         ).permute(0, 2, 1)
+
         # print(expanded_distances.shape)
-        # distances = nn.Fold(output_size=(x.shape[2] - self.prototype_shape[2] + 1, x.shape[3]- self.prototype_shape[3] + 1), kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(expanded_distances)
+        # distances = nn.Fold(
+        #     output_size=(
+        #         x.shape[2] - self.prototype_shape[2] + 1,
+        #         x.shape[3] - self.prototype_shape[3] + 1,
+        #     ),
+        #     kernel_size=(self.prototype_shape[2], self.prototype_shape[3]),
+        # )(expanded_distances)
+
+        # distance shape = (batch, num_prototypes, conv output shape)
         distances = torch.reshape(
             expanded_distances,
             shape=(
@@ -168,7 +193,7 @@ class EdemaNet(pl.LightningModule):
                 x.shape[3] - self.prototype_shape[3] + 1,
             ),
         )
-        # distance shape = [batch, proto num, conv output shape]
+
         return distances
 
     def training_step(self, batch, batch_idx):
@@ -265,7 +290,12 @@ if __name__ == "__main__":
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
     edema_net = EdemaNet(sq_net.model, 5, prototype_shape=(1, 512, 1, 1))
-    print(edema_net._make_transient_layers(sq_net.model))
+    # print(edema_net._make_transient_layers(sq_net.model))
+    x = torch.rand(1, 512, 14, 14)
+    # print(x)
+    # print(edema_net.prototype_layer)
+    distances = edema_net.prototype_distances(x=x)
+    # print(distances)
     # print(sq_net.model.__class__.__name__)
     # for module in sq_net.model.modules():
     #     print(module)
