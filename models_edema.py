@@ -8,6 +8,7 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 from torchvision import transforms
+import numpy as np
 
 
 class SqueezeNet(nn.Module):
@@ -292,8 +293,8 @@ if __name__ == "__main__":
     edema_net = EdemaNet(sq_net.model, 5, prototype_shape=(1, 512, 1, 1))
     # print(edema_net._make_transient_layers(sq_net.model))
     x = torch.rand(1, 512, 14, 14)
-    # print(x)
-    # print(edema_net.prototype_layer)
+    # print(x[0][0])
+    # print(edema_net.prototype_layer[0][0])
     distances = edema_net.prototype_distances(x=x)
     # print(distances)
     # print(sq_net.model.__class__.__name__)
@@ -301,3 +302,8 @@ if __name__ == "__main__":
     #     print(module)
     # print(dict(sq_net.model.named_children()))
     # print(sq_net.model.children()[0])
+
+    # y1 = torch.rand(1, 196, 512)
+    # y2 = torch.rand(1, 1, 512)
+    # d = torch.cdist(y1, y2)
+    # print(d)
