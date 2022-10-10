@@ -34,19 +34,26 @@ class SqueezeNet(nn.Module):
 
         super().__init__()
 
-        self.model = torch.hub.load(
-            "pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=pretrained
-        )
+        self.model = torch.hub.load("pytorch/vision:v0.10.0", "squeezenet1_1", weights="DEFAULT")
         del self.model.classifier
 
         self.preprocessed = preprocessed
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
+        """Forward implementation.
 
+        Uses only the model.features component of SqueezeNet without model.classifier.
+
+        Args:
+            x: raw input in format (batch, channels, spatial, spatial)
+
+        Returns:
+            torch.Tensor: convolution layers after passing the SqueezNet backbone
+        """
         if self.preprocessed:
             x = self.preprocess(x)
 
-        return self.model(x)
+        return self.model.features(x)
 
     def preprocess(self, x):
         """Image preprocessing function.
@@ -54,17 +61,17 @@ class SqueezeNet(nn.Module):
         To make image preprocessing model specific and modular.
 
         Args:
-            x (Any): input image.
+            x: input image.
 
         Returns:
-            Any: preprocessed image.
+            preprocessed image.
         """
 
         preprocess = transforms.Compose(
             [
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
-                transforms.ToTensor(),
+                # transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
@@ -290,13 +297,19 @@ if __name__ == "__main__":
 
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
-    edema_net = EdemaNet(sq_net.model, 5, prototype_shape=(1, 512, 1, 1))
+    edema_net = EdemaNet(sq_net, 5, prototype_shape=(1, 512, 1, 1))
     # print(edema_net._make_transient_layers(sq_net.model))
     x = torch.rand(1, 512, 14, 14)
+    y = torch.rand(1, 3, 300, 300)
+    print(y.shape)
     # print(x[0][0])
     # print(edema_net.prototype_layer[0][0])
-    distances = edema_net.prototype_distances(x=x)
-    # print(distances)
+    y = edema_net.encoder(y)
+    print(y.shape)
+    y = edema_net.transient_layers(y)
+    print(y.shape)
+    distances = edema_net.prototype_distances(y)
+    print(distances.shape)
     # print(sq_net.model.__class__.__name__)
     # for module in sq_net.model.modules():
     #     print(module)
