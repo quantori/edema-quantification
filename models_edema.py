@@ -3,12 +3,14 @@
 The description to be filled...
 """
 
+from turtle import shape
 from typing import Tuple
 import torch
 from torch import nn
 import pytorch_lightning as pl
 from torchvision import transforms
 import numpy as np
+import torch.nn.functional as F
 
 
 class SqueezeNet(nn.Module):
@@ -93,6 +95,7 @@ class EdemaNet(pl.LightningModule):
         num_classes: int,
         prototype_shape: Tuple,
         transient_layers_type: str = "bottleneck",
+        top_k: int = 1,
     ):
         """PyTorch Lightning model class.
 
@@ -103,6 +106,8 @@ class EdemaNet(pl.LightningModule):
             transient_layers_type (str, optional): the architecture of the transient layers. If ==
                                                    'bottleneck', the number of channels is adjusted
                                                    automatically.
+            top_k (int): the number of the closest distances between patches and prototypes to be
+                         considered for the similarity score calculation
         """
 
         super().__init__()
@@ -110,6 +115,8 @@ class EdemaNet(pl.LightningModule):
         self.transient_layers_type = transient_layers_type
         self.num_prototypes = prototype_shape[0]
         self.prototype_shape = prototype_shape
+        self.top_k = top_k  # for a 14x14: top_k=3 is 1.5%, top_k=9 is 4.5%
+        self.epsilon = 1e-4  # needed for the similarity calculation
 
         # encoder
         self.encoder = encoder
@@ -133,14 +140,41 @@ class EdemaNet(pl.LightningModule):
         x = self.transient_layers(x)
         distances = self.prototype_distances(x)
 
-    def prototype_distances(self, x):
+        _distances = distances.view(distances.shape[0], distances.shape[1], -1)
+        # in topk(), if dim is not given, the last dimension of the input is chosen
+        closest_k_distances, _ = torch.topk(_distances, self.top_k, largest=False)
+        min_distances = F.avg_pool1d(
+            closest_k_distances, kernel_size=closest_k_distances.shape[2]
+        ).view(-1, self.num_prototypes)
+
+        prototype_activations = torch.log((distances + 1) / (distances + self.epsilon))
+        _activations = prototype_activations.view(
+            prototype_activations.shape[0], prototype_activations.shape[1], -1
+        )
+        top_k_activations, _ = torch.topk(_activations, self.top_k)
+        prototype_activations = F.avg_pool1d(
+            top_k_activations, kernel_size=top_k_activations.shape[2]
+        ).view(-1, self.num_prototypes)
+
+    def training_step(self, batch, batch_idx):
+        pass
+        # x, y = batch
+        # y_hat = self(x)
+        # loss = F.cross_entropy(y_hat, y)
+        # return loss
+
+    def configure_optimizers(self):
+        pass
+        # return torch.optim.Adam(self.parameters(), lr=0.02)
+
+    def prototype_distances(self, x: torch.Tensor) -> torch.Tensor:
         """Returns prototype distances.
 
         Slices through the image in the latent space and calculates a p-norm distance between the
         image patches and prototypes.
 
         Args:
-            x (Any): image after convolution layers.
+            x (torch.Tensor): image after convolution layers.
         """
 
         # x is the conv output, shape=[Batch * channel * conv output shape]
@@ -203,17 +237,6 @@ class EdemaNet(pl.LightningModule):
         )
 
         return distances
-
-    def training_step(self, batch, batch_idx):
-        pass
-        # x, y = batch
-        # y_hat = self(x)
-        # loss = F.cross_entropy(y_hat, y)
-        # return loss
-
-    def configure_optimizers(self):
-        pass
-        # return torch.optim.Adam(self.parameters(), lr=0.02)
 
     def _make_transient_layers(self, encoder: torch.nn.Module) -> torch.nn.Sequential:
         """Returns transient layers.
@@ -297,19 +320,43 @@ if __name__ == "__main__":
 
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
-    edema_net = EdemaNet(sq_net, 5, prototype_shape=(1, 512, 1, 1))
+    edema_net = EdemaNet(sq_net, 5, prototype_shape=(5, 512, 1, 1))
     # print(edema_net._make_transient_layers(sq_net.model))
     x = torch.rand(1, 512, 14, 14)
-    y = torch.rand(1, 3, 300, 300)
-    print(y.shape)
-    # print(x[0][0])
-    # print(edema_net.prototype_layer[0][0])
+    y = torch.rand(64, 3, 300, 300)
+
     y = edema_net.encoder(y)
-    print(y.shape)
     y = edema_net.transient_layers(y)
-    print(y.shape)
     distances = edema_net.prototype_distances(y)
     print(distances.shape)
+
+    # _distances = distances.view(distances.shape[0], distances.shape[1], -1)
+    # print(_distances)
+    # closest_k_distances, _ = torch.topk(_distances, 5, largest=False)
+    # print(closest_k_distances)
+    # min_distances = F.avg_pool1d(closest_k_distances, kernel_size=closest_k_distances.shape[2])
+    # print(min_distances)
+
+    prototype_activations = torch.log((distances + 1) / (distances + 1e-4))
+    print(prototype_activations.shape)
+    _activations = prototype_activations.view(
+        prototype_activations.shape[0], prototype_activations.shape[1], -1
+    )
+    print(_activations.shape)
+    top_k_activations, _ = torch.topk(_activations, 5)
+    print(top_k_activations.shape)
+    prototype_activations = F.avg_pool1d(
+        top_k_activations, kernel_size=top_k_activations.shape[2]
+    ).view(-1, 5)
+    print(prototype_activations.shape)
+    # # print(x[0][0])
+    # # print(edema_net.prototype_layer[0][0])
+    # y = edema_net.encoder(y)
+    # print(y.shape)
+    # y = edema_net.transient_layers(y)
+    # print(y.shape)
+    # distances = edema_net.prototype_distances(y)
+    # print(distances.shape)
     # print(sq_net.model.__class__.__name__)
     # for module in sq_net.model.modules():
     #     print(module)
