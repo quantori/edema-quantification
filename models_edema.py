@@ -156,6 +156,15 @@ class EdemaNet(pl.LightningModule):
             top_k_activations, kernel_size=top_k_activations.shape[2]
         ).view(-1, self.num_prototypes)
 
+        logits = self.last_layer(prototype_activations)
+
+        activation = torch.log((distances + 1) / (distances + self.epsilon))
+        upsampled_activation = torch.nn.Upsample(
+            size=(x.shape[2], x.shape[3]), mode="bilinear", align_corners=False
+        )(activation)
+
+        return logits, min_distances, upsampled_activation
+
     def training_step(self, batch, batch_idx):
         pass
         # x, y = batch
@@ -320,7 +329,7 @@ if __name__ == "__main__":
 
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
-    edema_net = EdemaNet(sq_net, 5, prototype_shape=(5, 512, 1, 1))
+    edema_net = EdemaNet(sq_net, 3, prototype_shape=(5, 512, 1, 1))
     # print(edema_net._make_transient_layers(sq_net.model))
     x = torch.rand(1, 512, 14, 14)
     y = torch.rand(64, 3, 300, 300)
@@ -337,18 +346,24 @@ if __name__ == "__main__":
     # min_distances = F.avg_pool1d(closest_k_distances, kernel_size=closest_k_distances.shape[2])
     # print(min_distances)
 
-    prototype_activations = torch.log((distances + 1) / (distances + 1e-4))
-    print(prototype_activations.shape)
-    _activations = prototype_activations.view(
-        prototype_activations.shape[0], prototype_activations.shape[1], -1
-    )
-    print(_activations.shape)
-    top_k_activations, _ = torch.topk(_activations, 5)
-    print(top_k_activations.shape)
-    prototype_activations = F.avg_pool1d(
-        top_k_activations, kernel_size=top_k_activations.shape[2]
-    ).view(-1, 5)
-    print(prototype_activations.shape)
+    # print(edema_net.forward(y)[0].shape)
+
+    # prototype_activations = torch.log((distances + 1) / (distances + 1e-4))
+    # print(prototype_activations.shape)
+    # _activations = prototype_activations.view(
+    #     prototype_activations.shape[0], prototype_activations.shape[1], -1
+    # )
+    # print(_activations.shape)
+    # top_k_activations, _ = torch.topk(_activations, 5)
+    # print(top_k_activations.shape)
+    # prototype_activations = F.avg_pool1d(
+    #     top_k_activations, kernel_size=top_k_activations.shape[2]
+    # ).view(-1, 5)
+    # print(prototype_activations.shape)
+    # logits = edema_net.last_layer(prototype_activations)
+    # print(logits)
+    # logits[:, 0] = 0
+    # print(logits)
     # # print(x[0][0])
     # # print(edema_net.prototype_layer[0][0])
     # y = edema_net.encoder(y)
