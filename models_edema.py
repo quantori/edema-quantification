@@ -96,6 +96,7 @@ class EdemaNet(pl.LightningModule):
         prototype_shape: Tuple,
         transient_layers_type: str = "bottleneck",
         top_k: int = 1,
+        fine_loader: torch.utils.data.DataLoader = None,
     ):
         """PyTorch Lightning model class.
 
@@ -117,6 +118,7 @@ class EdemaNet(pl.LightningModule):
         self.prototype_shape = prototype_shape
         self.top_k = top_k  # for a 14x14: top_k=3 is 1.5%, top_k=9 is 4.5%
         self.epsilon = 1e-4  # needed for the similarity calculation
+        self.fine_loader = fine_loader
 
         # encoder
         self.encoder = encoder
@@ -166,7 +168,26 @@ class EdemaNet(pl.LightningModule):
         return logits, min_distances, upsampled_activation
 
     def training_step(self, batch, batch_idx):
-        pass
+
+        image, label = batch
+        if self.fine_loader:
+            fine_image, fine_label = next(iter(self.fine_loader))
+            # print(image.shape)
+            # image and  fine_image have to have the same channel dimension (batch,  channel, W, H)
+            image = torch.cat((image, fine_image))
+            label = torch.cat((label, fine_label))
+            # print(image.shape)
+        if image.shape[1] == 4:
+            with_fa = True
+            fine_annotation = image[:, 3:4, :, :]
+            image = image[:, 0:3, :, :]  # (no view, create slice)
+        elif image.shape[1] == 3:
+            # means everything can be relevant
+            fine_annotation = torch.zeros(size=(image.shape[0], 1, image.shape[2], image.shape[3]))
+            image = image
+        fine_annotation = fine_annotation.cuda()
+        input = image.cuda()
+        target = label.cuda()
         # x, y = batch
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
@@ -333,18 +354,21 @@ if __name__ == "__main__":
     # print(edema_net._make_transient_layers(sq_net.model))
     x = torch.rand(1, 512, 14, 14)
     y = torch.rand(64, 3, 300, 300)
+    z = torch.rand(10, 3, 300, 300)
+
+    # print(torch.cat((y, z)).shape)
 
     y = edema_net.encoder(y)
     y = edema_net.transient_layers(y)
     distances = edema_net.prototype_distances(y)
     print(distances.shape)
 
-    # _distances = distances.view(distances.shape[0], distances.shape[1], -1)
+    _distances = distances.view(distances.shape[0], distances.shape[1], -1)
     # print(_distances)
-    # closest_k_distances, _ = torch.topk(_distances, 5, largest=False)
+    closest_k_distances, _ = torch.topk(_distances, 5, largest=False)
     # print(closest_k_distances)
-    # min_distances = F.avg_pool1d(closest_k_distances, kernel_size=closest_k_distances.shape[2])
-    # print(min_distances)
+    min_distances = F.avg_pool1d(closest_k_distances, kernel_size=closest_k_distances.shape[2])
+    print(min_distances.shape)
 
     # print(edema_net.forward(y)[0].shape)
 
