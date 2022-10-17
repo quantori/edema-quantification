@@ -169,6 +169,7 @@ class EdemaNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
 
+        # retrieve fine annotations
         image, label = batch
         if self.fine_loader:
             fine_image, fine_label = next(iter(self.fine_loader))
@@ -188,6 +189,20 @@ class EdemaNet(pl.LightningModule):
         fine_annotation = fine_annotation.cuda()
         input = image.cuda()
         target = label.cuda()
+
+        # nn.Module has implemented __call__() function
+        # so no need to call .forward
+        output, min_distances, upsampled_activation = self(input)
+        # compute classification loss
+        cross_entropy = torch.nn.functional.cross_entropy(output, target)
+
+        # prototypes_of_correct_class is a tensor of shape batch_size * num_prototypes
+        # calculate cluster cost
+        prototypes_of_correct_class = torch.t(self.module.prototype_class_identity[:, label]).cuda()
+        inverted_distances, _ = torch.max(
+            (max_dist - min_distances) * prototypes_of_correct_class, dim=1
+        )
+        cluster_cost = torch.mean(max_dist - inverted_distances)
         # x, y = batch
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
@@ -367,8 +382,18 @@ if __name__ == "__main__":
     # print(_distances)
     closest_k_distances, _ = torch.topk(_distances, 5, largest=False)
     # print(closest_k_distances)
-    min_distances = F.avg_pool1d(closest_k_distances, kernel_size=closest_k_distances.shape[2])
+    min_distances = F.avg_pool1d(
+        closest_k_distances, kernel_size=closest_k_distances.shape[2]
+    ).view(-1, 5)
     print(min_distances.shape)
+
+    max_dist = (
+        edema_net.prototype_shape[1] * edema_net.prototype_shape[2] * edema_net.prototype_shape[3]
+    )
+
+    print(max_dist)
+
+    print(max_dist - min_distances)
 
     # print(edema_net.forward(y)[0].shape)
 
