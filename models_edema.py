@@ -121,6 +121,14 @@ class EdemaNet(pl.LightningModule):
         self.epsilon = 1e-4  # needed for the similarity calculation
         self.fine_loader = fine_loader
 
+        # onehot indication matrix for prototypes (num_prototypes, num_classes)
+        self.prototype_class_identity = torch.zeros(self.num_prototypes, num_classes)
+        num_prototypes_per_class = self.num_prototypes // num_classes
+        # fills with 1 only those prototypes, which correspond to the correct class. The rest is
+        # filled with 0
+        for j in range(self.num_prototypes):
+            self.prototype_class_identity[j, j // num_prototypes_per_class] = 1
+
         # encoder
         self.encoder = encoder
 
@@ -171,39 +179,38 @@ class EdemaNet(pl.LightningModule):
     def training_step(self, batch, batch_idx):
 
         # retrieve fine annotations
-        image, label = batch
+        images, labels = batch
         if self.fine_loader:
-            fine_image, fine_label = next(iter(self.fine_loader))
+            fine_images, fine_labels = next(iter(self.fine_loader))
             # print(image.shape)
             # image and  fine_image have to have the same channel dimension (batch,  channel, W, H)
-            image = torch.cat((image, fine_image))
-            label = torch.cat((label, fine_label))
+            images = torch.cat((images, fine_images))
+            labels = torch.cat((labels, fine_labels))
             # print(image.shape)
-        if image.shape[1] == 4:
+        if images.shape[1] == 4:
             with_fa = True
-            fine_annotation = image[:, 3:4, :, :]
-            image = image[:, 0:3, :, :]  # (no view, create slice)
-        elif image.shape[1] == 3:
+            fine_annotations = image[:, 3:4, :, :]
+            images = images[:, 0:3, :, :]  # (no view, create slice)
+        elif images.shape[1] == 3:
             # means everything can be relevant
-            fine_annotation = torch.zeros(size=(image.shape[0], 1, image.shape[2], image.shape[3]))
-            image = image
-        fine_annotation = fine_annotation.cuda()
-        input = image.cuda()
-        target = label.cuda()
+            fine_annotations = torch.zeros(size=(image.shape[0], 1, image.shape[2], image.shape[3]))
+            images = images
+        fine_annotations = fine_annotations.cuda()
+        input = images.cuda()
+        target = labels.cuda()
 
-        # nn.Module has implemented __call__() function
-        # so no need to call .forward
+        # nn.Module has implemented __call__() function, so no need to call .forward()
         output, min_distances, upsampled_activation = self(input)
-        # compute classification loss
+
+        # classification loss
         cross_entropy = torch.nn.functional.cross_entropy(output, target)
 
-        # prototypes_of_correct_class is a tensor of shape batch_size * num_prototypes
-        # calculate cluster cost
-        prototypes_of_correct_class = torch.t(self.module.prototype_class_identity[:, label]).cuda()
-        inverted_distances, _ = torch.max(
-            (max_dist - min_distances) * prototypes_of_correct_class, dim=1
+        # cluster cost
+        max_dist = self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
+        cluster_cost = self.cluster_cost(
+            max_dist, min_distances, self.prototype_class_identity, labels
         )
-        cluster_cost = torch.mean(max_dist - inverted_distances)
+
         # x, y = batch
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
@@ -283,6 +290,36 @@ class EdemaNet(pl.LightningModule):
         )
 
         return distances
+
+    def cluster_cost(
+        max_dist: int,
+        min_distances: torch.Tensor,
+        prototype_class_identity: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        """Cluster cost.
+
+        Args:
+            max_dist (int): max distance is needed for the inverting trick (have a look below)
+            min_distances (torch.Tensor): min distances returned by the model.forward()
+            prototype_class_identity (torch.Tensor): onehot prototype indication matrix
+            labels (torch.Tensor): batch of labels taken from a dataloader
+
+        Returns:
+            torch.Tensor: cluster cost, which makes prototypes of the same class closer to each
+                          other
+        """
+
+        # prototypes_of_correct_class is a tensor of shape (batch_size, num_prototypes)
+        prototypes_of_correct_class = torch.t(prototype_class_identity[:, labels]).cuda()
+        # (max_dist - min_distances) and, consequently, inverted_distances is done to prevent the
+        # constant retrieving of 0 for min values obtained by *prototypes_of_correct_class
+        inverted_distances, _ = torch.max(
+            (max_dist - min_distances) * prototypes_of_correct_class, dim=1
+        )
+        cluster_cost = torch.mean(max_dist - inverted_distances)
+
+        return cluster_cost
 
     def _make_transient_layers(self, encoder: torch.nn.Module) -> torch.nn.Sequential:
         """Returns transient layers.
@@ -398,6 +435,7 @@ if __name__ == "__main__":
     num_prototypes = 15
     num_classes = 3
     num_prototypes_per_class = num_prototypes // num_classes
+    max_dist = 512
 
     prototype_class_identity = torch.zeros(num_prototypes, num_classes)
     # print(prototype_class_identity)
@@ -409,8 +447,18 @@ if __name__ == "__main__":
     prototypes_of_correct_class = torch.t(prototype_class_identity[:, labels])
     print(prototypes_of_correct_class.shape)
 
-    correct_distances = min_distances * prototypes_of_correct_class
-    print(correct_distances.shape)
+    correct_distances = (max_dist - min_distances) * prototypes_of_correct_class
+    print(correct_distances)
+
+    inverted_distances, _ = torch.max(
+        (max_dist - min_distances) * prototypes_of_correct_class, dim=1
+    )
+    print(inverted_distances)
+
+    print(max_dist - inverted_distances)
+
+    cluster_cost = torch.mean(max_dist - inverted_distances)
+    print(cluster_cost)
 
     # print(edema_net.forward(y)[0].shape)
 
