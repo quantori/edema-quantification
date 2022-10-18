@@ -5,6 +5,7 @@ The description to be filled...
 
 from turtle import shape
 from typing import Tuple
+from matplotlib import image
 import torch
 from torch import nn
 import pytorch_lightning as pl
@@ -365,35 +366,51 @@ if __name__ == "__main__":
 
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
-    edema_net = EdemaNet(sq_net, 3, prototype_shape=(5, 512, 1, 1))
+    edema_net = EdemaNet(sq_net, 3, prototype_shape=(15, 512, 1, 1))
     # print(edema_net._make_transient_layers(sq_net.model))
-    x = torch.rand(1, 512, 14, 14)
-    y = torch.rand(64, 3, 300, 300)
-    z = torch.rand(10, 3, 300, 300)
+    convoluted_image = torch.rand(1, 512, 14, 14)
+    images = torch.rand(64, 3, 300, 300)
+    labels = torch.randint(0, 3, (64,))
+    fine_images = torch.rand(10, 3, 300, 300)
+
+    print(labels)
+
+    _, min_distances, _ = edema_net(images)
+
+    print(min_distances.shape)
 
     # print(torch.cat((y, z)).shape)
 
-    y = edema_net.encoder(y)
-    y = edema_net.transient_layers(y)
-    distances = edema_net.prototype_distances(y)
-    print(distances.shape)
+    # y = edema_net.encoder(y)
+    # y = edema_net.transient_layers(y)
+    # distances = edema_net.prototype_distances(y)
+    # print(distances.shape)
 
-    _distances = distances.view(distances.shape[0], distances.shape[1], -1)
-    # print(_distances)
-    closest_k_distances, _ = torch.topk(_distances, 5, largest=False)
-    # print(closest_k_distances)
-    min_distances = F.avg_pool1d(
-        closest_k_distances, kernel_size=closest_k_distances.shape[2]
-    ).view(-1, 5)
-    print(min_distances.shape)
+    # _distances = distances.view(distances.shape[0], distances.shape[1], -1)
+    # # print(_distances)
+    # closest_k_distances, _ = torch.topk(_distances, 5, largest=False)
+    # # print(closest_k_distances)
+    # min_distances = F.avg_pool1d(
+    #     closest_k_distances, kernel_size=closest_k_distances.shape[2]
+    # ).view(-1, 5)
+    # print(min_distances.shape)
 
-    max_dist = (
-        edema_net.prototype_shape[1] * edema_net.prototype_shape[2] * edema_net.prototype_shape[3]
-    )
+    num_prototypes = 15
+    num_classes = 3
+    num_prototypes_per_class = num_prototypes // num_classes
 
-    print(max_dist)
+    prototype_class_identity = torch.zeros(num_prototypes, num_classes)
+    # print(prototype_class_identity)
 
-    print(max_dist - min_distances)
+    for j in range(num_prototypes):
+        prototype_class_identity[j, j // num_prototypes_per_class] = 1
+    # print(prototype_class_identity)
+
+    prototypes_of_correct_class = torch.t(prototype_class_identity[:, labels])
+    print(prototypes_of_correct_class.shape)
+
+    correct_distances = min_distances * prototypes_of_correct_class
+    print(correct_distances.shape)
 
     # print(edema_net.forward(y)[0].shape)
 
