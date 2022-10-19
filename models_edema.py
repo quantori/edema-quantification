@@ -211,6 +211,11 @@ class EdemaNet(pl.LightningModule):
             max_dist, min_distances, self.prototype_class_identity, labels
         )
 
+        # separation cost
+        separation_cost = self.separation_cost(
+            max_dist, min_distances, self.prototype_class_identity, labels
+        )
+
         # x, y = batch
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
@@ -320,6 +325,37 @@ class EdemaNet(pl.LightningModule):
         cluster_cost = torch.mean(max_dist - inverted_distances)
 
         return cluster_cost
+
+    def separation_cost(
+        max_dist: int,
+        min_distances: torch.Tensor,
+        prototype_class_identity: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        """Separation cost.
+
+        Args:
+            max_dist (int): max distance is needed for the inverting trick (have a look below)
+            min_distances (torch.Tensor): min distances returned by the model.forward()
+            prototype_class_identity (torch.Tensor): onehot prototype indication matrix
+            labels (torch.Tensor): batch of labels taken from a dataloader
+
+        Returns:
+            torch.Tensor: separation cost, which makes prototypes of different classes farer from
+                          each other
+        """
+
+        # prototypes_of_correct_class is a tensor of shape (batch_size, num_prototypes)
+        prototypes_of_correct_class = torch.t(prototype_class_identity[:, labels]).cuda()
+        prototypes_of_wrong_class = 1 - prototypes_of_correct_class
+        # (max_dist - min_distances) and, consequently, inverted_distances is done to prevent the
+        # constant retrieving of 0 for min values obtained by *prototypes_of_correct_class
+        inverted_distances_to_nontarget_prototypes, _ = torch.max(
+            (max_dist - min_distances) * prototypes_of_wrong_class, dim=1
+        )
+        separation_cost = torch.mean(max_dist - inverted_distances_to_nontarget_prototypes)
+
+        return separation_cost
 
     def _make_transient_layers(self, encoder: torch.nn.Module) -> torch.nn.Sequential:
         """Returns transient layers.
