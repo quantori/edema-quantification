@@ -182,35 +182,24 @@ class EdemaNet(pl.LightningModule):
         return logits, min_distances, upsampled_activation
 
     def training_step(self, batch, batch_idx):
-
-        # retrieve fine annotations
         images, labels = batch
+        # images have to have the shape (batch, 4, H, W). One extra channel implies fine annotation
+        if images.shape[1] != 4:
+            raise Exception("The channel dimension of the input-image batch has to be 4")
+
         if self.fine_loader:
             fine_images, fine_labels = next(iter(self.fine_loader))
-            # print(image.shape)
             # image and  fine_image have to have the same channel dimension (batch,  channel, W, H)
             images = torch.cat((images, fine_images))
             labels = torch.cat((labels, fine_labels))
-            # print(image.shape)
-        if images.shape[1] == 4:
-            with_fa = True
-            fine_annotations = images[:, 3:4, :, :]
-            images = images[:, 0:3, :, :]  # (no view, create slice)
-        elif images.shape[1] == 3:
-            # means everything can be relevant
-            fine_annotations = torch.zeros(
-                size=(images.shape[0], 1, images.shape[2], images.shape[3])
-            )
-            images = images
-        fine_annotations = fine_annotations.cuda()
-        input = images.cuda()
-        target = labels.cuda()
+        fine_annotations = images[:, 3:4, :, :]
+        images = images[:, 0:3, :, :]  # (no view, create slice)
 
         # nn.Module has implemented __call__() function, so no need to call .forward()
-        output, min_distances, upsampled_activation = self(input)
+        output, min_distances, upsampled_activation = self(images)
 
         # classification loss
-        cross_entropy = torch.nn.functional.cross_entropy(output, target)
+        cross_entropy = torch.nn.functional.cross_entropy(output, labels)
 
         # cluster cost
         max_dist = self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
@@ -248,10 +237,17 @@ class EdemaNet(pl.LightningModule):
                 )
             )
 
+        loss = (
+            cross_entropy
+            + 0.8 * cluster_cost
+            - 0.08 * separation_cost
+            + 0.001 * fine_annotation_cost
+        )
+
         # x, y = batch
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
-        # return loss
+        return loss
 
     def configure_optimizers(self):
         pass
@@ -329,6 +325,7 @@ class EdemaNet(pl.LightningModule):
         return distances
 
     def cluster_cost(
+        self,
         max_dist: int,
         min_distances: torch.Tensor,
         prototype_class_identity: torch.Tensor,
@@ -348,7 +345,7 @@ class EdemaNet(pl.LightningModule):
         """
 
         # prototypes_of_correct_class is a tensor of shape (batch_size, num_prototypes)
-        prototypes_of_correct_class = torch.t(prototype_class_identity[:, labels]).cuda()
+        prototypes_of_correct_class = torch.t(prototype_class_identity[:, labels])
         # (max_dist - min_distances) and, consequently, inverted_distances is done to prevent the
         # constant retrieving of 0 for min values obtained by *prototypes_of_correct_class
         inverted_distances, _ = torch.max(
@@ -359,6 +356,7 @@ class EdemaNet(pl.LightningModule):
         return cluster_cost
 
     def separation_cost(
+        self,
         max_dist: int,
         min_distances: torch.Tensor,
         prototype_class_identity: torch.Tensor,
@@ -378,7 +376,7 @@ class EdemaNet(pl.LightningModule):
         """
 
         # prototypes_of_correct_class is a tensor of shape (batch_size, num_prototypes)
-        prototypes_of_correct_class = torch.t(prototype_class_identity[:, labels]).cuda()
+        prototypes_of_correct_class = torch.t(prototype_class_identity[:, labels])
         prototypes_of_wrong_class = 1 - prototypes_of_correct_class
         # (max_dist - min_distances) and, consequently, inverted_distances is done to prevent the
         # constant retrieving of 0 for min values obtained by *prototypes_of_correct_class
@@ -473,12 +471,15 @@ if __name__ == "__main__":
     edema_net = EdemaNet(sq_net, 3, prototype_shape=(15, 512, 1, 1))
     # print(edema_net._make_transient_layers(sq_net.model))
     convoluted_image = torch.rand(1, 512, 14, 14)
-    images = torch.rand(64, 3, 300, 300)
+    images = torch.rand(64, 4, 300, 300)
     labels = torch.randint(0, 3, (64,))
     fine_images = torch.rand(10, 3, 300, 300)
     fine_annotations = torch.rand(64, 1, 300, 300)
 
+    batch = (images, labels)
+
     print(labels)
+    print(len(batch))
 
     _, min_distances, upsampled_activation = edema_net(images)
 
@@ -505,53 +506,8 @@ if __name__ == "__main__":
     num_prototypes_per_class = num_prototypes // num_classes
     max_dist = 512
 
-    fine_annotation_cost = 0
-    num_prototypes_per_class = num_prototypes // num_classes
-    all_white_mask = torch.ones(images.shape[2], images.shape[3])
-    for index in range(images.shape[0]):
-        fine_annotation_cost += (
-            torch.norm(
-                upsampled_activation[index, : labels[index] * num_prototypes_per_class]
-                * (1 * all_white_mask)
-            )
-            + torch.norm(
-                upsampled_activation[
-                    index,
-                    labels[index]
-                    * num_prototypes_per_class : (labels[index] + 1)
-                    * num_prototypes_per_class,
-                ]
-                * (1 * fine_annotations[index])
-            )
-            + torch.norm(
-                upsampled_activation[index, (labels[index] + 1) * num_prototypes_per_class :]
-                * (1 * all_white_mask)
-            )
-        )
-    print(fine_annotation_cost)
-
-    fine_annotation_cost = 0
-    for index in range(images.shape[0]):
-        fine_annotation_cost += (
-            torch.norm(
-                upsampled_activation[index, : labels[index] * num_prototypes_per_class]
-                * (all_white_mask)
-            )
-            + torch.norm(
-                upsampled_activation[
-                    index,
-                    labels[index]
-                    * num_prototypes_per_class : (labels[index] + 1)
-                    * num_prototypes_per_class,
-                ]
-                * (fine_annotations[index])
-            )
-            + torch.norm(
-                upsampled_activation[index, (labels[index] + 1) * num_prototypes_per_class :]
-                * (all_white_mask)
-            )
-        )
-    print(fine_annotation_cost)
+    cost = edema_net.training_step(batch=batch, batch_idx=1)
+    print(cost)
 
     # print(edema_net.forward(y)[0].shape)
 
