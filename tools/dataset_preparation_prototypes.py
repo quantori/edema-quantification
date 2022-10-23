@@ -15,17 +15,19 @@ for image in images:
     list_img = _image.split("_")
     print(list_img)
 
-    left_1, top_1, right_1, bottom_1 = 0, 0, int(list_img[2]), int(list_img[2])
+    img = Image.open(path_in + image)
+    height = img.size[1]
+
+    left_1, top_1, right_1, bottom_1 = 0, 0, int(list_img[2]), height
     area_1 = (left_1, top_1, right_1, bottom_1)
     left_2, top_2, right_2, bottom_2 = (
         int(list_img[2]),
         0,
         int(list_img[2]) + int(list_img[3]),
-        int(list_img[3]),
+        height,
     )
     area_2 = (left_2, top_2, right_2, bottom_2)
 
-    img = Image.open(path_in + image)
     img_1 = img.crop(area_1)
     img_2 = img.crop(area_2)
     img_1.save(
