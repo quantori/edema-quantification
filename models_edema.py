@@ -478,8 +478,8 @@ if __name__ == "__main__":
 
     batch = (images, labels)
 
-    print(labels)
-    print(len(batch))
+    # print(labels)
+    # print(len(batch))
 
     _, min_distances, upsampled_activation = edema_net(images)
 
@@ -501,13 +501,19 @@ if __name__ == "__main__":
     # ).view(-1, 5)
     # print(min_distances.shape)
 
-    num_prototypes = 15
-    num_classes = 3
+    num_prototypes = 35
+    num_classes = 7
     num_prototypes_per_class = num_prototypes // num_classes
     max_dist = 512
 
-    cost = edema_net.training_step(batch=batch, batch_idx=1)
-    print(cost)
+    labels = torch.randint(0, 2, (64, 7))
+    print(labels)
+    prototype_class_identity = torch.zeros(num_prototypes, num_classes)
+    for j in range(num_prototypes):
+        prototype_class_identity[j, j // num_prototypes_per_class] = 1
+    print(prototype_class_identity)
+
+    print(prototype_class_identity[:, labels].shape)
 
     # print(edema_net.forward(y)[0].shape)
 
