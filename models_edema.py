@@ -123,9 +123,12 @@ class EdemaNet(pl.LightningModule):
         self.num_classes = num_classes
         self.num_prototypes_per_class = self.num_prototypes // self.num_classes
 
+        # cross entropy cost function
+        self.cross_entropy_cost = torch.nn.BCEWithLogitsLoss()
+
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
-            self.num_prototypes, self.num_classes, dtype=torch.long
+            self.num_prototypes, self.num_classes, dtype=torch.float
         )
         # fills with 1 only those prototypes, which correspond to the correct class. The rest is
         # filled with 0
@@ -147,9 +150,9 @@ class EdemaNet(pl.LightningModule):
         self.last_layer = nn.Linear(self.num_prototypes, self.num_classes, bias=False)
 
     def forward(self, x):
-        # x is of dimension (batch, 10, H, W). The seven extra channels are fine annotations for
-        # each class
-        x = x[:, 0:3, :, :]  # (no view; create slice. When no fa is available this will return x)
+        # x is a batch of images having (batch, 3, H, W) dimensions
+        if x.shape[1] != 3:
+            raise Exception("The channel dimension of the input-image batch has to be 3")
 
         # save the spatial dimensions of the initial image to use them later for upsampling (PAM
         # creation)
@@ -188,37 +191,29 @@ class EdemaNet(pl.LightningModule):
         images, labels = batch
         # labels - (batch, 7)
         # images - (batch, 10, H, W)
-        # images have to have the shape (batch, 4, H, W). One extra channel implies fine annotation
-        if images.shape[1] != 4:
-            raise Exception("The channel dimension of the input-image batch has to be 4")
+        # images have to have the shape (batch, 10, H, W). 7 extra channel implies fine annotations,
+        # in case of 7 classes
+        if images.shape[1] != 10:
+            raise Exception("The channel dimension of the input-image batch has to be 10")
 
-        if self.fine_loader:
-            fine_images, fine_labels = next(iter(self.fine_loader))
-            # image and  fine_image have to have the same channel dimension (batch,  channel, W, H)
-            images = torch.cat((images, fine_images))
-            labels = torch.cat((labels, fine_labels))
-        fine_annotations = images[:, 3:4, :, :]
+        fine_annotations = images[:, 3:10, :, :] # 7 classes of fine annotations
         images = images[:, 0:3, :, :]  # (no view, create slice)
 
         # nn.Module has implemented __call__() function, so no need to call .forward()
         output, min_distances, upsampled_activation = self(images)
 
-        # classification loss
-        cross_entropy = torch.nn.functional.cross_entropy(output, labels)
+        # classification cost
+        cross_entropy = self.cross_entropy_cost(output, labels)
 
         # cluster cost
         max_dist = self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
         prototypes_of_correct_class = torch.matmul(
             labels, torch.permute(self.prototype_class_identity, (1, 0))
         )
-        cluster_cost = self.cluster_cost(
-            max_dist, min_distances, prototypes_of_correct_class, labels
-        )
+        cluster_cost = self.cluster_cost(max_dist, min_distances, prototypes_of_correct_class)
 
         # separation cost
-        separation_cost = self.separation_cost(
-            max_dist, min_distances, prototypes_of_correct_class, labels
-        )
+        separation_cost = self.separation_cost(max_dist, min_distances, prototypes_of_correct_class)
 
         # fine cost
         fine_cost = self.fine_cost(
@@ -471,7 +466,7 @@ if __name__ == "__main__":
     # print(edema_net._make_transient_layers(sq_net.model))
     images = torch.rand(64, 10, 300, 300)
     masks = images[:, 3:, :, :]
-    labels = torch.randint(0, 2, (64, 7))
+    labels = torch.randint(0, 2, (64, 7), dtype=torch.float)
     convoluted_image = torch.rand(1, 512, 14, 14)
     fine_images = torch.rand(10, 3, 300, 300)
     fine_annotations = torch.rand(64, 7, 300, 300)
@@ -485,13 +480,20 @@ if __name__ == "__main__":
     num_classes_test = 2
     num_prototypes_test = 4
     num_prototypes_per_class_test = num_prototypes_test // num_classes_test
-    print(num_prototypes_per_class_test)
+    # print(num_prototypes_per_class_test)
     upsampled_activation_test = torch.rand(2, num_prototypes_test, 4, 4)
 
     fine_cost = edema_net.fine_cost(
         fine_annotations_test, upsampled_activation_test, num_prototypes_per_class_test
     )
-    print(fine_cost)
+    # print(fine_cost)
+
+    # print(labels)
+
+    batch = (images, labels)
+    cls = edema_net.training_step(batch, 1)
+
+    print(cls)
 
     # print(images_test)
     # print(labels_test)
