@@ -1,14 +1,15 @@
-# from importlib.resources import path
-# import os
+from importlib.resources import path
+import os
 from typing import Tuple, Union
+import json
+
+from PIL import Image
 from scipy.spatial import ConvexHull, convex_hull_plot_2d
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import cv2
 import torch
-
-# from PIL import Image
 
 # path_in = "C:/Users/makov/Desktop/DS1/img/"
 # path_out = "C:/Users/makov/Desktop/edema_dataset_prototypes/"
@@ -45,8 +46,13 @@ import torch
 #     )
 
 
-def rectangle_box(pt1, pt2, width) -> Tuple:
+def make_fine_annotations_masks(num_classes, names_classes, path_to_json):
 
+    for num_class, name_class in range(num_classes), names_classes:
+        pass
+
+
+def rectangle_box(pt1: np.ndarray, pt2: np.ndarray, width: int) -> Tuple:
     delta = pt2 - pt1
     print(delta)
     distance = np.linalg.norm(delta)
@@ -61,17 +67,20 @@ def rectangle_box(pt1, pt2, width) -> Tuple:
     return (r1, r2, r3, r4)
 
 
-coords = rectangle_box(pt1=np.array([23, 45]), pt2=np.array([34, 56]), width=5)
-print(coords)
+if __name__ == "__main__":
+    with open("C:/Users/makov/Desktop/DS1/ann/10000980_54935705_1664_1664.png.json") as f:
+        json_file = json.load(f)
+        print(json_file.keys())
+        print(json_file["size"])
 
-# plt.xlim(0, 100)
-# plt.ylim(0, 100)
-# ax.axline((pt1[0], pt1[1]), (pt2[0], pt2[1]), linewidth=1, color="r")
-# points = [r1, r2, r4, r3]
-# rect = patches.Polygon(points, linewidth=1, edgecolor="r")
-# ax.add_patch(rect)
-# ax.scatter(x=r1[0], y=r1[1])
-# ax.scatter(x=r2[0], y=r2[1])
-# ax.scatter(x=r3[0], y=r3[1])
-# ax.scatter(x=r4[0], y=r4[1])
-# plt.show()
+        print(json_file["objects"][0])
+
+        # img = np.ones((json_file["size"]["height"], json_file["size"]["width"]))
+        # print(img.shape)
+
+        # rec = cv2.rectangle(img, (0, 0), (300, 300), (255, 255, 255))
+        # cv2.line(rec,(0,0),(511,511),(0,0,0),1)
+
+        # cv2.imshow("any", img)
+
+        # cv2.waitKey(0)
