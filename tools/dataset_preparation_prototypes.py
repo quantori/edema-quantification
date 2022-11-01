@@ -68,12 +68,36 @@ def rectangle_box(pt1: np.ndarray, pt2: np.ndarray, width: int) -> Tuple:
 
 
 if __name__ == "__main__":
+    fine_annotations_masks = {
+        "Cephalization": 0,
+        "Kerley": 0,
+        "Effusion": 0,
+        "Bat": 0,
+        "Infiltrate": 0,
+    }
+    edema_classes = {
+        "Cephalization": 0,
+        "Kerley": 0,
+        "Effusion": 0,
+        "Bat": 0,
+        "Infiltrate": 0,
+    }
     with open("C:/Users/makov/Desktop/DS1/ann/10000980_54935705_1664_1664.png.json") as f:
         json_file = json.load(f)
-        print(json_file.keys())
-        print(json_file["size"])
+        # print(json_file.keys())
+        # print(json_file["size"])
 
-        print(json_file["objects"][0])
+        print(json_file["objects"][0]["tags"][0]["value"])
+
+        for key in fine_annotations_masks.keys():
+            fine_annotations_masks[key] = np.ones(
+                (json_file["size"]["height"], json_file["size"]["width"])
+            )
+
+        for object in json_file["objects"]:
+            if object["tags"][0]["value"] == 3:
+                pass
+            # print(object["tags"][0]["value"])
 
         # img = np.ones((json_file["size"]["height"], json_file["size"]["width"]))
         # print(img.shape)
