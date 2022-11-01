@@ -23,12 +23,12 @@ def check_dataset_dirs(dataset_dir: str, dataset_ann_dir: str, dataset_img_dir: 
     """
 
     Args:
-        dataset_dir:
-        dataset_ann_dir:
-        dataset_img_dir:
+        dataset_dir: a path to the MIMIC-CXR dataset
+        dataset_ann_dir: a path to the MIMIC-CXR dataset annotations
+        dataset_img_dir: a path to the MIMIC-CXR dataset images
 
     Returns:
-
+        None
     """
     logger.info('Checking dataset paths')
 
@@ -46,11 +46,11 @@ def crop_images(dataset_img_dir: str, save_dir: str) -> None:
     """
 
     Args:
-        dataset_img_dir:
-        save_dir:
+        dataset_img_dir: a path to the MIMIC-CXR dataset images
+        save_dir: directory where the output files will be saved
 
     Returns:
-
+        None
     """
     logger.info('Cropping images')
 
@@ -76,10 +76,10 @@ def get_edema_name(ann: dict) -> str:
     """
 
     Args:
-        ann:
+        ann: dictionary with supervisely annotations
 
     Returns:
-
+        string with edema name
     """
     if ann['tags']:
         check_labeler_login(ann['tags'][0]['labelerLogin'])
@@ -94,10 +94,10 @@ def check_labeler_login(labeler_login: str) -> None:
     """
 
     Args:
-        labeler_login:
+        labeler_login: string from supervisely annotations which contains a labeler login
 
     Returns:
-
+        None
     """
     if labeler_login in ('ViacheslavDanilov', 'mak_en', 'irina.ryndova'):
         logger.error(f'Wrong labeler login: {labeler_login}')
@@ -107,10 +107,10 @@ def get_object_rp(obj: dict) -> str:
     """
 
     Args:
-        obj:
+        obj: dictionary with information about one object from supervisely annotations
 
     Returns:
-
+        string with representativeness level
     """
     if obj['tags']:
         rp = obj['tags'][0]['value']
@@ -124,10 +124,10 @@ def get_object_sizes(obj: dict) -> dict:
     """
 
     Args:
-        obj:
+        obj: dictionary with information about one object from supervisely annotations
 
     Returns:
-
+        dictionary which contains coordinates for a rectangle (left, top, right, bottom)
     """
     if obj['geometryType'] == 'bitmap':
         bitmap = convert_base64_to_image(obj['bitmap']['data'])
@@ -151,13 +151,13 @@ def get_box_sizes(x1: int, y1: int, x2: int, y2: int) -> dict:
     """
 
     Args:
-        x1:
-        y1:
-        x2:
-        y2:
+        x1: left x
+        y1: top y
+        x2: right x
+        y2: bottom y
 
     Returns:
-
+        dictionary which contains coordinates for rectangle (a center point and a width/height)
     """
     box_width, box_height = x2 - x1, y2 - y1
     xc, yc = box_width / 2, box_height / 2
@@ -169,11 +169,11 @@ def prepare_metadata_annotations(dataset_ann_dir: str, save_dir: str) -> None:
     """
 
     Args:
-        dataset_ann_dir:
-        save_dir:
+        dataset_ann_dir: a path to the MIMIC-CXR dataset annotations
+        save_dir: directory where the output files will be saved
 
     Returns:
-
+        None
     """
     logger.info('Preparing metadata and annotations')
 
@@ -286,11 +286,11 @@ def main(
     """
 
     Args:
-        dataset_dir:
-        save_dir:
+        dataset_dir: a path to the MIMIC-CXR dataset
+        save_dir: directory where the output files will be saved
 
     Returns:
-
+        None
     """
     dataset_ann_dir = os.path.join(dataset_dir, 'ann')
     dataset_img_dir = os.path.join(dataset_dir, 'img')
