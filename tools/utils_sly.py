@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import pandas as pd
 import supervisely_lib as sly
@@ -61,3 +61,41 @@ def read_sly_project(
     df.reset_index(drop=True, inplace=True)
 
     return df
+
+
+def get_figure_info(
+        name_or_id: Union[int, str]
+) -> Union[int, str]:
+    """
+    Args:
+        name_or_id: figure name or ID
+
+    Returns:
+        value: figure ID or name
+    """
+
+    figure_map = {
+        'Cephalization': 0,
+        'Heart': 1,
+        'Artery': 2,
+        'Bronchus': 3,
+        'Kerley': 4,
+        'Cuffing': 5,
+        'Effusion': 6,
+        'Bat': 7,
+        'Infiltrate': 8,
+    }
+
+    if isinstance(name_or_id, int):
+        for key, val in figure_map.items():
+            if val == name_or_id:
+                return key
+        raise ValueError(f'No key with ID {name_or_id}')
+    elif isinstance(name_or_id, str):
+        name_or_id = name_or_id.capitalize()
+        try:
+            return figure_map[name_or_id]
+        except:
+            raise KeyError(f'Invalid field value: {name_or_id}')
+    else:
+        raise TypeError(f'Invalid field value: {type(name_or_id)}')
