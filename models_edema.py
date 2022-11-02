@@ -196,7 +196,7 @@ class EdemaNet(pl.LightningModule):
         if images.shape[1] != 10:
             raise Exception("The channel dimension of the input-image batch has to be 10")
 
-        fine_annotations = images[:, 3:10, :, :] # 7 classes of fine annotations
+        fine_annotations = images[:, 3:10, :, :]  # 7 classes of fine annotations
         images = images[:, 0:3, :, :]  # (no view, create slice)
 
         # nn.Module has implemented __call__() function, so no need to call .forward()
@@ -494,7 +494,7 @@ if __name__ == "__main__":
     cls = edema_net.training_step(batch, 1)
 
     print(cls)
-
+    print('string')
     # print(images_test)
     # print(labels_test)
     # mask_indexes = torch.nonzero((labels_test == 0), as_tuple=True)
@@ -508,9 +508,7 @@ if __name__ == "__main__":
 
     # print(fine_annotations.shape)
     # print(fine_annotations_expanded)
-
     # batch = (images, labels)
-
     # print(labels)
     # print(len(batch))
 
