@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 # TODO: I would suggest processing images along with annotations
-def crop_images(
+def crop_stacked_images(
         dataset_img_dir: str,
         save_dir: str,
 ) -> None:
@@ -178,6 +178,8 @@ def prepare_metadata_annotations(
     logging.info('Saving metadata.csv')
     metadata.to_csv(os.path.join(save_dir, f'metadata.csv'))
 
+    # return image_metadata     # TODO: return image metadata
+
 
 def main(
         dataset_dir: str,
@@ -213,10 +215,12 @@ def main(
     # TODO: Allocate dataframes/dicts per each image
     # for idx, row in df.iterrows():
     #     print(row)
-    #     # process_image(...)
+    #     df/dict = process_image(...)
+
 
     # TODO: Create final dataframe
     # TODO (@irina.ryndova): parallel processing (optional)
+    # df_metadata = unite(df)
     # crop_images(dataset_img_dir, save_dir)
 
     prepare_metadata_annotations(dataset_ann_dir, save_dir)
