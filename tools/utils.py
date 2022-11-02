@@ -6,8 +6,6 @@ from PIL import Image, ImageFilter
 from typing import Dict, List, Union, Tuple
 
 import cv2
-import zlib
-import base64
 import numpy as np
 
 
@@ -267,33 +265,6 @@ def normalize_image(
     b = target_max - a * image.max()
     image_norm = (a * image + b).astype(target_type)
     return image_norm
-
-
-def convert_base64_to_image(
-        encoded_mask: str,
-) -> np.ndarray:
-    """
-    The function convert_base64_to_image converts a base64 encoded string to a numpy array
-
-    Args:
-        encoded_mask: bitmap represented as a string
-
-    Returns:
-        mask: bitmap represented as a numpy array
-
-    """
-
-    z = zlib.decompress(base64.b64decode(encoded_mask))
-    n = np.frombuffer(z, np.uint8)
-
-    img_decoded = cv2.imdecode(n, cv2.IMREAD_UNCHANGED)
-    if (len(img_decoded.shape) == 3) and (img_decoded.shape[2] >= 4):
-        mask = img_decoded[:, :, 3].astype(np.uint8)
-    elif len(img_decoded.shape) == 2:
-        mask = img_decoded.astype(np.uint8)
-    else:
-        raise RuntimeError('Wrong internal mask format.')
-    return mask
 
 
 class BorderExtractor:
