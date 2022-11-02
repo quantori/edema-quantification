@@ -1,9 +1,31 @@
 import os
 import logging
-from typing import List, Optional, Union
+from typing import List, Optional
 
+import cv2
+import zlib
+import base64
+import numpy as np
 import pandas as pd
 import supervisely_lib as sly
+
+CLASS_MAP = {
+    'No pathology': 0,
+    'Vascular congestion': 1,
+    'Interstitial edema': 2,
+    'Alveolar edema': 3,
+}
+
+FIGURE_MAP = {
+    'Cephalization': 0,
+    'Artery': 1,
+    'Heart': 2,
+    'Kerley': 3,
+    'Bronchus': 4,
+    'Effusion': 5,
+    'Bat': 6,
+    'Infiltrate': 7,
+}
 
 
 def read_sly_project(
@@ -63,39 +85,124 @@ def read_sly_project(
     return df
 
 
-def get_figure_info(
-        name_or_id: Union[int, str]
-) -> Union[int, str]:
+def convert_base64_to_image(
+        encoded_mask: str,
+) -> np.ndarray:
     """
+    The function convert_base64_to_image converts a base64 encoded string to a numpy array
+
     Args:
-        name_or_id: figure name or ID
+        encoded_mask: bitmap represented as a string
 
     Returns:
-        value: figure ID or name
+        mask: bitmap represented as a numpy array
+
     """
 
-    figure_map = {
-        'Cephalization': 0,
-        'Heart': 1,
-        'Artery': 2,
-        'Bronchus': 3,
-        'Kerley': 4,
-        'Cuffing': 5,
-        'Effusion': 6,
-        'Bat': 7,
-        'Infiltrate': 8,
+    z = zlib.decompress(base64.b64decode(encoded_mask))
+    n = np.frombuffer(z, np.uint8)
+
+    img_decoded = cv2.imdecode(n, cv2.IMREAD_UNCHANGED)
+    if (len(img_decoded.shape) == 3) and (img_decoded.shape[2] >= 4):
+        mask = img_decoded[:, :, 3].astype(np.uint8)
+    elif len(img_decoded.shape) == 2:
+        mask = img_decoded.astype(np.uint8)
+    else:
+        raise RuntimeError('Wrong internal mask format.')
+    return mask
+
+
+def get_class_name(
+        ann: dict,
+) -> str:
+    """
+
+    Args:
+        ann: a dictionary with Supervisely annotations
+
+    Returns:
+        class_name: name of the class for a given image
+    """
+    if ann['tags']:
+        class_name = ann['tags'][0]['value']
+    else:
+        logging.warning('There are no tags available for a given image!')
+        class_name = ''
+    return class_name
+
+
+def get_tag_value(
+        obj: dict,
+        tag_name: str,  # TODO: implement extraction tag_value by tag_name (in our case 'RP')
+) -> str:
+    """
+
+    Args:
+        obj: dictionary with information about one object from supervisely annotations
+
+    Returns:
+        string with representativeness level
+    """
+    if obj['tags']:
+        tag_value = obj['tags'][0]['value']
+    else:
+        logging.warning(f'There is no {tag_name} value')
+        tag_value = ''
+    return tag_value
+
+
+def get_object_box(
+        obj: dict,
+) -> dict:
+    """
+
+    Args:
+        obj: dictionary with information about one object from supervisely annotations
+
+    Returns:
+        dictionary which contains coordinates for a rectangle (left, top, right, bottom)
+    """
+    if obj['geometryType'] == 'bitmap':
+        bitmap = convert_base64_to_image(obj['bitmap']['data'])
+        x1, y1 = obj['bitmap']['origin'][0], obj['bitmap']['origin'][1]
+        x2 = x1 + bitmap.shape[0]
+        y2 = y1 + bitmap.shape[1]
+    else:
+        xs = [x[0] for x in obj['points']['exterior']]
+        ys = [x[1] for x in obj['points']['exterior']]
+        x1, y1, x2, y2 = min(xs), min(ys), max(xs), max(ys)
+
+    return {
+        'x1': x1,
+        'y1': y1,
+        'x2': x2,
+        'y2': y2,
     }
 
-    if isinstance(name_or_id, int):
-        for key, val in figure_map.items():
-            if val == name_or_id:
-                return key
-        raise ValueError(f'No key with ID {name_or_id}')
-    elif isinstance(name_or_id, str):
-        name_or_id = name_or_id.capitalize()
-        try:
-            return figure_map[name_or_id]
-        except:
-            raise KeyError(f'Invalid field value: {name_or_id}')
-    else:
-        raise TypeError(f'Invalid field value: {type(name_or_id)}')
+
+def get_box_sizes(
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+) -> dict:
+    """
+
+    Args:
+        x1: left x
+        y1: top y
+        x2: right x
+        y2: bottom y
+
+    Returns:
+        dictionary which contains coordinates for rectangle (a center point and a width/height)
+    """
+    box_width, box_height = x2 - x1, y2 - y1
+    xc, yc = box_width // 2, box_height // 2
+
+    return {
+        'xc': xc,
+        'yc': yc,
+        'box_width': box_width,
+        'box_height': box_height
+    }
