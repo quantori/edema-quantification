@@ -494,7 +494,7 @@ if __name__ == "__main__":
     cls = edema_net.training_step(batch, 1)
 
     print(cls)
-    print('string')
+
     # print(images_test)
     # print(labels_test)
     # mask_indexes = torch.nonzero((labels_test == 0), as_tuple=True)
