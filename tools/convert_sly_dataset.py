@@ -33,7 +33,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def process_image(row: pd.Series, save_dir_ann, save_dir_img_frontal, save_dir_img_lateral):
+def process_image(row: pd.Series, save_dir_img_frontal: str, save_dir_img_lateral: str) -> dict:
+    """
+
+    Args:
+        row: series with information about one image
+        save_dir_img_frontal: directory where the output frontal images will be saved
+        save_dir_img_lateral: directory where the output lateral images will be saved
+
+    Returns:
+        dictionary with information about one image
+    """
     logger.info(f'Cropping image {row.img_path}')
 
     original_img_name = os.path.basename(row.img_path)
@@ -49,6 +59,26 @@ def process_image(row: pd.Series, save_dir_ann, save_dir_img_frontal, save_dir_i
     cv2.imwrite(img_frontal_path, img_frontal)
     cv2.imwrite(os.path.join(save_dir_img_lateral, f'{subject_id}_{study_id}.{ext}'), img_lateral)
 
+    return {
+        'Image path': img_frontal_path,
+        'Subject ID': subject_id,
+        'Study id': study_id,
+        'Image width': width,
+        'Image height': height,
+    }
+
+
+def process_annotation(row: pd.Series, save_dir_ann: str, img_info: dict) -> pd.DataFrame:
+    """
+
+    Args:
+        row: series with information about one image
+        save_dir_ann: directory where the output annotations will be saved
+        img_info: dictionary with information about one image
+
+    Returns:
+        dataframe with metadata for one image
+    """
     logger.info('Preparing metadata and annotation')
     img_metadata = pd.DataFrame(columns=METADATA_COLUMNS)
     annotation = pd.DataFrame(columns=ANNOTATION_COLUMNS)
@@ -74,7 +104,7 @@ def process_image(row: pd.Series, save_dir_ann, save_dir_img_frontal, save_dir_i
             }
             annotation_info.update(xy)
             annotation = annotation.append(annotation_info, ignore_index=True)
-            new_annotation_name = f'{subject_id}_{study_id}.csv'
+            new_annotation_name = f'{img_info["Subject ID"]}_{img_info["Study id"]}.csv'
             logging.info(f'Saving annotation {new_annotation_name}')
             annotation.to_csv(
                 os.path.join(save_dir_ann, new_annotation_name),
@@ -83,23 +113,81 @@ def process_image(row: pd.Series, save_dir_ann, save_dir_img_frontal, save_dir_i
                 sep=' ',
             )
 
-            image_info = {
-                'Image path': img_frontal_path,
-                'Subject ID': subject_id,
-                'Study id': study_id,
-                'Image width': width,
-                'Image height': height,
+            obj_info = {
                 'Figure': figure_name,
                 'RP': rp,
                 'Class ID': CLASS_MAP[class_name],
                 'Class': class_name,
             }
-            image_info.update(xy)
-            image_info.update(box)
-            image_info.update(mask_points)
-            img_metadata = img_metadata.append(image_info, ignore_index=True)
-
+            obj_info.update(img_info)
+            obj_info.update(xy)
+            obj_info.update(box)
+            obj_info.update(mask_points)
+            img_metadata = img_metadata.append(obj_info, ignore_index=True)
     return img_metadata
+
+
+def process_sample(
+    row: pd.Series, save_dir_ann: str, save_dir_img_frontal: str, save_dir_img_lateral: str
+) -> pd.DataFrame:
+    """
+
+    Args:
+        row: series with information about one image
+        save_dir_ann: directory where the output annotation will be saved
+        save_dir_img_frontal: directory where the output frontal images will be saved
+        save_dir_img_lateral: directory where the output lateral images will be saved
+
+    Returns:
+        dataframe with metadata for one image
+    """
+    img_info = process_image(row, save_dir_img_frontal, save_dir_img_lateral)
+
+    return process_annotation(row, save_dir_ann, img_info)
+
+
+def create_save_dirs(save_dir: str) -> tuple:
+    """
+
+    Args:
+        save_dir: directory where the output files will be saved
+
+    Returns:
+        tuple with directories where the output frontal/lateral images and annotations will be saved
+    """
+    logger.info(f'Creating img and ann directories in {save_dir}')
+
+    save_dir_img_frontal = os.path.join(save_dir, 'img', 'frontal')
+    os.makedirs(save_dir_img_frontal, exist_ok=True)
+
+    save_dir_img_lateral = os.path.join(save_dir, 'img', 'lateral')
+    os.makedirs(save_dir_img_lateral, exist_ok=True)
+
+    save_dir_ann = os.path.join(save_dir, 'ann')
+    os.makedirs(save_dir_ann, exist_ok=True)
+
+    return save_dir_img_frontal, save_dir_img_lateral, save_dir_ann
+
+
+def save_metadata_xlsx(save_dir, all_metadata) -> None:
+    """
+
+    Args:
+        save_dir: directory where the output files will be saved
+        all_metadata: dataframe with metadata for all images
+
+    Returns:
+        None
+    """
+    metadata_path = os.path.join(save_dir, 'metadata.xlsx')
+    logging.info(f'Saving {metadata_path}')
+    all_metadata.index += 1
+    all_metadata.to_excel(
+        metadata_path,
+        sheet_name='Metadata',
+        index=True,
+        index_label='ID',
+    )
 
 
 def main(
@@ -127,32 +215,18 @@ def main(
         exclude_dirs=exclude_dirs,
     )
 
-    logger.info(f'Creating img and ann directories in {save_dir}')
-    save_dir_img_frontal = os.path.join(save_dir, 'img', 'frontal')
-    os.makedirs(save_dir_img_frontal, exist_ok=True)
-    save_dir_img_lateral = os.path.join(save_dir, 'img', 'lateral')
-    os.makedirs(save_dir_img_lateral, exist_ok=True)
-    save_dir_ann = os.path.join(save_dir, 'ann')
-    os.makedirs(save_dir_ann, exist_ok=True)
+    save_dir_img_frontal, save_dir_img_lateral, save_dir_ann = create_save_dirs(save_dir)
 
     logger.info('Preparing metadata and annotations')
+    # TODO (@irina.ryndova): parallel processing (optional)
     all_metadata = pd.DataFrame(columns=METADATA_COLUMNS)
     for idx, row in sly_project.iterrows():
         all_metadata = all_metadata.append(
-            process_image(row, save_dir_ann, save_dir_img_frontal, save_dir_img_lateral),
+            process_sample(row, save_dir_ann, save_dir_img_frontal, save_dir_img_lateral),
             ignore_index=True,
         )
 
-    # TODO (@irina.ryndova): parallel processing (optional)
-    metadata_path = os.path.join(save_dir, 'metadata.xlsx')
-    logging.info(f'Saving {metadata_path}')
-    all_metadata.index += 1
-    all_metadata.to_excel(
-        metadata_path,
-        sheet_name='Metadata',
-        index=True,
-        index_label='ID',
-    )
+    save_metadata_xlsx(save_dir, all_metadata)
 
 
 if __name__ == '__main__':
