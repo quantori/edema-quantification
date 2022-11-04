@@ -1,8 +1,9 @@
 import os
 import logging
 import argparse
-from PIL import Image
-from typing import List
+
+import cv2
+from typing import List, Optional
 from pathlib import Path
 
 import pandas as pd
@@ -16,6 +17,9 @@ from tools.utils_sly import (
     get_tag_value,
     get_object_box,
     get_box_sizes,
+    METADATA_COLUMNS,
+    get_object_points_mask,
+    ANNOTATION_COLUMNS,
 )
 
 os.makedirs('logs', exist_ok=True)
@@ -29,110 +33,37 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# TODO: I would suggest processing images along with annotations
-def crop_stacked_images(
-        dataset_img_dir: str,
-        save_dir: str,
-) -> None:
-    """
+def process_image(row: pd.Series, save_dir_ann, save_dir_img_frontal, save_dir_img_lateral):
+    logger.info(f'Cropping image {row.img_path}')
 
-    Args:
-        dataset_img_dir: a path to the MIMIC-CXR dataset images
-        save_dir: directory where the output files will be saved
+    original_img_name = os.path.basename(row.img_path)
+    subject_id, study_id, width_frontal, width_lateral, ext = original_img_name.replace(
+        '.', '_'
+    ).split('_')
+    img = cv2.imread(row.img_path)
+    height = img.shape[0]
+    width = img.shape[1]
+    img_frontal = img[0:height, 0 : int(width_frontal)]
+    img_lateral = img[0:height, int(width_frontal) : width]
+    img_frontal_path = os.path.join(save_dir_img_frontal, f'{subject_id}_{study_id}.{ext}')
+    cv2.imwrite(img_frontal_path, img_frontal)
+    cv2.imwrite(os.path.join(save_dir_img_lateral, f'{subject_id}_{study_id}.{ext}'), img_lateral)
 
-    Returns:
-        None
-    """
-    logger.info('Cropping images')
+    logger.info('Preparing metadata and annotation')
+    img_metadata = pd.DataFrame(columns=METADATA_COLUMNS)
+    annotation = pd.DataFrame(columns=ANNOTATION_COLUMNS)
 
-    save_img_dir = os.path.join(save_dir, 'img')
-    os.makedirs(save_img_dir, exist_ok=True)
+    ann = sly.io.json.load_json_file(row.ann_path)
+    class_name = get_class_name(ann)
 
-    img_list = os.listdir(dataset_img_dir)
-
-    top = 0
-    left = 0
-    for img_name in img_list:
-        img = Image.open(os.path.join(dataset_img_dir, img_name))
-        subject_id, study_id, left_width, right_width, ext = img_name.replace(
-            '.', '_'
-        ).split('_')
-        right = int(left_width)
-        bottom = img.height
-
-        img = img.crop((left, top, right, bottom))
-        img.save(os.path.join(save_img_dir, f'{subject_id}_{study_id}.{ext}'))
-
-
-def prepare_metadata_annotations(
-        dataset_ann_dir: str,
-        save_dir: str,
-) -> None:
-    """
-
-    Args:
-        dataset_ann_dir: a path to the MIMIC-CXR dataset annotations
-        save_dir: directory where the output files will be saved
-
-    Returns:
-        None
-    """
-    logger.info('Preparing metadata and annotations')
-
-    save_ann_dir = os.path.join(save_dir, 'ann')
-    os.makedirs(save_ann_dir, exist_ok=True)
-
-    metadata = pd.DataFrame(
-        columns=[
-            'Image path',
-            'Subject ID',
-            'Study id',
-            'Image width',
-            'Image height',
-            'Figure',
-            'x1',
-            'y1',
-            'x2',
-            'y2',
-            'xc',
-            'yc',
-            'Box width',
-            'Box height',
-            'RP',
-            # 'Mask',           # TODO: add mask string
-            # 'Points',         # TODO: add mask string
-            # 'Class ID',       # TODO: add class id
-            'Class',
-        ]
-    )
-
-    ann_list = os.listdir(dataset_ann_dir)
-    for ann_name in ann_list:
-        logger.info(f'Processing annotation {ann_name}')
-        annotation = pd.DataFrame(
-            columns=['edema id', 'figure id', 'x1', 'y1', 'x2', 'y2']
-        )
-
-        ann = sly.io.json.load_json_file(os.path.join(dataset_ann_dir, ann_name))
-
-        class_name = get_class_name(ann)
-
-        subject_id, study_id, width, right_width, ext, _ = ann_name.replace(
-            '.', '_'
-        ).split('_')
-        height = ann['size']['height']
-        cropped_img_path = os.path.join(
-            save_dir, 'img', f'{subject_id}_{study_id}.{ext}'
-        )
-
-        if len(ann['objects']) == 0:
-            logger.warning(f'There is no objects!')
-            continue
-
+    if len(ann['objects']) == 0:
+        logger.warning(f'There is no objects!')
+    else:
         for obj in ann['objects']:
             logger.info(f'Processing object {obj}')
 
-            # rp = get_tag_value(obj, tag_name='RP')             # TODO: implement extraction tag_value by tag_name (in our case 'RP'), uncomment when fixed
+            rp = get_tag_value(obj, tag_name='RP')
+            mask_points = get_object_points_mask(obj)
             xy = get_object_box(obj)
             box = get_box_sizes(*xy.values())
             figure_name = obj['classTitle']
@@ -143,49 +74,39 @@ def prepare_metadata_annotations(
             }
             annotation_info.update(xy)
             annotation = annotation.append(annotation_info, ignore_index=True)
+            new_annotation_name = f'{subject_id}_{study_id}.csv'
+            logging.info(f'Saving annotation {new_annotation_name}')
+            annotation.to_csv(
+                os.path.join(save_dir_ann, new_annotation_name),
+                header=False,
+                index=False,
+                sep=' ',
+            )
 
             image_info = {
-                'Image path': cropped_img_path,
+                'Image path': img_frontal_path,
                 'Subject ID': subject_id,
                 'Study id': study_id,
                 'Image width': width,
                 'Image height': height,
                 'Figure': figure_name,
                 'RP': rp,
+                'Class ID': CLASS_MAP[class_name],
                 'Class': class_name,
             }
             image_info.update(xy)
             image_info.update(box)
-            metadata = metadata.append(image_info, ignore_index=True)
+            image_info.update(mask_points)
+            img_metadata = img_metadata.append(image_info, ignore_index=True)
 
-        new_annotation_name = f'{subject_id}_{study_id}.csv'
-        logging.info(f'Saving annotation {new_annotation_name}')
-        annotation.to_csv(
-            os.path.join(save_ann_dir, new_annotation_name),
-            header=False,
-            index=False,
-            sep=' ',
-        )
-
-    # TODO: create a dataframe and save metadata as an XLSX file
-    # df.index += 1
-    # df.to_excel(
-    #     save_path,
-    #     sheet_name='Metadata',
-    #     index=True,
-    #     index_label='ID',
-    # )
-    logging.info('Saving metadata.csv')
-    metadata.to_csv(os.path.join(save_dir, f'metadata.csv'))
-
-    # return image_metadata     # TODO: return image metadata
+    return img_metadata
 
 
 def main(
-        dataset_dir: str,
-        include_dirs: List[str],
-        exclude_dirs: List[str],
-        save_dir: str,
+    save_dir: str,
+    dataset_dir: str,
+    include_dirs: Optional[List[str]] = None,
+    exclude_dirs: Optional[List[str]] = None,
 ) -> None:
     """
 
@@ -198,46 +119,53 @@ def main(
     Returns:
         None
     """
-    # TODO: remove
-    dataset_ann_dir = os.path.join(dataset_dir, 'DS1', 'ann')
-    dataset_img_dir = os.path.join(dataset_dir, 'DS1', 'img')
 
-    # TODO (@irina.ryndova): remove it as SLY automatically checks the structure of the dataset implemented in read_sly_project
-    # check_dataset_dirs(dataset_dir, dataset_ann_dir, dataset_img_dir)
-
-    df = read_sly_project(
+    logger.info(f'Reading a sly project {dataset_dir}')
+    sly_project = read_sly_project(
         dataset_dir=dataset_dir,
         include_dirs=include_dirs,
         exclude_dirs=exclude_dirs,
     )
 
-    # TODO: process images and annotations together
-    # TODO: Allocate dataframes/dicts per each image
-    # for idx, row in df.iterrows():
-    #     print(row)
-    #     df/dict = process_image(...)
+    logger.info(f'Creating img and ann directories in {save_dir}')
+    save_dir_img_frontal = os.path.join(save_dir, 'img', 'frontal')
+    os.makedirs(save_dir_img_frontal, exist_ok=True)
+    save_dir_img_lateral = os.path.join(save_dir, 'img', 'lateral')
+    os.makedirs(save_dir_img_lateral, exist_ok=True)
+    save_dir_ann = os.path.join(save_dir, 'ann')
+    os.makedirs(save_dir_ann, exist_ok=True)
 
+    logger.info('Preparing metadata and annotations')
+    all_metadata = pd.DataFrame(columns=METADATA_COLUMNS)
+    for idx, row in sly_project.iterrows():
+        all_metadata = all_metadata.append(
+            process_image(row, save_dir_ann, save_dir_img_frontal, save_dir_img_lateral),
+            ignore_index=True,
+        )
 
-    # TODO: Create final dataframe
     # TODO (@irina.ryndova): parallel processing (optional)
-    # df_metadata = unite(df)
-    # crop_images(dataset_img_dir, save_dir)
-
-    prepare_metadata_annotations(dataset_ann_dir, save_dir)
+    metadata_path = os.path.join(save_dir, 'metadata.xlsx')
+    logging.info(f'Saving {metadata_path}')
+    all_metadata.index += 1
+    all_metadata.to_excel(
+        metadata_path,
+        sheet_name='Metadata',
+        index=True,
+        index_label='ID',
+    )
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Convert Supervisely dataset')
     parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-SLY', type=str)
-    parser.add_argument('--include_dirs', nargs='+', default=None, type=str)
-    parser.add_argument('--exclude_dirs', nargs='+', default=None, type=str)
+    parser.add_argument('--include_dirs', nargs='+', default=[], type=str)
+    parser.add_argument('--exclude_dirs', nargs='+', default=[], type=str)  # TODO nargs?
     parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-Convert', type=str)
     args = parser.parse_args()
 
     main(
+        save_dir=args.save_dir,
         dataset_dir=args.dataset_dir,
         include_dirs=args.include_dirs,
         exclude_dirs=args.exclude_dirs,
-        save_dir=args.save_dir,
     )

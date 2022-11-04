@@ -10,6 +10,7 @@ import pandas as pd
 import supervisely_lib as sly
 
 CLASS_MAP = {
+    '': None,
     'No pathology': 0,
     'Vascular congestion': 1,
     'Interstitial edema': 2,
@@ -26,6 +27,30 @@ FIGURE_MAP = {
     'Bat': 6,
     'Infiltrate': 7,
 }
+
+METADATA_COLUMNS = [
+    'Image path',
+    'Subject ID',
+    'Study id',
+    'Image width',
+    'Image height',
+    'Figure',
+    'x1',
+    'y1',
+    'x2',
+    'y2',
+    'xc',
+    'yc',
+    'Box width',
+    'Box height',
+    'RP',
+    'Mask',
+    'Points',
+    'Class ID',
+    'Class',
+]
+
+ANNOTATION_COLUMNS = ['edema id', 'figure id', 'x1', 'y1', 'x2', 'y2']
 
 
 def read_sly_project(
@@ -44,7 +69,9 @@ def read_sly_project(
         df: dataframe representing the dataset
     """
     logging.info(f'Dataset dir..........: {dataset_dir}')
-    assert os.path.exists(dataset_dir) and os.path.isdir(dataset_dir), 'Wrong project dir: {}'.format(dataset_dir)
+    assert os.path.exists(dataset_dir) and os.path.isdir(
+        dataset_dir
+    ), 'Wrong project dir: {}'.format(dataset_dir)
     project = sly.Project(
         directory=dataset_dir,
         mode=sly.OpenMode.READ,
@@ -86,7 +113,7 @@ def read_sly_project(
 
 
 def convert_base64_to_image(
-        encoded_mask: str,
+    encoded_mask: str,
 ) -> np.ndarray:
     """
     The function convert_base64_to_image converts a base64 encoded string to a numpy array
@@ -113,7 +140,7 @@ def convert_base64_to_image(
 
 
 def get_class_name(
-        ann: dict,
+    ann: dict,
 ) -> str:
     """
 
@@ -132,27 +159,48 @@ def get_class_name(
 
 
 def get_tag_value(
-        obj: dict,
-        tag_name: str,  # TODO: implement extraction tag_value by tag_name (in our case 'RP')
+    obj: dict,
+    tag_name: str,
 ) -> str:
+    """
+
+    Args:
+        tag_name: tag name for searching
+        obj: dictionary with information about one object from supervisely annotations
+
+    Returns:
+        string with value of tag name
+    """
+    if obj['tags']:
+        tag_value_list = [v['value'] for v in obj['tags'] if v['name'] == tag_name]
+        if tag_value_list:
+            tag_value = tag_value_list[0]
+        else:
+            logging.warning(f'There is no {tag_name} value')
+            tag_value = ''
+    else:
+        logging.warning(f'There is no tags')
+        tag_value = ''
+    return tag_value
+
+
+def get_object_points_mask(obj: dict) -> dict:
     """
 
     Args:
         obj: dictionary with information about one object from supervisely annotations
 
     Returns:
-        string with representativeness level
+
     """
-    if obj['tags']:
-        tag_value = obj['tags'][0]['value']
+    if obj['geometryType'] == 'bitmap':
+        return {'Mask': obj['bitmap']['data'], 'Points': obj['bitmap']['origin']}
     else:
-        logging.warning(f'There is no {tag_name} value')
-        tag_value = ''
-    return tag_value
+        return {'Mask': None, 'Points': obj['points']['exterior']}
 
 
 def get_object_box(
-        obj: dict,
+    obj: dict,
 ) -> dict:
     """
 
@@ -181,10 +229,10 @@ def get_object_box(
 
 
 def get_box_sizes(
-        x1: int,
-        y1: int,
-        x2: int,
-        y2: int,
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
 ) -> dict:
     """
 
@@ -200,9 +248,4 @@ def get_box_sizes(
     box_width, box_height = x2 - x1, y2 - y1
     xc, yc = box_width // 2, box_height // 2
 
-    return {
-        'xc': xc,
-        'yc': yc,
-        'box_width': box_width,
-        'box_height': box_height
-    }
+    return {'xc': xc, 'yc': yc, 'Box width': box_width, 'Box height': box_height}
