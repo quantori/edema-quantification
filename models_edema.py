@@ -457,128 +457,68 @@ class EdemaNet(pl.LightningModule):
 
             return transient_layers
 
+    def update_prototypes_on_batch():
+        pass
+
 
 if __name__ == "__main__":
 
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
     edema_net = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
-    # print(edema_net._make_transient_layers(sq_net.model))
-    images = torch.rand(64, 10, 300, 300)
-    masks = images[:, 3:, :, :]
-    labels = torch.randint(0, 2, (64, 7), dtype=torch.float)
-    convoluted_image = torch.rand(1, 512, 14, 14)
-    fine_images = torch.rand(10, 3, 300, 300)
-    fine_annotations = torch.rand(64, 7, 300, 300)
 
-    images_test = torch.rand(2, 3, 4, 4)
-    fine_annotations_test = torch.zeros(2, 2, 4, 4)
-    fine_annotations_test[0, 0, :, :] = 1
-    fine_annotations_test[0, 1, :, :] = torch.rand(1, 1, 4, 4)
-    fine_annotations_test[1, :, :, :] = 0
-    labels_test = torch.randint(0, 2, (2, 2))
-    num_classes_test = 2
-    num_prototypes_test = 4
-    num_prototypes_per_class_test = num_prototypes_test // num_classes_test
-    # print(num_prototypes_per_class_test)
-    upsampled_activation_test = torch.rand(2, num_prototypes_test, 4, 4)
+    search_y = torch.randint(0, 2, (64,))
+    print(search_y)
+    distances = torch.rand(64, 35, 14, 14)
+    convs = torch.rand(64, 512, 14, 14)
+    proto_dist_j = torch.rand(1, 1, 14, 14)
+    num_classes = 7
+    proto_dist_j = distances[[0, 1, 2, 5, 8]][:, 3, :, :]
+    print(proto_dist_j.shape)
+    na = proto_dist_j.numpy()
+    print(na.shape)
+    batch_min_proto_dist_j = torch.amin(proto_dist_j)
+    batch_min_proto_dist_np = np.amin(na)
 
-    fine_cost = edema_net.fine_cost(
-        fine_annotations_test, upsampled_activation_test, num_prototypes_per_class_test
-    )
-    # print(fine_cost)
+    print(batch_min_proto_dist_j)
+    print(batch_min_proto_dist_np)
 
-    # print(labels)
+    # # if class_specific:
+    # class_to_img_index_dict = {key: [] for key in range(num_classes)}
+    # # img_y is the image's integer label
+    # for img_index, img_y in enumerate(search_y):
+    #     img_label = img_y.item()
+    #     class_to_img_index_dict[img_label].append(img_index)
 
-    batch = (images, labels)
-    cls = edema_net.training_step(batch, 1)
+    # prototype_shape = prototype_network_parallel.module.prototype_shape
+    # n_prototypes = prototype_shape[0]
+    # proto_h = prototype_shape[2]
+    # proto_w = prototype_shape[3]
+    # max_dist = prototype_shape[1] * prototype_shape[2] * prototype_shape[3]
 
-    print(cls)
- 
-    # print(images_test)
-    # print(labels_test)
-    # mask_indexes = torch.nonzero((labels_test == 0), as_tuple=True)
-    # print(mask_indexes)
-    # print(masks_test)
-    # masks_test[mask_indexes[0], mask_indexes[1], :, :] = 1
-    # print(masks_test)
-    # print(masks_test.shape)
-    # mask_test_expanded = torch.repeat_interleave(masks_test, num_prototypes_per_class_test, 1)
-    # print(mask_test_expanded.shape)
+    # for j in range(n_prototypes):
+    #     #if n_prototypes_per_class != None:
+    #     if class_specific:
+    #         # target_class is the class of the class_specific prototype
+    #         target_class = torch.argmax(prototype_network_parallel.module.prototype_class_identity[j]).item()
+    #         # if there is not images of the target_class from this batch
+    #         # we go on to the next prototype
+    #         if len(class_to_img_index_dict[target_class]) == 0:
+    #             continue
+    #         proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:,j,:,:]
+    #     else:
+    #         # if it is not class specific, then we will search through
+    #         # every example
+    #         # proto_dist_j = proto_dist_[:,j,:,:]
+    #         target_class = 1
+    #         # if there is not images of the target_class from this batch
+    #         # we go on to the next prototype
+    #         if len(class_to_img_index_dict[target_class]) == 0:
+    #             continue
+    #         proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:, j, :, :]
 
-    # print(fine_annotations.shape)
-    # print(fine_annotations_expanded)
-    # batch = (images, labels)
-    # print(labels)
-    # print(len(batch))
-
-    # _, min_distances, upsampled_activation = edema_net(images)
-
-    # print(upsampled_activation.shape)
-
-    # print(torch.cat((y, z)).shape)
-
-    # y = edema_net.encoder(y)
-    # y = edema_net.transient_layers(y)
-    # distances = edema_net.prototype_distances(y)
-    # print(distances.shape)
-
-    # _distances = distances.view(distances.shape[0], distances.shape[1], -1)
-    # # print(_distances)
-    # closest_k_distances, _ = torch.topk(_distances, 5, largest=False)
-    # # print(closest_k_distances)
-    # min_distances = F.avg_pool1d(
-    #     closest_k_distances, kernel_size=closest_k_distances.shape[2]
-    # ).view(-1, 5)
-    # print(min_distances.shape)
-
-    # num_prototypes = 35
-    # num_classes = 7
-    # num_prototypes_per_class = num_prototypes // num_classes
-    # max_dist = 512
-
-    # print(labels)
-    # prototype_class_identity = torch.zeros(num_prototypes, num_classes, dtype=torch.long)
-    # for j in range(num_prototypes):
-    #     prototype_class_identity[j, j // num_prototypes_per_class] = 1
-    # print(prototype_class_identity)
-    # prototype_class_identity = torch.permute(prototype_class_identity, (1, 0))
-    # prototypes_of_correct_class = torch.matmul(labels, prototype_class_identity)
-    # fine_cost = edema_net.fine_cost(images, labels, num_prototypes, num_classes, prototypes_of_correct_class, upsampled_activation)
-
-    # print(edema_net.forward(y)[0].shape)
-
-    # prototype_activations = torch.log((distances + 1) / (distances + 1e-4))
-    # print(prototype_activations.shape)
-    # _activations = prototype_activations.view(
-    #     prototype_activations.shape[0], prototype_activations.shape[1], -1
-    # )
-    # print(_activations.shape)
-    # top_k_activations, _ = torch.topk(_activations, 5)
-    # print(top_k_activations.shape)
-    # prototype_activations = F.avg_pool1d(
-    #     top_k_activations, kernel_size=top_k_activations.shape[2]
-    # ).view(-1, 5)
-    # print(prototype_activations.shape)
-    # logits = edema_net.last_layer(prototype_activations)
-    # print(logits)
-    # logits[:, 0] = 0
-    # print(logits)
-    # # print(x[0][0])
-    # # print(edema_net.prototype_layer[0][0])
-    # y = edema_net.encoder(y)
-    # print(y.shape)
-    # y = edema_net.transient_layers(y)
-    # print(y.shape)
-    # distances = edema_net.prototype_distances(y)
-    # print(distances.shape)
-    # print(sq_net.model.__class__.__name__)
-    # for module in sq_net.model.modules():
-    #     print(module)
-    # print(dict(sq_net.model.named_children()))
-    # print(sq_net.model.children()[0])
-
-    # y1 = torch.rand(1, 196, 512)
-    # y2 = torch.rand(1, 1, 512)
-    # d = torch.cdist(y1, y2)
-    # print(d)
+    #     batch_min_proto_dist_j = np.amin(proto_dist_j)
+    #     if batch_min_proto_dist_j < global_min_proto_dist[j]:
+    #         batch_argmin_proto_dist_j = \
+    #             list(np.unravel_index(np.argmin(proto_dist_j, axis=None),
+    #                                   proto_dist_j.shape))
