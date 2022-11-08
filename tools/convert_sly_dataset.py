@@ -1,25 +1,28 @@
 import os
 import logging
 import argparse
+from pathlib import Path
+from functools import partial
+from joblib import Parallel, delayed
 
 import cv2
-from typing import List, Optional
-from pathlib import Path
-
 import pandas as pd
+from tqdm import tqdm
 import supervisely_lib as sly
+from typing import List, Optional, Tuple
+
 
 from tools.utils_sly import (
     CLASS_MAP,
     FIGURE_MAP,
+    METADATA_COLUMNS,
+    ANNOTATION_COLUMNS,
     read_sly_project,
     get_class_name,
     get_tag_value,
     get_object_box,
     get_box_sizes,
-    METADATA_COLUMNS,
-    get_object_points_mask,
-    ANNOTATION_COLUMNS,
+    get_mask_points,
 )
 
 os.makedirs('logs', exist_ok=True)
@@ -33,7 +36,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def process_image(row: pd.Series, save_dir_img_frontal: str, save_dir_img_lateral: str) -> dict:
+def process_image(
+        row: pd.Series,
+        save_dir_img_frontal: str,
+        save_dir_img_lateral: str,
+) -> dict:
     """
 
     Args:
@@ -44,31 +51,35 @@ def process_image(row: pd.Series, save_dir_img_frontal: str, save_dir_img_latera
     Returns:
         dictionary with information about one image
     """
-    logger.info(f'Cropping image {row.img_path}')
+    (img_path, ann_path), row = row
+    logger.info(f'Cropping image {img_path}')
 
-    original_img_name = os.path.basename(row.img_path)
-    subject_id, study_id, width_frontal, width_lateral, ext = original_img_name.replace(
-        '.', '_'
-    ).split('_')
-    img = cv2.imread(row.img_path)
+    img_stem = Path(img_path).stem
+    subject_id, study_id, width_frontal, width_lateral = img_stem.split('_')
+    img = cv2.imread(img_path)
     height = img.shape[0]
     width = img.shape[1]
-    img_frontal = img[0:height, 0 : int(width_frontal)]
-    img_lateral = img[0:height, int(width_frontal) : width]
-    img_frontal_path = os.path.join(save_dir_img_frontal, f'{subject_id}_{study_id}.{ext}')
+    img_frontal = img[0:height, 0:int(width_frontal)]
+    img_lateral = img[0:height, int(width_frontal):width]
+    img_frontal_path = os.path.join(save_dir_img_frontal, f'{subject_id}_{study_id}.png')
+    img_lateral_path = os.path.join(save_dir_img_lateral, f'{subject_id}_{study_id}.png')
     cv2.imwrite(img_frontal_path, img_frontal)
-    cv2.imwrite(os.path.join(save_dir_img_lateral, f'{subject_id}_{study_id}.{ext}'), img_lateral)
+    cv2.imwrite(img_lateral_path, img_lateral)
 
     return {
         'Image path': img_frontal_path,
         'Subject ID': subject_id,
-        'Study id': study_id,
+        'Study ID': study_id,
         'Image width': width,
         'Image height': height,
     }
 
 
-def process_annotation(row: pd.Series, save_dir_ann: str, img_info: dict) -> pd.DataFrame:
+def process_annotation(
+        row: pd.Series,
+        save_dir_ann: str,
+        img_info: dict,
+) -> pd.DataFrame:
     """
 
     Args:
@@ -80,37 +91,40 @@ def process_annotation(row: pd.Series, save_dir_ann: str, img_info: dict) -> pd.
         dataframe with metadata for one image
     """
     logger.info('Preparing metadata and annotation')
+    (img_path, ann_path), row = row
     img_metadata = pd.DataFrame(columns=METADATA_COLUMNS)
-    annotation = pd.DataFrame(columns=ANNOTATION_COLUMNS)
+    ann_metadata = pd.DataFrame(columns=ANNOTATION_COLUMNS)
 
-    ann = sly.io.json.load_json_file(row.ann_path)
+    ann = sly.io.json.load_json_file(ann_path)
     class_name = get_class_name(ann)
 
     if len(ann['objects']) == 0:
-        logger.warning(f'There is no objects!')
+        logger.warning(f'No objects for image {Path(img_path).name}')
     else:
         for obj in ann['objects']:
-            logger.info(f'Processing object {obj}')
+            logger.debug(f'Processing object {obj}')
 
             rp = get_tag_value(obj, tag_name='RP')
-            mask_points = get_object_points_mask(obj)
+            mask_points = get_mask_points(obj)
             xy = get_object_box(obj)
             box = get_box_sizes(*xy.values())
             figure_name = obj['classTitle']
 
-            annotation_info = {
-                'edema id': CLASS_MAP[class_name],
-                'figure id': FIGURE_MAP[figure_name],
+            ann_info = {
+                'Class ID': CLASS_MAP[class_name],
+                'Figure ID': FIGURE_MAP[figure_name],
+                'RP': rp,
             }
-            annotation_info.update(xy)
-            annotation = annotation.append(annotation_info, ignore_index=True)
-            new_annotation_name = f'{img_info["Subject ID"]}_{img_info["Study id"]}.csv'
-            logging.info(f'Saving annotation {new_annotation_name}')
-            annotation.to_csv(
-                os.path.join(save_dir_ann, new_annotation_name),
+            ann_info.update(xy)
+            ann_metadata = ann_metadata.append(ann_info, ignore_index=True)
+            ann_name = f'{img_info["Subject ID"]}_{img_info["Study ID"]}.txt'
+            ann_path = os.path.join(save_dir_ann, ann_name)
+            logging.debug(f'Saving annotation {ann_name}')
+            ann_metadata.to_csv(
+                ann_path,
                 header=False,
                 index=False,
-                sep=' ',
+                sep='\t',
             )
 
             obj_info = {
@@ -128,7 +142,10 @@ def process_annotation(row: pd.Series, save_dir_ann: str, img_info: dict) -> pd.
 
 
 def process_sample(
-    row: pd.Series, save_dir_ann: str, save_dir_img_frontal: str, save_dir_img_lateral: str
+        row: pd.Series,
+        save_dir_ann: str,
+        save_dir_img_frontal: str,
+        save_dir_img_lateral: str
 ) -> pd.DataFrame:
     """
 
@@ -142,11 +159,14 @@ def process_sample(
         dataframe with metadata for one image
     """
     img_info = process_image(row, save_dir_img_frontal, save_dir_img_lateral)
+    ann_info = process_annotation(row, save_dir_ann, img_info)
 
-    return process_annotation(row, save_dir_ann, img_info)
+    return ann_info
 
 
-def create_save_dirs(save_dir: str) -> tuple:
+def create_save_dirs(
+        save_dir: str,
+) -> Tuple[str, str, str]:
     """
 
     Args:
@@ -157,10 +177,10 @@ def create_save_dirs(save_dir: str) -> tuple:
     """
     logger.info(f'Creating img and ann directories in {save_dir}')
 
-    save_dir_img_frontal = os.path.join(save_dir, 'img', 'frontal')
+    save_dir_img_frontal = os.path.join(save_dir, 'img_frontal')
     os.makedirs(save_dir_img_frontal, exist_ok=True)
 
-    save_dir_img_lateral = os.path.join(save_dir, 'img', 'lateral')
+    save_dir_img_lateral = os.path.join(save_dir, 'img_lateral')
     os.makedirs(save_dir_img_lateral, exist_ok=True)
 
     save_dir_ann = os.path.join(save_dir, 'ann')
@@ -169,20 +189,25 @@ def create_save_dirs(save_dir: str) -> tuple:
     return save_dir_img_frontal, save_dir_img_lateral, save_dir_ann
 
 
-def save_metadata_xlsx(save_dir, all_metadata) -> None:
+def save_metadata(
+        metadata: pd.DataFrame,
+        save_dir: str,
+) -> None:
     """
 
     Args:
+        metadata: dataframe with metadata for all images
         save_dir: directory where the output files will be saved
-        all_metadata: dataframe with metadata for all images
 
     Returns:
         None
     """
     metadata_path = os.path.join(save_dir, 'metadata.xlsx')
-    logging.info(f'Saving {metadata_path}')
-    all_metadata.index += 1
-    all_metadata.to_excel(
+    logging.info(f'Saving metadata to {metadata_path}')
+    metadata.sort_values(['Image path'], inplace=True)
+    metadata.reset_index(drop=True, inplace=True)
+    metadata.index += 1
+    metadata.to_excel(
         metadata_path,
         sheet_name='Metadata',
         index=True,
@@ -191,8 +216,8 @@ def save_metadata_xlsx(save_dir, all_metadata) -> None:
 
 
 def main(
-    save_dir: str,
     dataset_dir: str,
+    save_dir: str,
     include_dirs: Optional[List[str]] = None,
     exclude_dirs: Optional[List[str]] = None,
 ) -> None:
@@ -208,32 +233,39 @@ def main(
         None
     """
 
-    logger.info(f'Reading a sly project {dataset_dir}')
-    sly_project = read_sly_project(
+    df = read_sly_project(
         dataset_dir=dataset_dir,
         include_dirs=include_dirs,
         exclude_dirs=exclude_dirs,
     )
 
-    save_dir_img_frontal, save_dir_img_lateral, save_dir_ann = create_save_dirs(save_dir)
+    save_dir_img_frontal, save_dir_img_lateral, save_dir_ann = create_save_dirs(save_dir=save_dir)
 
-    logger.info('Preparing metadata and annotations')
-    # TODO (@irina.ryndova): parallel processing (optional)
-    all_metadata = pd.DataFrame(columns=METADATA_COLUMNS)
-    for idx, row in sly_project.iterrows():
-        all_metadata = all_metadata.append(
-            process_sample(row, save_dir_ann, save_dir_img_frontal, save_dir_img_lateral),
-            ignore_index=True,
-        )
+    logger.info('Processing annotations')
+    groups = df.groupby(['img_path', 'ann_path'])
+    processing_func = partial(
+        process_sample,
+        save_dir_ann=save_dir_ann,
+        save_dir_img_frontal=save_dir_img_frontal,
+        save_dir_img_lateral=save_dir_img_lateral,
+    )
+    result = Parallel(n_jobs=-1)(
+        delayed(processing_func)(group) for group in tqdm(groups, desc='Dataset conversion', unit=' image')
+    )
 
-    save_metadata_xlsx(save_dir, all_metadata)
+    metadata = pd.concat(result)
+    save_metadata(
+        metadata=metadata,
+        save_dir=save_dir,
+    )
+    logger.info('Complete')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert Supervisely dataset')
     parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-SLY', type=str)
     parser.add_argument('--include_dirs', nargs='+', default=[], type=str)
-    parser.add_argument('--exclude_dirs', nargs='+', default=[], type=str)  # TODO nargs?
+    parser.add_argument('--exclude_dirs', nargs='+', default=[], type=str)
     parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-Convert', type=str)
     args = parser.parse_args()
 
