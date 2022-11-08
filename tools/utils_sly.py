@@ -31,7 +31,7 @@ FIGURE_MAP = {
 METADATA_COLUMNS = [
     'Image path',
     'Subject ID',
-    'Study id',
+    'Study ID',
     'Image width',
     'Image height',
     'Figure',
@@ -50,7 +50,15 @@ METADATA_COLUMNS = [
     'Class',
 ]
 
-ANNOTATION_COLUMNS = ['edema id', 'figure id', 'x1', 'y1', 'x2', 'y2']
+ANNOTATION_COLUMNS = [
+    'Class ID',
+    'Figure ID',
+    'RP',
+    'x1',
+    'y1',
+    'x2',
+    'y2',
+]
 
 
 def read_sly_project(
@@ -153,7 +161,7 @@ def get_class_name(
     if ann['tags']:
         class_name = ann['tags'][0]['value']
     else:
-        logging.warning('There are no tags available for a given image!')
+        logging.warning(f'No class tags available {ann}')
         class_name = ''
     return class_name
 
@@ -169,22 +177,24 @@ def get_tag_value(
         obj: dictionary with information about one object from supervisely annotations
 
     Returns:
-        string with value of tag name
+        tag_value: string with value of tag name
     """
     if obj['tags']:
         tag_value_list = [v['value'] for v in obj['tags'] if v['name'] == tag_name]
         if tag_value_list:
             tag_value = tag_value_list[0]
         else:
-            logging.warning(f'There is no {tag_name} value')
+            logging.warning(f'No {tag_name} value in {obj}')
             tag_value = ''
     else:
-        logging.warning(f'There is no tags')
+        logging.warning(f'No {tag_name} value in {obj}')
         tag_value = ''
     return tag_value
 
 
-def get_object_points_mask(obj: dict) -> dict:
+def get_mask_points(
+        obj: dict,
+) -> dict:
     """
 
     Args:
