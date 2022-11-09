@@ -473,16 +473,19 @@ if __name__ == "__main__":
     convs = torch.rand(64, 512, 14, 14)
     proto_dist_j = torch.rand(1, 1, 14, 14)
     num_classes = 7
-    proto_dist_j = distances[[0, 1, 2, 5, 8]][:, 3, :, :]
+    proto_dist_j = distances[[0, 1, 2, 5, 8]][:, 1, :, :]
     print(proto_dist_j.shape)
+    # print(proto_dist_j)
     na = proto_dist_j.numpy()
     print(na.shape)
     batch_min_proto_dist_j = torch.amin(proto_dist_j)
     batch_min_proto_dist_np = np.amin(na)
 
-    print(batch_min_proto_dist_j)
-    print(batch_min_proto_dist_np)
+    # print(batch_min_proto_dist_j)
+    # print(batch_min_proto_dist_np)
 
+
+    
     # # if class_specific:
     # class_to_img_index_dict = {key: [] for key in range(num_classes)}
     # # img_y is the image's integer label
