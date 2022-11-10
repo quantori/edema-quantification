@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 
 
 def process_image(
-        row: pd.Series,
-        save_dir_img_frontal: str,
+    row: pd.Series,
+    save_dir_img_frontal: str,
 ) -> dict:
     """
 
@@ -71,9 +71,9 @@ def process_image(
 
 
 def process_annotation(
-        row: pd.Series,
-        save_dir_ann: str,
-        img_info: dict,
+    row: pd.Series,
+    save_dir_ann: str,
+    img_info: dict,
 ) -> pd.DataFrame:
     """
 
@@ -139,9 +139,9 @@ def process_annotation(
 
 
 def process_sample(
-        row: pd.Series,
-        save_dir_ann: str,
-        save_dir_img_frontal: str,
+    row: pd.Series,
+    save_dir_ann: str,
+    save_dir_img_frontal: str,
 ) -> pd.DataFrame:
     """
 
@@ -160,7 +160,7 @@ def process_sample(
 
 
 def create_save_dirs(
-        save_dir: str,
+    save_dir: str,
 ) -> Tuple[str, str]:
     """
 
@@ -182,8 +182,8 @@ def create_save_dirs(
 
 
 def save_metadata(
-        metadata: pd.DataFrame,
-        save_dir: str,
+    metadata: pd.DataFrame,
+    save_dir: str,
 ) -> None:
     """
 
@@ -241,7 +241,8 @@ def main(
         save_dir_img_frontal=save_dir_img_frontal,
     )
     result = Parallel(n_jobs=-1)(
-        delayed(processing_func)(group) for group in tqdm(groups, desc='Dataset conversion', unit=' image')
+        delayed(processing_func)(group)
+        for group in tqdm(groups, desc='Dataset conversion', unit=' image')
     )
 
     metadata = pd.concat(result)

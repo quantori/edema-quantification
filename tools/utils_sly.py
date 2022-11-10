@@ -193,7 +193,7 @@ def get_tag_value(
 
 
 def get_mask_points(
-        obj: dict,
+    obj: dict,
 ) -> dict:
     """
 
