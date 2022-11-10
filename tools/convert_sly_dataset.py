@@ -39,14 +39,12 @@ logger = logging.getLogger(__name__)
 def process_image(
         row: pd.Series,
         save_dir_img_frontal: str,
-        save_dir_img_lateral: str,
 ) -> dict:
     """
 
     Args:
         row: series with information about one image
         save_dir_img_frontal: directory where the output frontal images will be saved
-        save_dir_img_lateral: directory where the output lateral images will be saved
 
     Returns:
         dictionary with information about one image
@@ -58,13 +56,10 @@ def process_image(
     subject_id, study_id, width_frontal, width_lateral = img_stem.split('_')
     img = cv2.imread(img_path)
     height = img.shape[0]
-    width = img.shape[1]
-    img_frontal = img[0:height, 0:int(width_frontal)]
-    img_lateral = img[0:height, int(width_frontal):width]
+    width = int(width_frontal)
+    img_frontal = img[0:height, 0:width]
     img_frontal_path = os.path.join(save_dir_img_frontal, f'{subject_id}_{study_id}.png')
-    img_lateral_path = os.path.join(save_dir_img_lateral, f'{subject_id}_{study_id}.png')
     cv2.imwrite(img_frontal_path, img_frontal)
-    cv2.imwrite(img_lateral_path, img_lateral)
 
     return {
         'Image path': img_frontal_path,
@@ -115,6 +110,8 @@ def process_annotation(
                 'Figure ID': FIGURE_MAP[figure_name],
                 'RP': rp,
             }
+            if xy['x1'] >= img_info['Image width']:
+                continue
             ann_info.update(xy)
             ann_metadata = ann_metadata.append(ann_info, ignore_index=True)
             ann_name = f'{img_info["Subject ID"]}_{img_info["Study ID"]}.txt'
@@ -145,7 +142,6 @@ def process_sample(
         row: pd.Series,
         save_dir_ann: str,
         save_dir_img_frontal: str,
-        save_dir_img_lateral: str
 ) -> pd.DataFrame:
     """
 
@@ -153,12 +149,11 @@ def process_sample(
         row: series with information about one image
         save_dir_ann: directory where the output annotation will be saved
         save_dir_img_frontal: directory where the output frontal images will be saved
-        save_dir_img_lateral: directory where the output lateral images will be saved
 
     Returns:
         dataframe with metadata for one image
     """
-    img_info = process_image(row, save_dir_img_frontal, save_dir_img_lateral)
+    img_info = process_image(row, save_dir_img_frontal)
     ann_info = process_annotation(row, save_dir_ann, img_info)
 
     return ann_info
@@ -166,27 +161,24 @@ def process_sample(
 
 def create_save_dirs(
         save_dir: str,
-) -> Tuple[str, str, str]:
+) -> Tuple[str, str]:
     """
 
     Args:
         save_dir: directory where the output files will be saved
 
     Returns:
-        tuple with directories where the output frontal/lateral images and annotations will be saved
+        tuple with directories where the output frontal images and annotations will be saved
     """
     logger.info(f'Creating img and ann directories in {save_dir}')
 
-    save_dir_img_frontal = os.path.join(save_dir, 'img_frontal')
+    save_dir_img_frontal = os.path.join(save_dir, 'img')
     os.makedirs(save_dir_img_frontal, exist_ok=True)
-
-    save_dir_img_lateral = os.path.join(save_dir, 'img_lateral')
-    os.makedirs(save_dir_img_lateral, exist_ok=True)
 
     save_dir_ann = os.path.join(save_dir, 'ann')
     os.makedirs(save_dir_ann, exist_ok=True)
 
-    return save_dir_img_frontal, save_dir_img_lateral, save_dir_ann
+    return save_dir_img_frontal, save_dir_ann
 
 
 def save_metadata(
@@ -239,7 +231,7 @@ def main(
         exclude_dirs=exclude_dirs,
     )
 
-    save_dir_img_frontal, save_dir_img_lateral, save_dir_ann = create_save_dirs(save_dir=save_dir)
+    save_dir_img_frontal, save_dir_ann = create_save_dirs(save_dir=save_dir)
 
     logger.info('Processing annotations')
     groups = df.groupby(['img_path', 'ann_path'])
@@ -247,7 +239,6 @@ def main(
         process_sample,
         save_dir_ann=save_dir_ann,
         save_dir_img_frontal=save_dir_img_frontal,
-        save_dir_img_lateral=save_dir_img_lateral,
     )
     result = Parallel(n_jobs=-1)(
         delayed(processing_func)(group) for group in tqdm(groups, desc='Dataset conversion', unit=' image')
