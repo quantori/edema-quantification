@@ -473,13 +473,22 @@ if __name__ == "__main__":
     convs = torch.rand(64, 512, 14, 14)
     proto_dist_j = torch.rand(1, 1, 14, 14)
     num_classes = 7
-    proto_dist_j = distances[[0, 1, 2, 5, 8]][:, 1, :, :]
+    proto_dist_j = distances[[0, 5, 10, 15, 25]][:, 1, :, :]
     print(proto_dist_j.shape)
+    class_to_img_index_dict = {1 : [0, 5, 10, 15, 25]}
     # print(proto_dist_j)
-    na = proto_dist_j.numpy()
-    print(na.shape)
+    # na = proto_dist_j.numpy()
+    # print(na.shape)
     batch_min_proto_dist_j = torch.amin(proto_dist_j)
-    batch_min_proto_dist_np = np.amin(na)
+    # batch_min_proto_dist_np = np.amin(na)
+    print(batch_min_proto_dist_j)
+
+    batch_argmin_proto_dist_j = list(np.unravel_index(np.argmin(proto_dist_j, axis=None),
+                                      proto_dist_j.shape))
+    print(batch_argmin_proto_dist_j)
+
+    batch_argmin_proto_dist_j[0] = class_to_img_index_dict[1][batch_argmin_proto_dist_j[0]]
+    print(batch_argmin_proto_dist_j)
 
     # print(batch_min_proto_dist_j)
     # print(batch_min_proto_dist_np)
