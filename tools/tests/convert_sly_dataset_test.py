@@ -1,6 +1,9 @@
+import os
+
 import pytest
 
-from tools.convert_sly_dataset import *
+from tools.convert_sly_dataset import create_save_dirs
+from tools.utils_sly import get_class_name, get_tag_value, get_box_sizes, get_object_box
 
 dataset_dir_test = './../../dataset/MIMIC-CXR-Edema-SLY/DS1'
 dataset_ann_dir_test = os.path.join(dataset_dir_test, 'ann')
@@ -196,82 +199,35 @@ object_test_rectangle = {
 }
 
 
-def test_dataset_dir_exist():
-    check_dataset_dirs(dataset_dir_test, dataset_ann_dir_test, dataset_img_dir_test)
+def test_create_save_dirs():
+    save_dir_img_frontal, save_dir_ann = create_save_dirs(save_dir=save_dir_test)
+    assert save_dir_img_frontal == save_img_dir_test
+    assert save_dir_ann == save_ann_dir_test
 
 
-def test_dataset_dir_not_exist():
-    with pytest.raises(OSError):
-        check_dataset_dirs('wrong', dataset_ann_dir_test, dataset_img_dir_test)
+def test_get_class_name_ok():
+    assert get_class_name(ann_test_ok) == 'Alveolar edema'
 
 
-def test_dataset_ann_dir_not_exist():
-    with pytest.raises(OSError):
-        check_dataset_dirs(dataset_dir_test, 'wrong', dataset_img_dir_test)
+def test_get_class_name_wrong():
+    assert get_class_name(ann_test_no_tags) == ''
 
 
-def test_dataset_img_dir_not_exist():
-    with pytest.raises(OSError):
-        check_dataset_dirs(dataset_dir_test, dataset_ann_dir_test, 'wrong')
+def test_get_tag_value(caplog):
+    assert get_tag_value(object_test_ok, 'RP') == '3'
+
+    get_tag_value(object_test_no_tags, 'RP')
+    assert 'No RP value in' in caplog.text
 
 
-def test_crop_images():
-    crop_images(dataset_img_dir_test, save_dir_test)
-
-    original_img_list = os.listdir(dataset_img_dir_test)
-    cropped_img_list = os.listdir(save_img_dir_test)
-
-    assert len(original_img_list) == len(cropped_img_list)
-    for original_img_name in original_img_list:
-        subject_id, study_id, left_width, right_width, ext = original_img_name.replace(
-            '.', '_'
-        ).split('_')
-        cropped_img_name = f'{subject_id}_{study_id}.{ext}'
-        cropped_img_path = os.path.join(save_img_dir_test, cropped_img_name)
-        assert os.path.isfile(cropped_img_path)
-
-        cropped_img = Image.open(cropped_img_path)
-        assert int(left_width) == cropped_img.width
-        assert cropped_img.height == 2000
-
-
-def test_get_edema_name_ok():
-    assert get_edema_name(ann_test_ok) == 'Alveolar edema'
-
-
-def test_get_edema_name_wrong():
-    assert get_edema_name(ann_test_no_tags) == ''
-
-
-def test_check_labeler_login(caplog):
-    for bad_login in ('ViacheslavDanilov', 'mak_en', 'irina.ryndova'):
-        check_labeler_login(bad_login)
-        assert f'Wrong labeler login: {bad_login}' in caplog.text
-
-    good_login = 'RenataS'
-    check_labeler_login(good_login)
-    assert f'Wrong labeler login: {good_login}' not in caplog.text
-
-
-def test_get_object_rp(caplog):
-    assert get_object_rp(object_test_ok) == '3'
-
-    get_object_rp(object_test_no_tags)
-    assert 'There is info about RP!' in caplog.text
-
-
-def test_get_object_sizes():
-    assert get_object_sizes(object_test_polyline) == {'x1': 237, 'y1': 1009, 'x2': 298, 'y2': 1018}
-    assert get_object_sizes(object_test_polygon) == {'x1': 1034, 'y1': 465, 'x2': 1362, 'y2': 1030}
-    assert get_object_sizes(object_test_bitmap) == {'x1': 479, 'y1': 615, 'x2': 497, 'y2': 633}
-    assert get_object_sizes(object_test_rectangle) == {'x1': 485, 'y1': 915, 'x2': 1260, 'y2': 985}
+def test_get_object_box():
+    assert get_object_box(object_test_polyline) == {'x1': 237, 'y1': 1009, 'x2': 298, 'y2': 1018}
+    assert get_object_box(object_test_polygon) == {'x1': 1034, 'y1': 465, 'x2': 1362, 'y2': 1030}
+    assert get_object_box(object_test_bitmap) == {'x1': 479, 'y1': 615, 'x2': 497, 'y2': 633}
+    assert get_object_box(object_test_rectangle) == {'x1': 485, 'y1': 915, 'x2': 1260, 'y2': 985}
 
 
 def test_get_box_sizes():
-    assert get_box_sizes(0, 0, 0, 0) == {'xc': 0, 'yc': 0, 'box width': 0, 'box height': 0}
-    assert get_box_sizes(0, 0, 1, 1) == {'xc': 0.5, 'yc': 0.5, 'box width': 1, 'box height': 1}
-    assert get_box_sizes(1, 0, 9, 8) == {'xc': 4, 'yc': 4, 'box width': 8, 'box height': 8}
-
-
-def test_metadata():
-    prepare_metadata_annotations(dataset_ann_dir_test, save_dir_test)
+    assert get_box_sizes(0, 0, 0, 0) == {'xc': 0, 'yc': 0, 'Box width': 0, 'Box height': 0}
+    assert get_box_sizes(0, 0, 1, 1) == {'xc': 0.5, 'yc': 0.5, 'Box width': 1, 'Box height': 1}
+    assert get_box_sizes(1, 0, 9, 8) == {'xc': 4, 'yc': 4, 'Box width': 8, 'Box height': 8}
