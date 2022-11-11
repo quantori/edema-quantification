@@ -229,5 +229,5 @@ def test_get_object_box():
 
 def test_get_box_sizes():
     assert get_box_sizes(0, 0, 0, 0) == {'xc': 0, 'yc': 0, 'Box width': 0, 'Box height': 0}
-    assert get_box_sizes(0, 0, 1, 1) == {'xc': 0.5, 'yc': 0.5, 'Box width': 1, 'Box height': 1}
+    assert get_box_sizes(0, 0, 1, 1) == {'xc': 0, 'yc': 0, 'Box width': 1, 'Box height': 1}
     assert get_box_sizes(1, 0, 9, 8) == {'xc': 4, 'yc': 4, 'Box width': 8, 'Box height': 8}
