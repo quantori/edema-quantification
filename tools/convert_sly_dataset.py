@@ -255,7 +255,7 @@ def main(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert Supervisely dataset')
-    parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-SLY', type=str)
+    parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-Supervisely', type=str)
     parser.add_argument('--include_dirs', nargs='+', default=[], type=str)
     parser.add_argument('--exclude_dirs', nargs='+', default=[], type=str)
     parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-Intermediate', type=str)
