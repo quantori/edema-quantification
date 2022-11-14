@@ -153,3 +153,6 @@ logs/
 .dvc/config.local
 .dvc/tmp
 .dvc/cache
+
+# Directory with temporary files
+/temp/
