@@ -1,12 +1,16 @@
 import os
 import logging
 import warnings
+import multiprocessing
 from pathlib import Path
+from functools import partial
 from PIL import Image, ImageFilter
 from typing import Dict, List, Union, Tuple
 
 import cv2
+import shutil
 import numpy as np
+from tqdm import tqdm
 
 
 def get_file_list(
@@ -42,6 +46,33 @@ def get_file_list(
                     all_files.append(file_path)
     all_files.sort()
     return all_files
+
+
+def copy_single_file(
+    file_path: str,
+    save_dir: str
+) -> None:
+    try:
+        shutil.copy(file_path, save_dir)
+    except Exception as e:
+        logging.info(f'Exception: {e}\nCould not copy {file_path}')
+
+
+def copy_files(
+    file_list: List[str],
+    save_dir: str
+) -> None:
+    os.makedirs(save_dir) if not os.path.isdir(save_dir) else False
+    num_cores = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(num_cores)
+    copy_func = partial(
+        copy_single_file,
+        save_dir=save_dir
+    )
+    pool.map(
+        copy_func,
+        tqdm(file_list, desc='Copy files', unit=' files'))
+    pool.close()
 
 
 def convert_seconds_to_hms(
