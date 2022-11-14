@@ -38,13 +38,13 @@ logger = logging.getLogger(__name__)
 
 def process_image(
     row: pd.Series,
-    save_dir_img_frontal: str,
+    save_dir_img: str,
 ) -> dict:
     """
 
     Args:
         row: series with information about one image
-        save_dir_img_frontal: directory where the output frontal images will be saved
+        save_dir_img: directory where the output frontal images will be saved
 
     Returns:
         dictionary with information about one image
@@ -58,7 +58,7 @@ def process_image(
     height = img.shape[0]
     width = int(width_frontal)
     img_frontal = img[0:height, 0:width]
-    img_frontal_path = os.path.join(save_dir_img_frontal, f'{subject_id}_{study_id}.png')
+    img_frontal_path = os.path.join(save_dir_img, f'{subject_id}_{study_id}.png')
     cv2.imwrite(img_frontal_path, img_frontal)
 
     return {
@@ -141,19 +141,19 @@ def process_annotation(
 def process_sample(
     row: pd.Series,
     save_dir_ann: str,
-    save_dir_img_frontal: str,
+    save_dir_img: str,
 ) -> pd.DataFrame:
     """
 
     Args:
         row: series with information about one image
         save_dir_ann: directory where the output annotation will be saved
-        save_dir_img_frontal: directory where the output frontal images will be saved
+        save_dir_img: directory where the output frontal images will be saved
 
     Returns:
         dataframe with metadata for one image
     """
-    img_info = process_image(row, save_dir_img_frontal)
+    img_info = process_image(row, save_dir_img)
     ann_info = process_annotation(row, save_dir_ann, img_info)
 
     return ann_info
@@ -172,13 +172,13 @@ def create_save_dirs(
     """
     logger.info(f'Creating img and ann directories in {save_dir}')
 
-    save_dir_img_frontal = os.path.join(save_dir, 'img')
-    os.makedirs(save_dir_img_frontal, exist_ok=True)
+    save_dir_img = os.path.join(save_dir, 'img')
+    os.makedirs(save_dir_img, exist_ok=True)
 
     save_dir_ann = os.path.join(save_dir, 'ann')
     os.makedirs(save_dir_ann, exist_ok=True)
 
-    return save_dir_img_frontal, save_dir_ann
+    return save_dir_img, save_dir_ann
 
 
 def save_metadata(
@@ -231,14 +231,14 @@ def main(
         exclude_dirs=exclude_dirs,
     )
 
-    save_dir_img_frontal, save_dir_ann = create_save_dirs(save_dir=save_dir)
+    save_dir_img, save_dir_ann = create_save_dirs(save_dir=save_dir)
 
     logger.info('Processing annotations')
     groups = df.groupby(['img_path', 'ann_path'])
     processing_func = partial(
         process_sample,
         save_dir_ann=save_dir_ann,
-        save_dir_img_frontal=save_dir_img_frontal,
+        save_dir_img=save_dir_img,
     )
     result = Parallel(n_jobs=-1)(
         delayed(processing_func)(group)
@@ -258,7 +258,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-SLY', type=str)
     parser.add_argument('--include_dirs', nargs='+', default=[], type=str)
     parser.add_argument('--exclude_dirs', nargs='+', default=[], type=str)
-    parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-Convert', type=str)
+    parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-Intermediate', type=str)
     args = parser.parse_args()
 
     main(
