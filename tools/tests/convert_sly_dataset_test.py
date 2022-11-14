@@ -3,11 +3,11 @@ import os
 from tools.convert_sly_dataset import create_save_dirs
 from tools.utils_sly import get_class_name, get_tag_value, get_box_sizes, get_object_box
 
-dataset_dir_test = './../../dataset/MIMIC-CXR-Edema-SLY/DS1'
+dataset_dir_test = './../../dataset/MIMIC-CXR-Edema-Supervisely/DS1'
 dataset_ann_dir_test = os.path.join(dataset_dir_test, 'ann')
 dataset_img_dir_test = os.path.join(dataset_dir_test, 'img')
 
-save_dir_test = './../../dataset/MIMIC-CXR-Edema-Convert-TEST'
+save_dir_test = './../../dataset/MIMIC-CXR-Edema-Intermediate-TEST'
 save_ann_dir_test = os.path.join(save_dir_test, 'ann')
 save_img_dir_test = os.path.join(save_dir_test, 'img')
 
