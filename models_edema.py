@@ -534,3 +534,4 @@ if __name__ == "__main__":
     #         batch_argmin_proto_dist_j = \
     #             list(np.unravel_index(np.argmin(proto_dist_j, axis=None),
     #                                   proto_dist_j.shape))
+    
