@@ -98,6 +98,7 @@ class EdemaNet(pl.LightningModule):
         transient_layers_type: str = "bottleneck",
         top_k: int = 1,
         fine_loader: torch.utils.data.DataLoader = None,
+        num_warm_epochs: int = 10,
     ):
         """PyTorch Lightning model class.
 
@@ -122,7 +123,7 @@ class EdemaNet(pl.LightningModule):
         self.fine_loader = fine_loader
         self.num_classes = num_classes
         self.num_prototypes_per_class = self.num_prototypes // self.num_classes
-
+        self.num_warm_epochs = num_warm_epochs
         # cross entropy cost function
         self.cross_entropy_cost = torch.nn.BCEWithLogitsLoss()
 
@@ -188,6 +189,16 @@ class EdemaNet(pl.LightningModule):
         return logits, min_distances, upsampled_activation
 
     def training_step(self, batch, batch_idx):
+        if self.current_epoch < self.num_warm_epochs:
+            pass
+
+        else:
+            pass
+
+            if self.epoch >= push_start and self.epoch in push_epochs:
+                pass
+
+    def train_func(self, batch):
         images, labels = batch
         # labels - (batch, 7)
         # images - (batch, 10, H, W)
@@ -226,6 +237,18 @@ class EdemaNet(pl.LightningModule):
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
         return loss
+
+    def test_func():
+        pass
+
+    def warm_only(model):
+        for p in model.module.encoder.parameters():
+            p.requires_grad = False
+        for p in model.module.transient_layers.parameters():
+            p.requires_grad = True
+            model.module.prototype_layer.requires_grad = True
+        for p in model.module.last_layer.parameters():
+            p.requires_grad = True
 
     def configure_optimizers(self):
         pass
@@ -475,7 +498,7 @@ if __name__ == "__main__":
     num_classes = 7
     proto_dist_j = distances[[0, 5, 10, 15, 25]][:, 1, :, :]
     print(proto_dist_j.shape)
-    class_to_img_index_dict = {1 : [0, 5, 10, 15, 25]}
+    class_to_img_index_dict = {1: [0, 5, 10, 15, 25]}
     # print(proto_dist_j)
     # na = proto_dist_j.numpy()
     # print(na.shape)
@@ -483,8 +506,9 @@ if __name__ == "__main__":
     # batch_min_proto_dist_np = np.amin(na)
     print(batch_min_proto_dist_j)
 
-    batch_argmin_proto_dist_j = list(np.unravel_index(np.argmin(proto_dist_j, axis=None),
-                                      proto_dist_j.shape))
+    batch_argmin_proto_dist_j = list(
+        np.unravel_index(np.argmin(proto_dist_j, axis=None), proto_dist_j.shape)
+    )
     print(batch_argmin_proto_dist_j)
 
     batch_argmin_proto_dist_j[0] = class_to_img_index_dict[1][batch_argmin_proto_dist_j[0]]
@@ -493,9 +517,6 @@ if __name__ == "__main__":
     # print(batch_min_proto_dist_j)
     # print(batch_min_proto_dist_np)
 
-
-    
-    # # if class_specific:
     # class_to_img_index_dict = {key: [] for key in range(num_classes)}
     # # img_y is the image's integer label
     # for img_index, img_y in enumerate(search_y):
@@ -534,4 +555,3 @@ if __name__ == "__main__":
     #         batch_argmin_proto_dist_j = \
     #             list(np.unravel_index(np.argmin(proto_dist_j, axis=None),
     #                                   proto_dist_j.shape))
-    
