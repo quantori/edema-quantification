@@ -99,6 +99,8 @@ class EdemaNet(pl.LightningModule):
         top_k: int = 1,
         fine_loader: torch.utils.data.DataLoader = None,
         num_warm_epochs: int = 10,
+        push_start: int = 10,
+        push_epoch: list = [],
     ):
         """PyTorch Lightning model class.
 
@@ -124,6 +126,8 @@ class EdemaNet(pl.LightningModule):
         self.num_classes = num_classes
         self.num_prototypes_per_class = self.num_prototypes // self.num_classes
         self.num_warm_epochs = num_warm_epochs
+        self.push_start = push_start
+        self.push_epoch = push_epoch
         # cross entropy cost function
         self.cross_entropy_cost = torch.nn.BCEWithLogitsLoss()
 
@@ -190,13 +194,14 @@ class EdemaNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         if self.current_epoch < self.num_warm_epochs:
-            pass
-
+            self.warm_only()
+            self.train_func()
         else:
-            pass
+            self.joint()
+            self.train_func()
 
-            if self.epoch >= push_start and self.epoch in push_epochs:
-                pass
+        if self.epoch >= self.push_start and self.epoch in self.push_epochs:
+            pass
 
     def train_func(self, batch):
         images, labels = batch
@@ -241,14 +246,23 @@ class EdemaNet(pl.LightningModule):
     def test_func():
         pass
 
-    def warm_only(model):
-        for p in model.module.encoder.parameters():
-            p.requires_grad = False
-        for p in model.module.transient_layers.parameters():
-            p.requires_grad = True
-            model.module.prototype_layer.requires_grad = True
-        for p in model.module.last_layer.parameters():
-            p.requires_grad = True
+    def warm_only(self):
+        self.encoder.requires_grad_(False)
+        self.transient_layers.requires_grad_(True)
+        self.prototype_layer.requires_grad_(True)
+        self.last_layer.requires_grad_(True)
+
+    def last_only(self):
+        self.encoder.requires_grad_(False)
+        self.transient_layers.requires_grad_(False)
+        self.prototype_layer.requires_grad_(False)
+        self.last_layer.requires_grad_(True)
+
+    def joint(self):
+        self.encoder.requires_grad_(True)
+        self.transient_layers.requires_grad_(True)
+        self.prototype_layer.requires_grad_(True)
+        self.last_layer.requires_grad_(True)
 
     def configure_optimizers(self):
         pass
@@ -489,30 +503,9 @@ if __name__ == "__main__":
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
     edema_net = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
-
-    search_y = torch.randint(0, 2, (64,))
-    print(search_y)
-    distances = torch.rand(64, 35, 14, 14)
-    convs = torch.rand(64, 512, 14, 14)
-    proto_dist_j = torch.rand(1, 1, 14, 14)
-    num_classes = 7
-    proto_dist_j = distances[[0, 5, 10, 15, 25]][:, 1, :, :]
-    print(proto_dist_j.shape)
-    class_to_img_index_dict = {1: [0, 5, 10, 15, 25]}
-    # print(proto_dist_j)
-    # na = proto_dist_j.numpy()
-    # print(na.shape)
-    batch_min_proto_dist_j = torch.amin(proto_dist_j)
-    # batch_min_proto_dist_np = np.amin(na)
-    print(batch_min_proto_dist_j)
-
-    batch_argmin_proto_dist_j = list(
-        np.unravel_index(np.argmin(proto_dist_j, axis=None), proto_dist_j.shape)
-    )
-    print(batch_argmin_proto_dist_j)
-
-    batch_argmin_proto_dist_j[0] = class_to_img_index_dict[1][batch_argmin_proto_dist_j[0]]
-    print(batch_argmin_proto_dist_j)
+    print(edema_net.prototype_layer.requires_grad)
+    edema_net.warm_only()
+    print(edema_net.prototype_layer.requires_grad)
 
     # print(batch_min_proto_dist_j)
     # print(batch_min_proto_dist_np)
