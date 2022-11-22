@@ -193,17 +193,33 @@ class EdemaNet(pl.LightningModule):
         return logits, min_distances, upsampled_activation
 
     def training_step(self, batch, batch_idx):
+        # based on universal train_val_test(). Logs costs after each train step
         if self.current_epoch < self.num_warm_epochs:
             self.warm_only()
-            self.train_func()
+            _ = self.train_func()
         else:
             self.joint()
-            self.train_func()
+            _ = self.train_func()
 
+
+    def training_epoch_end(self, outputs):
+        # here, we have to put push_prototypes function 
+        # logs costs after a training epoch
         if self.epoch >= self.push_start and self.epoch in self.push_epochs:
-            pass
+            self.push_prototypes()
+            accu = self.test_func()
 
-    def train_func(self, batch):
+    
+    
+    
+    def test_step(self, batch, batch_idx):
+        # this is for testing after training and validation are done
+        pass
+    
+    def test_epoch_end(self, outputs):
+        pass
+
+    def train_val_test(self, batch):
         images, labels = batch
         # labels - (batch, 7)
         # images - (batch, 10, H, W)
