@@ -12,6 +12,7 @@ import pytorch_lightning as pl
 from torchvision import transforms
 import numpy as np
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
 
 class SqueezeNet(nn.Module):
@@ -194,34 +195,33 @@ class EdemaNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # based on universal train_val_test(). Logs costs after each train step
+        cost = self.train_val_test(batch)
+        return cost
+
+    def on_train_epoch_start(self):
         if self.current_epoch < self.num_warm_epochs:
             self.warm_only()
-            _ = self.train_func()
         else:
             self.joint()
-            _ = self.train_func()
-
 
     def training_epoch_end(self, outputs):
-        # here, we have to put push_prototypes function 
+        # here, we have to put push_prototypes function
         # logs costs after a training epoch
-        if self.epoch >= self.push_start and self.epoch in self.push_epochs:
-            self.push_prototypes()
-            accu = self.test_func()
+        # if self.epoch >= self.push_start and self.epoch in self.push_epochs:
+        #     self.push_prototypes()
+        #     accu = self.test_func()
+        pass
 
-    
-    
-    
     def test_step(self, batch, batch_idx):
         # this is for testing after training and validation are done
         pass
-    
+
     def test_epoch_end(self, outputs):
         pass
 
     def train_val_test(self, batch):
         images, labels = batch
-        # labels - (batch, 7)
+        # labels - (batch, 7), dtype: float32
         # images - (batch, 10, H, W)
         # images have to have the shape (batch, 10, H, W). 7 extra channel implies fine annotations,
         # in case of 7 classes
@@ -234,7 +234,7 @@ class EdemaNet(pl.LightningModule):
         # nn.Module has implemented __call__() function, so no need to call .forward()
         output, min_distances, upsampled_activation = self(images)
 
-        # classification cost
+        # classification cost (labels in cross entropy have to have float32 dtype)
         cross_entropy = self.cross_entropy_cost(output, labels)
 
         # cluster cost
@@ -516,51 +516,12 @@ class EdemaNet(pl.LightningModule):
 
 if __name__ == "__main__":
 
+    # TODO: make a DataLoader and test Trainer with training_step()
+
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
     edema_net = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
-    print(edema_net.prototype_layer.requires_grad)
-    edema_net.warm_only()
-    print(edema_net.prototype_layer.requires_grad)
-
-    # print(batch_min_proto_dist_j)
-    # print(batch_min_proto_dist_np)
-
-    # class_to_img_index_dict = {key: [] for key in range(num_classes)}
-    # # img_y is the image's integer label
-    # for img_index, img_y in enumerate(search_y):
-    #     img_label = img_y.item()
-    #     class_to_img_index_dict[img_label].append(img_index)
-
-    # prototype_shape = prototype_network_parallel.module.prototype_shape
-    # n_prototypes = prototype_shape[0]
-    # proto_h = prototype_shape[2]
-    # proto_w = prototype_shape[3]
-    # max_dist = prototype_shape[1] * prototype_shape[2] * prototype_shape[3]
-
-    # for j in range(n_prototypes):
-    #     #if n_prototypes_per_class != None:
-    #     if class_specific:
-    #         # target_class is the class of the class_specific prototype
-    #         target_class = torch.argmax(prototype_network_parallel.module.prototype_class_identity[j]).item()
-    #         # if there is not images of the target_class from this batch
-    #         # we go on to the next prototype
-    #         if len(class_to_img_index_dict[target_class]) == 0:
-    #             continue
-    #         proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:,j,:,:]
-    #     else:
-    #         # if it is not class specific, then we will search through
-    #         # every example
-    #         # proto_dist_j = proto_dist_[:,j,:,:]
-    #         target_class = 1
-    #         # if there is not images of the target_class from this batch
-    #         # we go on to the next prototype
-    #         if len(class_to_img_index_dict[target_class]) == 0:
-    #             continue
-    #         proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:, j, :, :]
-
-    #     batch_min_proto_dist_j = np.amin(proto_dist_j)
-    #     if batch_min_proto_dist_j < global_min_proto_dist[j]:
-    #         batch_argmin_proto_dist_j = \
-    #             list(np.unravel_index(np.argmin(proto_dist_j, axis=None),
-    #                                   proto_dist_j.shape))
+    batch = torch.rand(16, 10, 224, 224), torch.randint(0, 2, (16, 7), dtype=torch.float32)
+    # print(batch[1])
+    print(edema_net.training_step(batch, 1))
+    
