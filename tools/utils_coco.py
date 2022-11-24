@@ -8,6 +8,41 @@ from pathlib import Path
 from tools.utils import get_file_list
 from tools.utils_sly import ANNOTATION_COLUMNS
 
+categories_coco = [
+    {
+        'id': 0,
+        'name': 'Cephalization',
+    },
+    {
+        'id': 1,
+        'name': 'Artery',
+    },
+    {
+        'id': 2,
+        'name': 'Heart',
+    },
+    {
+        'id': 3,
+        'name': 'Kerley',
+    },
+    {
+        'id': 4,
+        'name': 'Bronchus',
+    },
+    {
+        'id': 5,
+        'name': 'Effusion',
+    },
+    {
+        'id': 6,
+        'name': 'Bat',
+    },
+    {
+        'id': 7,
+        'name': 'Infiltrate',
+    },
+]
+
 
 def get_img_info(
     img_path: str,
@@ -15,7 +50,7 @@ def get_img_info(
 ) -> Dict[str, Any]:
     img_data = {}
     height, width = cv2.imread(img_path).shape[:2]
-    img_data['id'] = img_id                 # Unique image ID
+    img_data['id'] = img_id  # Unique image ID
     img_data['width'] = width
     img_data['height'] = height
     img_data['file_name'] = os.path.basename(img_path)
@@ -36,8 +71,8 @@ def get_ann_info(
             width = int(row['x2'] - row['x1'])
             height = int(row['y2'] - row['y1'])
 
-            label['id'] = ann_id            # Should be unique
-            label['image_id'] = img_id      # Image ID annotation relates to
+            label['id'] = ann_id  # Should be unique
+            label['image_id'] = img_id  # Image ID annotation relates to
             label['category_id'] = int(row['Class ID'])
             label['bbox'] = [x1, y1, width, height]
             label['area'] = width * height
@@ -49,10 +84,7 @@ def get_ann_info(
     return ann_data, ann_id
 
 
-def create_tn_subset(
-    data_dir: str
-) -> Tuple[List[str], List[str]]:
-
+def create_tn_subset(data_dir: str) -> Tuple[List[str], List[str]]:
     img_list = get_file_list(
         src_dirs=data_dir,
         include_template='',
@@ -67,7 +99,6 @@ def create_tn_subset(
 
 
 if __name__ == '__main__':
-
     a = get_img_info('dataset/MIMIC-CXR-Edema-Intermediate/img/10000980_54935705.png', 12)
     print(a)
     b, c = get_ann_info('dataset/MIMIC-CXR-Edema-Intermediate/ann/10000980_54935705.txt', 1, 2)
