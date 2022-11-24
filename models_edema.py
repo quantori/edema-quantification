@@ -9,10 +9,10 @@ from matplotlib import image
 import torch
 from torch import nn
 import pytorch_lightning as pl
-from torchvision import transforms
+from torchvision import transforms, datasets
 import numpy as np
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 
 
 class SqueezeNet(nn.Module):
@@ -281,8 +281,9 @@ class EdemaNet(pl.LightningModule):
         self.last_layer.requires_grad_(True)
 
     def configure_optimizers(self):
-        pass
-        # return torch.optim.Adam(self.parameters(), lr=0.02)
+        # TODO configure the optimizer properly
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return optimizer
 
     def prototype_distances(self, x: torch.Tensor) -> torch.Tensor:
         """Returns prototype distances.
@@ -516,12 +517,21 @@ class EdemaNet(pl.LightningModule):
 
 if __name__ == "__main__":
 
-    # TODO: make a DataLoader and test Trainer with training_step()
+    # TODO: test the grad policy during the training_step()
 
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
     edema_net = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
-    batch = torch.rand(16, 10, 224, 224), torch.randint(0, 2, (16, 7), dtype=torch.float32)
-    # print(batch[1])
-    print(edema_net.training_step(batch, 1))
-    
+
+    test_dataset = TensorDataset(
+        torch.rand(128, 10, 224, 224), torch.randint(0, 2, (128, 7), dtype=torch.float32)
+    )
+    test_dataloader = DataLoader(test_dataset, batch_size=32)
+
+    print(list(edema_net.named_parameters())[0])
+    # for name, param in edema_net.named_parameters():
+    #     if param.requires_grad:
+    #         print(name, param.data)
+
+    # trainer = pl.Trainer(max_epochs=2, logger=False, enable_checkpointing=False)
+    # trainer.fit(edema_net, test_dataloader)
