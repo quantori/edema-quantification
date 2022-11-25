@@ -18,14 +18,14 @@ CLASS_MAP = {
 }
 
 FIGURE_MAP = {
-    'Cephalization': 0,
-    'Artery': 1,
-    'Heart': 2,
-    'Kerley': 3,
-    'Bronchus': 4,
-    'Effusion': 5,
-    'Bat': 6,
-    'Infiltrate': 7,
+    'Cephalization': 1,
+    'Artery': 2,
+    'Heart': 3,
+    'Kerley': 4,
+    'Bronchus': 5,
+    'Effusion': 6,
+    'Bat': 7,
+    'Infiltrate': 8,
 }
 
 METADATA_COLUMNS = [
@@ -34,6 +34,7 @@ METADATA_COLUMNS = [
     'Study ID',
     'Image width',
     'Image height',
+    'Figure ID',
     'Figure',
     'x1',
     'y1',
