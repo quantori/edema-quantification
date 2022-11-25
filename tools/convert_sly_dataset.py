@@ -11,7 +11,6 @@ from tqdm import tqdm
 import supervisely_lib as sly
 from typing import List, Optional, Tuple
 
-
 from tools.utils_sly import (
     CLASS_MAP,
     FIGURE_MAP,
@@ -57,12 +56,12 @@ def process_image(
     img = cv2.imread(img_path)
     height = img.shape[0]
     width = int(width_frontal)
-    img_frontal = img[0:height, 0:width]
-    img_frontal_path = os.path.join(save_dir_img, f'{subject_id}_{study_id}.png')
-    cv2.imwrite(img_frontal_path, img_frontal)
+    img = img[0:height, 0:width]
+    img_path = os.path.join(save_dir_img, f'{subject_id}_{study_id}.png')
+    cv2.imwrite(img_path, img)
 
     return {
-        'Image path': img_frontal_path,
+        'Image path': img_path,
         'Subject ID': subject_id,
         'Study ID': study_id,
         'Image width': width,
@@ -125,6 +124,8 @@ def process_annotation(
             )
 
             obj_info = {
+                'Annotation path': ann_path,
+                'Figure ID': FIGURE_MAP[figure_name],
                 'Figure': figure_name,
                 'RP': rp,
                 'Class ID': CLASS_MAP[class_name],
@@ -135,6 +136,14 @@ def process_annotation(
             obj_info.update(box)
             obj_info.update(mask_points)
             img_metadata = img_metadata.append(obj_info, ignore_index=True)
+
+        col = img_metadata.pop('Annotation path')
+        img_metadata.insert(
+            loc=1,
+            column=col.name,
+            value=col,
+        )
+
     return img_metadata
 
 
@@ -254,6 +263,7 @@ def main(
 
 
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser(description='Convert Supervisely dataset')
     parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-Supervisely', type=str)
     parser.add_argument('--include_dirs', nargs='+', default=[], type=str)
