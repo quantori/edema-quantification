@@ -130,7 +130,7 @@ class EdemaNet(pl.LightningModule):
         self.push_start = push_start
         self.push_epoch = push_epoch
         # cross entropy cost function
-        self.cross_entropy_cost = torch.nn.BCEWithLogitsLoss()
+        self.cross_entropy_cost = nn.BCEWithLogitsLoss()
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
@@ -528,10 +528,12 @@ if __name__ == "__main__":
     )
     test_dataloader = DataLoader(test_dataset, batch_size=32)
 
-    print(list(edema_net.named_parameters())[0])
-    # for name, param in edema_net.named_parameters():
-    #     if param.requires_grad:
-    #         print(name, param.data)
+    # print(list(edema_net.named_parameters())[0][1].requires_grad)
+    for name, param in edema_net.named_parameters():
+        print(name, 'requires_grad: ', param[1].requires_grad)
 
-    # trainer = pl.Trainer(max_epochs=2, logger=False, enable_checkpointing=False)
-    # trainer.fit(edema_net, test_dataloader)
+    trainer = pl.Trainer(max_epochs=11, logger=False, enable_checkpointing=False)
+    trainer.fit(edema_net, test_dataloader)
+
+    for name, param in edema_net.named_parameters():
+        print(name, 'requires_grad: ', param[1].requires_grad)
