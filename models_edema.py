@@ -207,10 +207,34 @@ class EdemaNet(pl.LightningModule):
     def training_epoch_end(self, outputs):
         # here, we have to put push_prototypes function
         # logs costs after a training epoch
-        # if self.epoch >= self.push_start and self.epoch in self.push_epochs:
-        #     self.push_prototypes()
-        #     accu = self.test_func()
-        pass
+        if self.epoch >= self.push_start and self.epoch in self.push_epochs:
+            
+            # TODO implement update_prototype() func
+            self.update_prototypes()
+            
+            # has to be test (to check out the performance after substituting the prototypes)
+            accu = self.train_val_test()
+            
+
+            self.last_layer()
+            for i in range(10):
+                # has to be train
+                self.train_val_test()
+
+                # has to be test
+                self.train_val_test
+                
+                # save model performance
+                 
+                # calculate performance and update the global performance criterium, if it is worse
+
+                # optionally (plot something)
+                
+                
+
+
+
+
 
     def test_step(self, batch, batch_idx):
         # this is for testing after training and validation are done
@@ -259,8 +283,6 @@ class EdemaNet(pl.LightningModule):
         # loss = F.cross_entropy(y_hat, y)
         return loss
 
-    def test_func():
-        pass
 
     def warm_only(self):
         self.encoder.requires_grad_(False)
@@ -511,13 +533,15 @@ class EdemaNet(pl.LightningModule):
 
             return transient_layers
 
+    def update_prototypes():
+        pass
+    
+    
     def update_prototypes_on_batch():
         pass
 
 
 if __name__ == "__main__":
-
-    # TODO: test the grad policy during the training_step()
 
     sq_net = SqueezeNet()
     # summary(sq_net.model, (3, 224, 224))
