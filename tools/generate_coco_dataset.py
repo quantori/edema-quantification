@@ -54,30 +54,30 @@ def prepare_subsets(
     train_size: float,
     seed: int,
 ) -> dict:
-
     subsets = {
         'train': {'images': [], 'labels': []},
         'test': {'images': [], 'labels': []},
     }
+    # TODO: What should we do if the data isn't full ("WARN:root:No class tags available")?
 
-    # TODO: Incorrect split
-    # TODO: (a) train and test subsets should not have samples of the same Subject ID
-    # TODO: (b) y_train and y_test include IDs of figures rather than IDs of edema class
-    X_train, X_test, y_train, y_test = train_test_split(
-        metadata[['Image path', 'Annotation path', 'Subject ID', 'Study ID', 'Class ID']],
-        metadata['Figure ID'],
+    metadata_unique_subject_id = (
+        metadata.groupby(by='Subject ID', as_index=False)['Class ID'].max().astype(int)
+    )
+    train_ids, test_ids = train_test_split(
+        metadata_unique_subject_id,
         train_size=train_size,
         shuffle=True,
         random_state=seed,
-        # TODO: to think if stratify works well during such a split
-        # TODO: not sure if we can stratify by Class ID considering unique Subject IDs between train and test subsets
-        stratify=metadata['Class ID'],
+        stratify=metadata_unique_subject_id['Class ID'],
     )
 
-    subsets['test']['images'].extend(X_test['Image path'])
-    subsets['test']['labels'].extend(X_test['Annotation path'])
-    subsets['train']['images'].extend(X_train['Image path'])
-    subsets['train']['labels'].extend(X_train['Annotation path'])
+    train = metadata[metadata['Subject ID'].isin(train_ids['Subject ID'])]
+    test = metadata[metadata['Subject ID'].isin(test_ids['Subject ID'])]
+
+    subsets['test']['images'].extend(test['Image path'])
+    subsets['test']['labels'].extend(test['Annotation path'])
+    subsets['train']['images'].extend(train['Image path'])
+    subsets['train']['labels'].extend(train['Annotation path'])
 
     # TODO: In our case, a True Negative dataset is a dataset which
     # TODO: (a) doesn't have label files
@@ -92,13 +92,21 @@ def prepare_subsets(
 
     logger.info('')
     logger.info('Overall train/test split')
-    logger.info(f'Subjects..................: {X_train["Subject ID"].nunique()}/{X_test["Subject ID"].nunique()}')
-    logger.info(f'Studies...................: {X_train["Study ID"].nunique()}/{X_test["Study ID"].nunique()}')
-    logger.info(f'Images....................: {len(X_train)}/{len(X_test)}')
+    logger.info(
+        f'Subjects..................: {train["Subject ID"].nunique()}/{test["Subject ID"].nunique()}'
+    )
+    logger.info(
+        f'Studies...................: {train["Study ID"].nunique()}/{test["Study ID"].nunique()}'
+    )
+    logger.info(f'Images....................: {len(train)}/{len(test)}')
     logger.info(f'Images in TN dataset......: {len(tn_images)}')
 
-    assert len(subsets['train']['images']) == len(subsets['train']['labels']), 'Mismatch length of the training subset'
-    assert len(subsets['test']['images']) == len(subsets['test']['labels']), 'Mismatch length of the testing subset'
+    assert len(subsets['train']['images']) == len(
+        subsets['train']['labels']
+    ), 'Mismatch length of the training subset'
+    assert len(subsets['test']['images']) == len(
+        subsets['test']['labels']
+    ), 'Mismatch length of the testing subset'
 
     return subsets
 
@@ -107,7 +115,6 @@ def prepare_coco(
     subsets: dict,
     save_dir: str,
 ) -> None:
-
     # TODO: (a) copy all images to a specific dir i.e. 'data' in our case
     # TODO: (b) create two json files for train and test subsets
     # FIXME: Kindly ask you to use one dictionary with classes and figures rather than creating different ones
@@ -154,7 +161,7 @@ def main(
     save_dir: str,
     tn_dir: str = None,
     train_size: float = 0.8,
-    box_extension: int = 0,         # TODO: implement box extension (not this feature is not working)
+    box_extension: int = 0,  # TODO: implement box extension (not this feature is not working)
     seed: int = 11,
 ) -> None:
     """
@@ -178,9 +185,7 @@ def main(
     logger.info(f'Output directory..........: {save_dir}')
 
     if tn_dir is not None:
-        assert (
-            Path(dataset_dir) not in Path(tn_dir).parents
-        ), 'tn_dir should be outside dataset_dir'
+        assert Path(dataset_dir) not in Path(tn_dir).parents, 'tn_dir should be outside dataset_dir'
 
     metadata_short = get_metadata_info(dataset_dir)
 
@@ -193,11 +198,13 @@ def main(
 
 if __name__ == '__main__':
 
+    BOX_EXTENTION = {}
+
     parser = argparse.ArgumentParser(description='Prepare split subsets')
     parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-Intermediate', type=str)
     parser.add_argument('--tn_dir', default=None, type=str)
     parser.add_argument('--train_size', default=0.8, type=float)
-    parser.add_argument('--box_extension', default=0, type=int)
+    parser.add_argument('--box_extension', default=BOX_EXTENTION, type=int)
     parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-COCO', type=str)
     args = parser.parse_args()
 
