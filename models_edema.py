@@ -2,6 +2,7 @@
 
 The description to be filled...
 """
+import os
 
 from turtle import shape
 from typing import Tuple
@@ -205,36 +206,30 @@ class EdemaNet(pl.LightningModule):
             self.joint()
 
     def training_epoch_end(self, outputs):
-        # here, we have to put push_prototypes function
-        # logs costs after a training epoch
-        if self.epoch >= self.push_start and self.epoch in self.push_epochs:
-            
-            # TODO implement update_prototype() func
-            self.update_prototypes()
-            
-            # has to be test (to check out the performance after substituting the prototypes)
-            accu = self.train_val_test()
-            
+        pass
+        # # here, we have to put push_prototypes function
+        # # logs costs after a training epoch
+        # if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
 
-            self.last_layer()
-            for i in range(10):
-                # has to be train
-                self.train_val_test()
+        #     # TODO implement update_prototype() func
+        #     self.update_prototypes()
 
-                # has to be test
-                self.train_val_test
-                
-                # save model performance
-                 
-                # calculate performance and update the global performance criterium, if it is worse
+        #     # has to be test (to check out the performance after substituting the prototypes)
+        #     accu = self.train_val_test()
 
-                # optionally (plot something)
-                
-                
+        #     self.last_layer()
+        #     for i in range(10):
+        #         # has to be train
+        #         self.train_val_test()
 
+        #         # has to be test
+        #         self.train_val_test
 
+        #         # save model performance
 
+        #         # calculate performance and update the global performance criterium, if it is worse
 
+        #         # optionally (plot something)
 
     def test_step(self, batch, batch_idx):
         # this is for testing after training and validation are done
@@ -282,7 +277,6 @@ class EdemaNet(pl.LightningModule):
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
         return loss
-
 
     def warm_only(self):
         self.encoder.requires_grad_(False)
@@ -533,10 +527,50 @@ class EdemaNet(pl.LightningModule):
 
             return transient_layers
 
-    def update_prototypes():
-        pass
-    
-    
+    def update_prototypes(self, root_dir_for_saving_prototypes):
+        prototype_shape = self.prototype_shape
+        n_prototypes = self.num_prototypes
+        # train dataloader
+        dataloader = self.trainer.train_dataloader.loaders
+
+        # make an array for the global closest distance seen so far (initialized with floating point
+        # representation of positive infinity)
+        global_min_proto_dist = np.full(n_prototypes, np.inf)
+
+        # saves the patch representation that gives the current smallest distance
+        global_min_fmap_patches = np.zeros(
+            [n_prototypes, prototype_shape[1], prototype_shape[2], prototype_shape[3]]
+        )
+
+        # proto_rf_boxes and proto_bound_boxes column:
+        # 0: image index in the entire dataset
+        # 1: height start index
+        # 2: height end index
+        # 3: width start index
+        # 4: width end index
+        # 5: class identity
+        proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
+        proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
+
+        # making a directory for saving prototypes
+        if root_dir_for_saving_prototypes != None:
+            if self.current_epoch != None:
+                proto_epoch_dir = os.path.join(
+                    root_dir_for_saving_prototypes, 'epoch-' + str(self.current_epoch)
+                )
+                if not os.path.exists(proto_epoch_dir):
+                    os.makedirs(proto_epoch_dir)
+            else:
+                proto_epoch_dir = root_dir_for_saving_prototypes
+        else:
+            proto_epoch_dir = None
+
+        search_batch_size = dataloader.batch_size
+        num_classes = self.num_classes
+
+        for push_iter, (search_batch_input, search_y, patient_id) in enumerate(dataloader):
+            pass
+
     def update_prototypes_on_batch():
         pass
 
@@ -553,11 +587,17 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(test_dataset, batch_size=32)
 
     # print(list(edema_net.named_parameters())[0][1].requires_grad)
-    for name, param in edema_net.named_parameters():
-        print(name, 'requires_grad: ', param[1].requires_grad)
+    # for name, param in edema_net.named_parameters():
+    # print(name, 'requires_grad: ', param[1].requires_grad)
 
-    trainer = pl.Trainer(max_epochs=11, logger=False, enable_checkpointing=False)
+    # print(edema_net.trainer.train_dataloader)
+
+    trainer = pl.Trainer(max_epochs=1, logger=False, enable_checkpointing=False)
     trainer.fit(edema_net, test_dataloader)
 
-    for name, param in edema_net.named_parameters():
-        print(name, 'requires_grad: ', param[1].requires_grad)
+    # for name, param in edema_net.named_parameters():
+    # print(name, 'requires_grad: ', param[1].requires_grad)
+
+    # use it for the prototype pushing function
+    # print(type(edema_net.trainer.train_dataloader.loaders))
+    print(edema_net.trainer.train_dataloader.loaders.batch_size)
