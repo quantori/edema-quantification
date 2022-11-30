@@ -598,7 +598,7 @@ if __name__ == "__main__":
 
 
 
-    # TEST TEST TEST
+    # TEST TEST TEST TEST 2
     # for name, param in edema_net.named_parameters():
     # print(name, 'requires_grad: ', param[1].requires_grad)
 
