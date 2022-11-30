@@ -595,6 +595,10 @@ if __name__ == "__main__":
     trainer = pl.Trainer(max_epochs=1, logger=False, enable_checkpointing=False)
     trainer.fit(edema_net, test_dataloader)
 
+
+
+
+    # TEST TEST TEST
     # for name, param in edema_net.named_parameters():
     # print(name, 'requires_grad: ', param[1].requires_grad)
 
