@@ -39,7 +39,7 @@ class SqueezeNet(nn.Module):
 
         super().__init__()
 
-        self.model = torch.hub.load("pytorch/vision:v0.10.0", "squeezenet1_1", weights="DEFAULT")
+        self.model = torch.hub.load("pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True)
         del self.model.classifier
 
         self.preprocessed = preprocessed
@@ -259,7 +259,7 @@ class EdemaNet(pl.LightningModule):
         # cluster cost
         max_dist = self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
         prototypes_of_correct_class = torch.matmul(
-            labels, torch.permute(self.prototype_class_identity, (1, 0))
+            labels, self.prototype_class_identity.permute(1, 0)
         )
         cluster_cost = self.cluster_cost(max_dist, min_distances, prototypes_of_correct_class)
 
@@ -528,6 +528,7 @@ class EdemaNet(pl.LightningModule):
             return transient_layers
 
     def update_prototypes(self, root_dir_for_saving_prototypes):
+        self.eval()
         prototype_shape = self.prototype_shape
         n_prototypes = self.num_prototypes
         # train dataloader
@@ -542,7 +543,7 @@ class EdemaNet(pl.LightningModule):
             [n_prototypes, prototype_shape[1], prototype_shape[2], prototype_shape[3]]
         )
 
-        # proto_rf_boxes and proto_bound_boxes column:
+        # proto_rf_boxes (receptive field) and proto_bound_boxes column:
         # 0: image index in the entire dataset
         # 1: height start index
         # 2: height end index
@@ -568,11 +569,19 @@ class EdemaNet(pl.LightningModule):
         search_batch_size = dataloader.batch_size
         num_classes = self.num_classes
 
-        for push_iter, (search_batch_input, search_y, patient_id) in enumerate(dataloader):
-            pass
+        for push_iter, (search_batch_images, search_labels) in enumerate(dataloader):
+            if search_batch_images.shape[1] > 3:
+                # only imagees (the extra channels in this dimension belong to fine annot masks)
+                search_batch_images = search_batch_images[:, 0:3, :, :]
 
-    def update_prototypes_on_batch():
-        pass
+            start_index_of_search_batch = push_iter * search_batch_size
+
+            self.update_prototypes_on_batch(search_batch_images)
+
+    def update_prototypes_on_batch(self, search_batch_images):
+        # Model has to be in the eval mode
+        if self.training:
+            self.eval()
 
 
 if __name__ == "__main__":
@@ -586,22 +595,31 @@ if __name__ == "__main__":
     )
     test_dataloader = DataLoader(test_dataset, batch_size=32)
 
+    batch = next(iter(test_dataloader))
+
+    # batch[0].cuda
+    # print(batch[0].is_cuda)
+    # print(torch.__version__)
+    print(torch.cuda.is_available())
+
+    # print(edema_net.training)
+
+    # edema_net.eval()
+
+    # print(edema_net.training)
+
     # print(list(edema_net.named_parameters())[0][1].requires_grad)
     # for name, param in edema_net.named_parameters():
     # print(name, 'requires_grad: ', param[1].requires_grad)
 
     # print(edema_net.trainer.train_dataloader)
 
-    trainer = pl.Trainer(max_epochs=1, logger=False, enable_checkpointing=False)
-    trainer.fit(edema_net, test_dataloader)
+    # trainer = pl.Trainer(max_epochs=1, logger=False, enable_checkpointing=False, gpus=1)
+    # trainer.fit(edema_net, test_dataloader)
 
-
-
-
-    # TEST TEST TEST TEST 2 TEST 3
     # for name, param in edema_net.named_parameters():
     # print(name, 'requires_grad: ', param[1].requires_grad)
 
     # use it for the prototype pushing function
     # print(type(edema_net.trainer.train_dataloader.loaders))
-    print(edema_net.trainer.train_dataloader.loaders.batch_size)
+    # print(edema_net.trainer.train_dataloader.loaders.batch_size)
