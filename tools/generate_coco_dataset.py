@@ -115,7 +115,18 @@ def prepare_subsets(
 def prepare_coco(
     subsets: dict,
     save_dir: str,
+    box_extension: dict,
 ) -> None:
+    """
+
+    Args:
+        subsets:
+        save_dir:
+        box_extension:
+
+    Returns:
+
+    """
     # TODO: (a) copy all images to a specific dir i.e. 'data' in our case
     # TODO: (b) create two json files for train and test subsets
     # FIXME: Kindly ask you to use one dictionary with classes and figures rather than creating different ones
@@ -136,10 +147,11 @@ def prepare_coco(
                 img_path=img_path,
                 img_id=img_id,
             )
-            ann_data, ann_id = get_ann_info(
+            ann_data, ann_id = get_ann_info_with_extension(
                 label_path=ann_path,
                 img_id=img_id,
                 ann_id=ann_id,
+                box_extension=box_extension,
             )
             imgs_coco.append(img_data)
             anns_coco.extend(ann_data)
@@ -160,9 +172,9 @@ def prepare_coco(
 def main(
     dataset_dir: str,
     save_dir: str,
+    box_extension: dict,
     tn_dir: str = None,
     train_size: float = 0.8,
-    box_extension: int = 0,  # TODO: implement box extension (not this feature is not working)
     seed: int = 11,
 ) -> None:
     """
@@ -192,7 +204,7 @@ def main(
 
     subsets = prepare_subsets(metadata_short, tn_dir, train_size, seed)
 
-    prepare_coco(subsets, save_dir)
+    prepare_coco(subsets, save_dir, box_extension)
 
     logger.info(f'Complete')
 
@@ -200,8 +212,9 @@ def main(
 if __name__ == '__main__':
     main(
         dataset_dir=INTERMEDIATE_DATASET_DIR,
+        save_dir=COCO_SAVE_DIR,
+        box_extension=BOX_EXTENSION,
         tn_dir=TN_DIR,
         train_size=TRAIN_SIZE,
-        box_extension=BOX_EXTENSION,
-        save_dir=COCO_SAVE_DIR,
+        seed=11,
     )

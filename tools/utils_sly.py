@@ -28,6 +28,8 @@ FIGURE_MAP = {
     'Infiltrate': 8,
 }
 
+FIGURE_MAP_REVERSED = dict((v, k) for k, v in FIGURE_MAP.items())
+
 METADATA_COLUMNS = [
     'Image path',
     'Subject ID',
