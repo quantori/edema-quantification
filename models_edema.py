@@ -194,6 +194,13 @@ class EdemaNet(pl.LightningModule):
 
         return logits, min_distances, upsampled_activation
 
+    def update_prootypes_forward(self, x):
+        """This method is needed for the prototype updating operation"""
+        conv_output = self.encoder(x)
+        conv_output = self.transient_layers(conv_output)
+        distances = self.prototype_distances(conv_output)
+        return conv_output, distances
+
     def training_step(self, batch, batch_idx):
         # based on universal train_val_test(). Logs costs after each train step
         cost = self.train_val_test(batch)
@@ -576,12 +583,48 @@ class EdemaNet(pl.LightningModule):
 
             start_index_of_search_batch = push_iter * search_batch_size
 
-            self.update_prototypes_on_batch(search_batch_images)
+            self.update_prototypes_on_batch(search_batch_images, search_labels)
 
-    def update_prototypes_on_batch(self, search_batch_images):
+    def update_prototypes_on_batch(self, search_batch_images, search_labels):
         # Model has to be in the eval mode
         if self.training:
             self.eval()
+
+        with torch.no_grad():
+            search_batch = search_batch_images.cuda()
+            # this computation currently is not parallelized
+            protoL_input_torch, proto_dist_torch = self.update_prototypes_forward(search_batch)
+
+        protoL_input_ = np.copy(protoL_input_torch.detach().cpu().numpy())
+        proto_dist_ = np.copy(proto_dist_torch.detach().cpu().numpy())
+
+        del protoL_input_torch, proto_dist_torch
+
+        # form a dict with {class:[images_idxs]}
+        class_to_img_index_dict = {key: [] for key in range(self.num_classes)}
+        for img_index, img_y in enumerate(search_labels):
+            img_y.tolist()
+            for idx, i in enumerate(img_y):
+                if i:
+                    class_to_img_index_dict[idx].append(img_index)
+
+        prototype_shape = self.prototype_shape
+        n_prototypes = prototype_shape[0]
+        proto_h = prototype_shape[2]
+        proto_w = prototype_shape[3]
+        # max_dist is chosen arbitrarly
+        max_dist = prototype_shape[1] * prototype_shape[2] * prototype_shape[3]
+
+        # TODO: finsih the cycle
+        for j in range(n_prototypes):
+        #if n_prototypes_per_class != None:
+            # target_class is the class of the class_specific prototype
+            target_class = torch.argmax(self.prototype_class_identity[j]).item()
+            # if there is not images of the target_class from this batch
+            # we go on to the next prototype
+            if len(class_to_img_index_dict[target_class]) == 0:
+                continue
+            proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:,j,:,:]
 
 
 if __name__ == "__main__":
@@ -596,16 +639,21 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(test_dataset, batch_size=32)
 
     batch = next(iter(test_dataloader))
+    images, labels = batch
 
+    # class_to_img_index_dict = {key: [] for key in range(7)}
+    # for img_index, img_y in enumerate(labels):
+    #     img_y.tolist()
+    #     for idx, i in enumerate(img_y):
+    #         if i:
+    #             class_to_img_index_dict[idx].append(img_index)
+    # print(class_to_img_index_dict)
     # batch[0].cuda
     # print(batch[0].is_cuda)
     # print(torch.__version__)
-    print(torch.cuda.is_available())
 
     # print(edema_net.training)
-
     # edema_net.eval()
-
     # print(edema_net.training)
 
     # print(list(edema_net.named_parameters())[0][1].requires_grad)
