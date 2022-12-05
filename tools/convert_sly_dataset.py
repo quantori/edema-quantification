@@ -1,6 +1,5 @@
 import os
 import logging
-import argparse
 from pathlib import Path
 from functools import partial
 from joblib import Parallel, delayed
@@ -23,6 +22,8 @@ from tools.utils_sly import (
     get_box_sizes,
     get_mask_points,
 )
+
+from settings import SUPERVISELY_DATASET_DIR, INCLUDE_DIRS, EXCLUDE_DIRS, INTERMEDIATE_SAVE_DIR
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -263,17 +264,9 @@ def main(
 
 
 if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(description='Convert Supervisely dataset')
-    parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-Supervisely', type=str)
-    parser.add_argument('--include_dirs', nargs='+', default=[], type=str)
-    parser.add_argument('--exclude_dirs', nargs='+', default=[], type=str)
-    parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-Intermediate', type=str)
-    args = parser.parse_args()
-
     main(
-        save_dir=args.save_dir,
-        dataset_dir=args.dataset_dir,
-        include_dirs=args.include_dirs,
-        exclude_dirs=args.exclude_dirs,
+        save_dir=INTERMEDIATE_SAVE_DIR,
+        dataset_dir=SUPERVISELY_DATASET_DIR,
+        include_dirs=INCLUDE_DIRS,
+        exclude_dirs=EXCLUDE_DIRS,
     )

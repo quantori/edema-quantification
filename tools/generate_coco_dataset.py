@@ -1,6 +1,5 @@
 import json
 import logging
-import argparse
 
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
@@ -8,6 +7,8 @@ from sklearn.model_selection import train_test_split
 from tools.utils_coco import *
 from tools.utils import copy_files
 from tools.utils_sly import FIGURE_MAP
+
+from settings import INTERMEDIATE_DATASET_DIR, COCO_SAVE_DIR, TN_DIR, TRAIN_SIZE, BOX_EXTENSION
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -197,21 +198,10 @@ def main(
 
 
 if __name__ == '__main__':
-
-    BOX_EXTENTION = {}
-
-    parser = argparse.ArgumentParser(description='Prepare split subsets')
-    parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema-Intermediate', type=str)
-    parser.add_argument('--tn_dir', default=None, type=str)
-    parser.add_argument('--train_size', default=0.8, type=float)
-    parser.add_argument('--box_extension', default=BOX_EXTENTION, type=int)
-    parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-COCO', type=str)
-    args = parser.parse_args()
-
     main(
-        dataset_dir=args.dataset_dir,
-        tn_dir=args.tn_dir,
-        train_size=args.train_size,
-        box_extension=args.box_extension,
-        save_dir=args.save_dir,
+        dataset_dir=INTERMEDIATE_DATASET_DIR,
+        tn_dir=TN_DIR,
+        train_size=TRAIN_SIZE,
+        box_extension=BOX_EXTENSION,
+        save_dir=COCO_SAVE_DIR,
     )
