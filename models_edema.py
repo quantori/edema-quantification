@@ -585,7 +585,9 @@ class EdemaNet(pl.LightningModule):
 
             self.update_prototypes_on_batch(search_batch_images, search_labels)
 
-    def update_prototypes_on_batch(self, search_batch_images, search_labels):
+    def update_prototypes_on_batch(
+        self, search_batch_images, search_labels, global_min_proto_dist, prototype_layer_stride=1
+    ):
         # Model has to be in the eval mode
         if self.training:
             self.eval()
@@ -617,14 +619,43 @@ class EdemaNet(pl.LightningModule):
 
         # TODO: finsih the cycle
         for j in range(n_prototypes):
-        #if n_prototypes_per_class != None:
             # target_class is the class of the class_specific prototype
             target_class = torch.argmax(self.prototype_class_identity[j]).item()
             # if there is not images of the target_class from this batch
             # we go on to the next prototype
             if len(class_to_img_index_dict[target_class]) == 0:
                 continue
-            proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:,j,:,:]
+            proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:, j, :, :]
+
+            # if the smallest distance in the batch is less than the global smallest distance for
+            # this prototype
+            batch_min_proto_dist_j = np.amin(proto_dist_j)
+            if batch_min_proto_dist_j < global_min_proto_dist[j]:
+
+                # find arguments of the smallest distance in the matrix shape
+                arg_min_flat = np.argmin(proto_dist_j)
+                arg_min_matrix = np.unravel_index(arg_min_flat, proto_dist_j.shape)
+                batch_argmin_proto_dist_j = list(arg_min_matrix)
+
+                # change the index of the smallest distance from the class specific index to the
+                # whole search batch index
+                batch_argmin_proto_dist_j[0] = class_to_img_index_dict[target_class][
+                    batch_argmin_proto_dist_j[0]
+                ]
+
+                # retrieve the corresponding feature map patch
+                img_index_in_batch = batch_argmin_proto_dist_j[0]
+                fmap_height_start_index = batch_argmin_proto_dist_j[1] * prototype_layer_stride
+                fmap_height_end_index = fmap_height_start_index + proto_h
+                fmap_width_start_index = batch_argmin_proto_dist_j[2] * prototype_layer_stride
+                fmap_width_end_index = fmap_width_start_index + proto_w
+
+                batch_min_fmap_patch_j = protoL_input_[
+                    img_index_in_batch,
+                    :,
+                    fmap_height_start_index:fmap_height_end_index,
+                    fmap_width_start_index:fmap_width_end_index,
+                ]
 
 
 if __name__ == "__main__":
@@ -641,6 +672,12 @@ if __name__ == "__main__":
     batch = next(iter(test_dataloader))
     images, labels = batch
 
+    proto_dist_j = torch.rand(5, 1, 14, 14)
+    proto_dist_ = np.copy(proto_dist_j.detach().cpu().numpy())
+    arg_min_flat = np.argmin(proto_dist_)
+    arg_min_matrix = np.unravel_index(arg_min_flat, proto_dist_.shape)
+    batch_argmin_proto_dist_j = list(arg_min_matrix)
+    print(batch_argmin_proto_dist_j)
     # class_to_img_index_dict = {key: [] for key in range(7)}
     # for img_index, img_y in enumerate(labels):
     #     img_y.tolist()
