@@ -30,7 +30,7 @@ def get_metadata_info(
         dataset_dir: path to directory containing series with images and labels inside
 
     Returns:
-        metadata_short: a data frame with updated
+        metadata_short: data frame derived from a metadata file
     """
 
     metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
@@ -50,19 +50,28 @@ def get_metadata_info(
 
 
 def prepare_subsets(
-    metadata: pd.DataFrame,
+    metadata_short: pd.DataFrame,
     tn_dir: str,
     train_size: float,
     seed: int,
 ) -> dict:
+    """
+
+    Args:
+        metadata_short: data frame derived from a metadata file
+        tn_dir: directory placed outside the dataset_dir including images with no annotations
+        train_size: a fraction used to split dataset into train and test subsets
+        seed: random value for splitting train and test subsets
+
+    Returns:
+        subsets: dictionary which contains image/annotation paths for train and test subsets
+    """
     subsets = {
         'train': {'images': [], 'labels': []},
         'test': {'images': [], 'labels': []},
     }
-    # TODO: What should we do if the data isn't full ("WARN:root:No class tags available")?
-
     metadata_unique_subject_id = (
-        metadata.groupby(by='Subject ID', as_index=False)['Class ID'].max().astype(int)
+        metadata_short.groupby(by='Subject ID', as_index=False)['Class ID'].max().astype(int)
     )
     train_ids, test_ids = train_test_split(
         metadata_unique_subject_id,
@@ -72,18 +81,14 @@ def prepare_subsets(
         stratify=metadata_unique_subject_id['Class ID'],
     )
 
-    train = metadata[metadata['Subject ID'].isin(train_ids['Subject ID'])]
-    test = metadata[metadata['Subject ID'].isin(test_ids['Subject ID'])]
+    train = metadata_short[metadata_short['Subject ID'].isin(train_ids['Subject ID'])]
+    test = metadata_short[metadata_short['Subject ID'].isin(test_ids['Subject ID'])]
 
     subsets['test']['images'].extend(test['Image path'])
     subsets['test']['labels'].extend(test['Annotation path'])
     subsets['train']['images'].extend(train['Image path'])
     subsets['train']['labels'].extend(train['Annotation path'])
 
-    # TODO: In our case, a True Negative dataset is a dataset which
-    # TODO: (a) doesn't have label files
-    # TODO: (b) includes images where edema features are not presented
-    # TODO: (c) is used for training only (not testing)
     if tn_dir is not None:
         tn_images, tn_labels = create_tn_subset(tn_dir)
         subsets['train']['images'].extend(tn_images)
@@ -120,16 +125,13 @@ def prepare_coco(
     """
 
     Args:
-        subsets:
-        save_dir:
-        box_extension:
+        subsets: dictionary which contains image/annotation paths for train and test subsets
+        save_dir: directory where split datasets are saved to
+        box_extension: a value used to extend or contract object box sizes
 
     Returns:
-
+        None
     """
-    # TODO: (a) copy all images to a specific dir i.e. 'data' in our case
-    # TODO: (b) create two json files for train and test subsets
-    # FIXME: Kindly ask you to use one dictionary with classes and figures rather than creating different ones
     categories_coco = []
     for idx, (key, value) in enumerate(FIGURE_MAP.items()):
         categories_coco.append({'id': value, 'name': key})
