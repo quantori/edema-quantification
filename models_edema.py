@@ -132,6 +132,15 @@ class EdemaNet(pl.LightningModule):
         self.push_epoch = push_epoch
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
+        # receptive-field information that is needed to cut out the chosen upsampled fmap patch
+        # TODO: kernels, strides, and paddings
+        self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
+            img_size=img_size,
+            layer_filter_sizes=layer_filter_sizes,
+            layer_strides=layer_strides,
+            layer_paddings=layer_paddings,
+            prototype_kernel_size=prototype_shape[2],
+        )
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
@@ -534,6 +543,40 @@ class EdemaNet(pl.LightningModule):
 
             return transient_layers
 
+    def compute_proto_layer_rf_info(
+        self, img_size, layer_filter_sizes, layer_strides, layer_paddings, prototype_kernel_size
+    ):
+        # TODO: implement kernel_sizes = [...], strides = [...], paddings = [...] in the encoder
+        # class
+        if len(layer_filter_sizes) != len(layer_strides):
+            raise Exception("The number of kernels has to be equla to the number of strides")
+        if len(layer_filter_sizes) != len(layer_paddings):
+            raise Exception("The number of kernels has to be equla to the number of paddings")
+
+        # receptive field parameters for the first layer (image itself)
+        rf_info = [img_size, 1, 1, 0.5]
+
+        for i in range(len(layer_filter_sizes)):
+            filter_size = layer_filter_sizes[i]
+            stride_size = layer_strides[i]
+            padding_size = layer_paddings[i]
+
+            rf_info = compute_layer_rf_info(
+                layer_filter_size=filter_size,
+                layer_stride=stride_size,
+                layer_padding=padding_size,
+                previous_layer_rf_info=rf_info,
+            )
+
+            proto_layer_rf_info = compute_layer_rf_info(
+                layer_filter_size=prototype_kernel_size,
+                layer_stride=1,
+                layer_padding='VALID',
+                previous_layer_rf_info=rf_info,
+            )
+
+            return proto_layer_rf_info
+
     def update_prototypes(self, root_dir_for_saving_prototypes):
         self.eval()
         prototype_shape = self.prototype_shape
@@ -586,7 +629,12 @@ class EdemaNet(pl.LightningModule):
             self.update_prototypes_on_batch(search_batch_images, search_labels)
 
     def update_prototypes_on_batch(
-        self, search_batch_images, search_labels, global_min_proto_dist, prototype_layer_stride=1
+        self,
+        search_batch_images,
+        search_labels,
+        global_min_proto_dist,
+        global_min_fmap_patches,
+        prototype_layer_stride=1,
     ):
         # Model has to be in the eval mode
         if self.training:
@@ -656,6 +704,16 @@ class EdemaNet(pl.LightningModule):
                     fmap_height_start_index:fmap_height_end_index,
                     fmap_width_start_index:fmap_width_end_index,
                 ]
+
+                global_min_proto_dist[j] = batch_min_proto_dist_j
+                global_min_fmap_patches[j] = batch_min_fmap_patch_j
+
+                # get the receptive field boundary of the image patch
+                # that generates the representation
+                protoL_rf_info = self.proto_layer_rf_info
+                rf_prototype_j = compute_rf_prototype(
+                    search_batch.size(2), batch_argmin_proto_dist_j, protoL_rf_info
+                )
 
 
 if __name__ == "__main__":
