@@ -3,6 +3,7 @@
 The description to be filled...
 """
 import os
+import math
 
 from turtle import shape
 from typing import Tuple
@@ -134,13 +135,13 @@ class EdemaNet(pl.LightningModule):
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
         # receptive-field information that is needed to cut out the chosen upsampled fmap patch
         # TODO: kernels, strides, and paddings
-        self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
-            img_size=img_size,
-            layer_filter_sizes=layer_filter_sizes,
-            layer_strides=layer_strides,
-            layer_paddings=layer_paddings,
-            prototype_kernel_size=prototype_shape[2],
-        )
+        # self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
+        #     img_size=img_size,
+        #     layer_filter_sizes=layer_filter_sizes,
+        #     layer_strides=layer_strides,
+        #     layer_paddings=layer_paddings,
+        #     prototype_kernel_size=prototype_shape[2],
+        # )
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
@@ -543,6 +544,41 @@ class EdemaNet(pl.LightningModule):
 
             return transient_layers
 
+    def compute_layer_rf_info(self, layer_filter_size, layer_stride, layer_padding,
+                          previous_layer_rf_info):
+        # based on https://blog.mlreview.com/a-guide-to-receptive-field-arithmetic-for-convolutional-neural-networks-e0f514068807
+        n_in = previous_layer_rf_info[0] # receptive-field input size
+        j_in = previous_layer_rf_info[1] # receptive field jump of input layer
+        r_in = previous_layer_rf_info[2] # receptive field size of input layer
+        start_in = previous_layer_rf_info[3] # center of receptive field of input layer
+
+        if layer_padding == 'SAME':
+            n_out = math.ceil(float(n_in) / float(layer_stride))
+            if (n_in % layer_stride == 0):
+                pad = max(layer_filter_size - layer_stride, 0)
+            else:
+                pad = max(layer_filter_size - (n_in % layer_stride), 0)
+            assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
+            assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
+        elif layer_padding == 'VALID':
+            n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
+            pad = 0
+            assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
+            assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
+        else:
+            # layer_padding is an int that is the amount of padding on one side
+            pad = layer_padding * 2
+            n_out = math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1
+
+        pL = math.floor(pad/2)
+
+        j_out = j_in * layer_stride
+        r_out = r_in + (layer_filter_size - 1)*j_in
+        start_out = start_in + ((layer_filter_size - 1)/2 - pL)*j_in
+        
+        return [n_out, j_out, r_out, start_out]
+
+
     def compute_proto_layer_rf_info(
         self, img_size, layer_filter_sizes, layer_strides, layer_paddings, prototype_kernel_size
     ):
@@ -561,14 +597,14 @@ class EdemaNet(pl.LightningModule):
             stride_size = layer_strides[i]
             padding_size = layer_paddings[i]
 
-            rf_info = compute_layer_rf_info(
+            rf_info = self.compute_layer_rf_info(
                 layer_filter_size=filter_size,
                 layer_stride=stride_size,
                 layer_padding=padding_size,
                 previous_layer_rf_info=rf_info,
             )
 
-            proto_layer_rf_info = compute_layer_rf_info(
+            proto_layer_rf_info = self.compute_layer_rf_info(
                 layer_filter_size=prototype_kernel_size,
                 layer_stride=1,
                 layer_padding='VALID',
@@ -730,12 +766,16 @@ if __name__ == "__main__":
     batch = next(iter(test_dataloader))
     images, labels = batch
 
-    proto_dist_j = torch.rand(5, 1, 14, 14)
-    proto_dist_ = np.copy(proto_dist_j.detach().cpu().numpy())
-    arg_min_flat = np.argmin(proto_dist_)
-    arg_min_matrix = np.unravel_index(arg_min_flat, proto_dist_.shape)
-    batch_argmin_proto_dist_j = list(arg_min_matrix)
-    print(batch_argmin_proto_dist_j)
+    n_in = 11
+    layer_filter_size = 3
+    layer_stride = 2
+    n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
+    print(n_out)
+    pad = 0
+
+    assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
+    # assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
+
     # class_to_img_index_dict = {key: [] for key in range(7)}
     # for img_index, img_y in enumerate(labels):
     #     img_y.tolist()
