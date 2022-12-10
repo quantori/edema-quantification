@@ -3,9 +3,7 @@ from typing import Dict, List, Tuple, Any
 
 import cv2
 import pandas as pd
-from pathlib import Path
 
-from tools.utils import get_file_list
 from tools.utils_sly import ANNOTATION_COLUMNS, FIGURE_MAP_REVERSED
 
 
@@ -21,8 +19,8 @@ def get_img_info(
     img_data['file_name'] = os.path.basename(img_path)
     return img_data
 
-
-def get_ann_info_with_extension(
+# TODO: fix the function in a way that processes images with no labels i.e. healthy patients
+def get_ann_info(
     label_path: str,
     img_id: int,
     ann_id: int,
@@ -52,35 +50,3 @@ def get_ann_info_with_extension(
             ann_id += 1
 
     return ann_data, ann_id
-
-
-def create_tn_subset(
-    data_dir: str,
-) -> Tuple[List[str], List[str]]:
-    img_list = get_file_list(
-        src_dirs=data_dir,
-        include_template='',
-        ext_list=[
-            '.png',
-            '.jpg',
-            '.jpeg',
-            '.bmp',
-        ],
-    )
-
-    ann_list = []
-    for img_path in img_list:
-        ann_list.append(str(Path(img_path).with_suffix('.txt')))
-
-    return img_list, ann_list
-
-
-if __name__ == '__main__':
-    a = get_img_info('dataset/MIMIC-CXR-Edema-Intermediate/img/10000980_54935705.png', 12)
-    print(a)
-    b, c = get_ann_info_with_extension(
-        'dataset/MIMIC-CXR-Edema-Intermediate/ann/10000980_54935705.txt', 1, 2
-    )
-    print(c, b)
-    x, y = create_tn_subset(data_dir='dataset/MIMIC-CXR-Edema-Intermediate')
-    print(x, y)
