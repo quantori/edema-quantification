@@ -19,13 +19,14 @@ CLASS_MAP = {
 
 FIGURE_MAP = {
     'Cephalization': 1,
-    'Artery': 2,
-    'Heart': 3,
-    'Kerley': 4,
-    'Bronchus': 5,
-    'Effusion': 6,
-    'Bat': 7,
-    'Infiltrate': 8,
+    'Heart': 2,
+    'Artery': 3,
+    'Bronchus': 4,
+    'Kerley': 5,
+    'Cuffing': 6,
+    'Effusion': 7,
+    'Bat': 8,
+    'Infiltrate': 9,
 }
 
 FIGURE_MAP_REVERSED = dict((v, k) for k, v in FIGURE_MAP.items())

@@ -1,5 +1,6 @@
 import os
 import logging
+import argparse
 from pathlib import Path
 from functools import partial
 from joblib import Parallel, delayed
@@ -10,6 +11,12 @@ from tqdm import tqdm
 import supervisely_lib as sly
 from typing import List, Optional, Tuple
 
+from settings import (
+    SUPERVISELY_DATASET_DIR,
+    INCLUDE_DIRS,
+    EXCLUDE_DIRS,
+    INTERMEDIATE_SAVE_DIR,
+)
 from tools.utils_sly import (
     CLASS_MAP,
     FIGURE_MAP,
@@ -22,8 +29,6 @@ from tools.utils_sly import (
     get_box_sizes,
     get_mask_points,
 )
-
-from settings import SUPERVISELY_DATASET_DIR, INCLUDE_DIRS, EXCLUDE_DIRS, INTERMEDIATE_SAVE_DIR
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -264,9 +269,17 @@ def main(
 
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Supervisely-to-Intermediate dataset conversion')
+    parser.add_argument('--dataset_dir', default=SUPERVISELY_DATASET_DIR, type=str)
+    parser.add_argument('--include_dirs', nargs='+', default=INCLUDE_DIRS, type=str)
+    parser.add_argument('--exclude_dirs', nargs='+', default=EXCLUDE_DIRS, type=str)
+    parser.add_argument('--save_dir', default=INTERMEDIATE_SAVE_DIR, type=str)
+    args = parser.parse_args()
+
     main(
-        save_dir=INTERMEDIATE_SAVE_DIR,
-        dataset_dir=SUPERVISELY_DATASET_DIR,
-        include_dirs=INCLUDE_DIRS,
-        exclude_dirs=EXCLUDE_DIRS,
+        dataset_dir=args.dataset_dir,
+        include_dirs=args.include_dirs,
+        exclude_dirs=args.exclude_dirs,
+        save_dir=args.save_dir,
     )
