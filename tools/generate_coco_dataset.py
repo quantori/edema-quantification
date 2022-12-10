@@ -1,5 +1,7 @@
 import json
 import logging
+import argparse
+from pathlib import Path
 
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
@@ -7,8 +9,14 @@ from sklearn.model_selection import train_test_split
 from tools.utils_coco import *
 from tools.utils import copy_files
 from tools.utils_sly import FIGURE_MAP
-
-from settings import INTERMEDIATE_DATASET_DIR, COCO_SAVE_DIR, TN_DIR, TRAIN_SIZE, BOX_EXTENSION
+from settings import (
+    INTERMEDIATE_DATASET_DIR,
+    EXCLUDE_CLASSES,
+    TRAIN_SIZE,
+    BOX_EXTENSION,
+    SEED,
+    COCO_SAVE_DIR,
+)
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -23,17 +31,20 @@ logger = logging.getLogger(__name__)
 
 def get_metadata_info(
     dataset_dir: str,
+    exclude_classes: List[str] = None,
 ) -> pd.DataFrame:
     """
 
     Args:
         dataset_dir: path to directory containing series with images and labels inside
+        exclude_classes: a list of classes to exclude from the COCO dataset
 
     Returns:
         metadata_short: data frame derived from a metadata file
     """
 
     metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
+    metadata = metadata[~metadata['Class'].isin(exclude_classes)]
     metadata_short = metadata[
         [
             'Image path',
@@ -51,7 +62,6 @@ def get_metadata_info(
 
 def prepare_subsets(
     metadata_short: pd.DataFrame,
-    tn_dir: str,
     train_size: float,
     seed: int,
 ) -> dict:
@@ -59,7 +69,6 @@ def prepare_subsets(
 
     Args:
         metadata_short: data frame derived from a metadata file
-        tn_dir: directory placed outside the dataset_dir including images with no annotations
         train_size: a fraction used to split dataset into train and test subsets
         seed: random value for splitting train and test subsets
 
@@ -81,31 +90,30 @@ def prepare_subsets(
         stratify=metadata_unique_subject_id['Class ID'],
     )
 
-    train = metadata_short[metadata_short['Subject ID'].isin(train_ids['Subject ID'])]
-    test = metadata_short[metadata_short['Subject ID'].isin(test_ids['Subject ID'])]
+    df_train = metadata_short[metadata_short['Subject ID'].isin(train_ids['Subject ID'])]
+    df_test = metadata_short[metadata_short['Subject ID'].isin(test_ids['Subject ID'])]
 
-    subsets['test']['images'].extend(test['Image path'])
-    subsets['test']['labels'].extend(test['Annotation path'])
-    subsets['train']['images'].extend(train['Image path'])
-    subsets['train']['labels'].extend(train['Annotation path'])
+    mask_empty = df_test['Class ID'] == 0
+    df_empty = df_test[mask_empty]
+    df_test = df_test.drop(df_test.index[mask_empty])
+    df_train = df_train.append(df_empty, ignore_index=True)
+    df_train.reset_index(inplace=True, drop=True)
+    df_test.reset_index(inplace=True, drop=True)
 
-    if tn_dir is not None:
-        tn_images, tn_labels = create_tn_subset(tn_dir)
-        subsets['train']['images'].extend(tn_images)
-        subsets['train']['labels'].extend(tn_labels)
-    else:
-        tn_images, tn_labels = [], []
+    subsets['test']['images'].extend(df_test['Image path'])
+    subsets['test']['labels'].extend(df_test['Annotation path'])
+    subsets['train']['images'].extend(df_train['Image path'])
+    subsets['train']['labels'].extend(df_train['Annotation path'])
 
     logger.info('')
     logger.info('Overall train/test split')
     logger.info(
-        f'Subjects..................: {train["Subject ID"].nunique()}/{test["Subject ID"].nunique()}'
+        f'Subjects..................: {df_train["Subject ID"].nunique()}/{df_test["Subject ID"].nunique()}'
     )
     logger.info(
-        f'Studies...................: {train["Study ID"].nunique()}/{test["Study ID"].nunique()}'
+        f'Studies...................: {df_train["Study ID"].nunique()}/{df_test["Study ID"].nunique()}'
     )
-    logger.info(f'Images....................: {len(train)}/{len(test)}')
-    logger.info(f'Images in TN dataset......: {len(tn_images)}')
+    logger.info(f'Images....................: {len(df_train)}/{len(df_test)}')
 
     assert len(subsets['train']['images']) == len(
         subsets['train']['labels']
@@ -149,7 +157,8 @@ def prepare_coco(
                 img_path=img_path,
                 img_id=img_id,
             )
-            ann_data, ann_id = get_ann_info_with_extension(
+            # TODO: fix the function in a way that processes images with no labels i.e. healthy patients
+            ann_data, ann_id = get_ann_info(
                 label_path=ann_path,
                 img_id=img_id,
                 ann_id=ann_id,
@@ -175,7 +184,7 @@ def main(
     dataset_dir: str,
     save_dir: str,
     box_extension: dict,
-    tn_dir: str = None,
+    exclude_classes: List[str] = None,
     train_size: float = 0.8,
     seed: int = 11,
 ) -> None:
@@ -184,27 +193,25 @@ def main(
     Args:
         dataset_dir: path to directory containing series with images and labels inside
         save_dir: directory where split datasets are saved to
-        tn_dir: directory placed outside the dataset_dir including images with no annotations
+        exclude_classes: a list of classes to exclude from the COCO dataset
         train_size: a fraction used to split dataset into train and test subsets
         box_extension: a value used to extend or contract object box sizes
         seed: random value for splitting train and test subsets
+
     Returns:
         None
     """
 
     logger.info(f'Input directory...........: {dataset_dir}')
-    logger.info(f'TN directory..............: {tn_dir}')
+    logger.info(f'Excluded classes...........: {exclude_classes}')
     logger.info(f'Train/Test split..........: {train_size:.2f} / {(1 - train_size):.2f}')
     logger.info(f'Box extension.............: {box_extension}')
     logger.info(f'Seed......................: {seed}')
     logger.info(f'Output directory..........: {save_dir}')
 
-    if tn_dir is not None:
-        assert Path(dataset_dir) not in Path(tn_dir).parents, 'tn_dir should be outside dataset_dir'
+    metadata_short = get_metadata_info(dataset_dir, exclude_classes)
 
-    metadata_short = get_metadata_info(dataset_dir)
-
-    subsets = prepare_subsets(metadata_short, tn_dir, train_size, seed)
+    subsets = prepare_subsets(metadata_short, train_size, seed)
 
     prepare_coco(subsets, save_dir, box_extension)
 
@@ -212,11 +219,21 @@ def main(
 
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Intermediate-to-COCO dataset conversion')
+    parser.add_argument('--dataset_dir', default=INTERMEDIATE_DATASET_DIR, type=str)
+    parser.add_argument('--exclude_classes', default=EXCLUDE_CLASSES, type=str)
+    parser.add_argument('--train_size', default=TRAIN_SIZE, type=float)
+    parser.add_argument('--box_extension', default=BOX_EXTENSION)
+    parser.add_argument('--seed', default=SEED, type=int)
+    parser.add_argument('--save_dir', default=COCO_SAVE_DIR, type=str)
+    args = parser.parse_args()
+
     main(
-        dataset_dir=INTERMEDIATE_DATASET_DIR,
-        save_dir=COCO_SAVE_DIR,
-        box_extension=BOX_EXTENSION,
-        tn_dir=TN_DIR,
-        train_size=TRAIN_SIZE,
-        seed=11,
+        dataset_dir=args.dataset_dir,
+        exclude_classes=args.exclude_classes,
+        train_size=args.train_size,
+        box_extension=args.box_extension,
+        seed=args.seed,
+        save_dir=args.save_dir,
     )
