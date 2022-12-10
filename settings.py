@@ -7,8 +7,9 @@ INTERMEDIATE_SAVE_DIR = 'dataset/MIMIC-CXR-Edema-Intermediate'
 # Intermediate to COCO
 INTERMEDIATE_DATASET_DIR = 'dataset/MIMIC-CXR-Edema-Intermediate'
 COCO_SAVE_DIR = 'dataset/MIMIC-CXR-Edema-COCO'
-TN_DIR = None
+EXCLUDE_CLASSES = []
 TRAIN_SIZE = 0.8
+SEED = 11
 BOX_EXTENSION = {
     # figure name: (horizontal, vertical)
     'Cephalization': (0, 0),
