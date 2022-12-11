@@ -5,13 +5,11 @@ The description to be filled...
 import os
 import math
 
-from turtle import shape
 from typing import Tuple
-from matplotlib import image
 import torch
 from torch import nn
 import pytorch_lightning as pl
-from torchvision import transforms, datasets
+from torchvision import transforms
 import numpy as np
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
@@ -104,6 +102,7 @@ class EdemaNet(pl.LightningModule):
         num_warm_epochs: int = 10,
         push_start: int = 10,
         push_epoch: list = [],
+        img_size=224,
     ):
         """PyTorch Lightning model class.
 
@@ -133,15 +132,17 @@ class EdemaNet(pl.LightningModule):
         self.push_epoch = push_epoch
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
+
         # receptive-field information that is needed to cut out the chosen upsampled fmap patch
-        # TODO: kernels, strides, and paddings
-        # self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
-        #     img_size=img_size,
-        #     layer_filter_sizes=layer_filter_sizes,
-        #     layer_strides=layer_strides,
-        #     layer_paddings=layer_paddings,
-        #     prototype_kernel_size=prototype_shape[2],
-        # )
+        # TODO: implement conv_info func in the encoder class
+        layer_filter_sizes, layer_strides, layer_paddings = encoder.conv_info()
+        self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
+            img_size=img_size,
+            layer_filter_sizes=layer_filter_sizes,
+            layer_strides=layer_strides,
+            layer_paddings=layer_paddings,
+            prototype_kernel_size=prototype_shape[2],
+        )
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
@@ -204,7 +205,7 @@ class EdemaNet(pl.LightningModule):
 
         return logits, min_distances, upsampled_activation
 
-    def update_prootypes_forward(self, x):
+    def update_prototypes_forward(self, x):
         """This method is needed for the prototype updating operation"""
         conv_output = self.encoder(x)
         conv_output = self.transient_layers(conv_output)
@@ -544,40 +545,44 @@ class EdemaNet(pl.LightningModule):
 
             return transient_layers
 
-    def compute_layer_rf_info(self, layer_filter_size, layer_stride, layer_padding,
-                          previous_layer_rf_info):
+    def compute_layer_rf_info(
+        self, layer_filter_size, layer_stride, layer_padding, previous_layer_rf_info
+    ):
         # based on https://blog.mlreview.com/a-guide-to-receptive-field-arithmetic-for-convolutional-neural-networks-e0f514068807
-        n_in = previous_layer_rf_info[0] # receptive-field input size
-        j_in = previous_layer_rf_info[1] # receptive field jump of input layer
-        r_in = previous_layer_rf_info[2] # receptive field size of input layer
-        start_in = previous_layer_rf_info[3] # center of receptive field of input layer
+        n_in = previous_layer_rf_info[0]  # receptive-field input size
+        j_in = previous_layer_rf_info[1]  # receptive field jump of input layer
+        r_in = previous_layer_rf_info[2]  # receptive field size of input layer
+        start_in = previous_layer_rf_info[3]  # center of receptive field of input layer
 
         if layer_padding == 'SAME':
             n_out = math.ceil(float(n_in) / float(layer_stride))
-            if (n_in % layer_stride == 0):
+            if n_in % layer_stride == 0:
                 pad = max(layer_filter_size - layer_stride, 0)
             else:
                 pad = max(layer_filter_size - (n_in % layer_stride), 0)
-            assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
-            assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
+            assert (
+                n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+            )  # sanity check
+            assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
         elif layer_padding == 'VALID':
             n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
             pad = 0
-            assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
-            assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
+            assert (
+                n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+            )  # sanity check
+            assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
         else:
             # layer_padding is an int that is the amount of padding on one side
             pad = layer_padding * 2
-            n_out = math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1
+            n_out = math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
 
-        pL = math.floor(pad/2)
+        pL = math.floor(pad / 2)
 
         j_out = j_in * layer_stride
-        r_out = r_in + (layer_filter_size - 1)*j_in
-        start_out = start_in + ((layer_filter_size - 1)/2 - pL)*j_in
-        
-        return [n_out, j_out, r_out, start_out]
+        r_out = r_in + (layer_filter_size - 1) * j_in
+        start_out = start_in + ((layer_filter_size - 1) / 2 - pL) * j_in
 
+        return [n_out, j_out, r_out, start_out]
 
     def compute_proto_layer_rf_info(
         self, img_size, layer_filter_sizes, layer_strides, layer_paddings, prototype_kernel_size
@@ -604,14 +609,51 @@ class EdemaNet(pl.LightningModule):
                 previous_layer_rf_info=rf_info,
             )
 
-            proto_layer_rf_info = self.compute_layer_rf_info(
-                layer_filter_size=prototype_kernel_size,
-                layer_stride=1,
-                layer_padding='VALID',
-                previous_layer_rf_info=rf_info,
-            )
+        proto_layer_rf_info = self.compute_layer_rf_info(
+            layer_filter_size=prototype_kernel_size,
+            layer_stride=1,
+            layer_padding='VALID',
+            previous_layer_rf_info=rf_info,
+        )
 
-            return proto_layer_rf_info
+        return proto_layer_rf_info
+
+    def compute_rf_protoL_at_spatial_location(
+        self, img_size, height_index, width_index, protoL_rf_info
+    ):
+        # computes the pixel indices of the input-image patch (e.g. 224x224) that corresponds
+        # to the feature-map patch with the closest distance to the current prototype
+        n = protoL_rf_info[0]
+        j = protoL_rf_info[1]
+        r = protoL_rf_info[2]
+        start = protoL_rf_info[3]
+        assert height_index < n
+        assert width_index < n
+
+        center_h = start + (height_index * j)
+        center_w = start + (width_index * j)
+
+        rf_start_height_index = max(int(center_h - (r / 2)), 0)
+        rf_end_height_index = min(int(center_h + (r / 2)), img_size)
+
+        rf_start_width_index = max(int(center_w - (r / 2)), 0)
+        rf_end_width_index = min(int(center_w + (r / 2)), img_size)
+
+        return [
+            rf_start_height_index,
+            rf_end_height_index,
+            rf_start_width_index,
+            rf_end_width_index,
+        ]
+
+    def compute_rf_prototype(self, img_size, prototype_patch_index, protoL_rf_info):
+        img_index = prototype_patch_index[0]
+        height_index = prototype_patch_index[1]
+        width_index = prototype_patch_index[2]
+        rf_indices = self.compute_rf_protoL_at_spatial_location(
+            img_size, height_index, width_index, protoL_rf_info
+        )
+        return [img_index, rf_indices[0], rf_indices[1], rf_indices[2], rf_indices[3]]
 
     def update_prototypes(self, root_dir_for_saving_prototypes):
         self.eval()
@@ -744,10 +786,10 @@ class EdemaNet(pl.LightningModule):
                 global_min_proto_dist[j] = batch_min_proto_dist_j
                 global_min_fmap_patches[j] = batch_min_fmap_patch_j
 
-                # get the receptive field boundary of the image patch
+                # get the receptive field boundary of the image patch (the input image e.g. 224x224)
                 # that generates the representation
                 protoL_rf_info = self.proto_layer_rf_info
-                rf_prototype_j = compute_rf_prototype(
+                rf_prototype_j = self.compute_rf_prototype(
                     search_batch.size(2), batch_argmin_proto_dist_j, protoL_rf_info
                 )
 
@@ -773,7 +815,7 @@ if __name__ == "__main__":
     print(n_out)
     pad = 0
 
-    assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
+    assert n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1  # sanity check
     # assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
 
     # class_to_img_index_dict = {key: [] for key in range(7)}
