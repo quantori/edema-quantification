@@ -13,6 +13,8 @@ from torchvision import transforms
 import numpy as np
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
+import cv2
+import matplotlib.pyplot as plt
 
 
 class SqueezeNet(nn.Module):
@@ -135,14 +137,14 @@ class EdemaNet(pl.LightningModule):
 
         # receptive-field information that is needed to cut out the chosen upsampled fmap patch
         # TODO: implement conv_info func in the encoder class
-        layer_filter_sizes, layer_strides, layer_paddings = encoder.conv_info()
-        self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
-            img_size=img_size,
-            layer_filter_sizes=layer_filter_sizes,
-            layer_strides=layer_strides,
-            layer_paddings=layer_paddings,
-            prototype_kernel_size=prototype_shape[2],
-        )
+        # layer_filter_sizes, layer_strides, layer_paddings = encoder.conv_info()
+        # self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
+        #     img_size=img_size,
+        #     layer_filter_sizes=layer_filter_sizes,
+        #     layer_strides=layer_strides,
+        #     layer_paddings=layer_paddings,
+        #     prototype_kernel_size=prototype_shape[2],
+        # )
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
@@ -655,6 +657,29 @@ class EdemaNet(pl.LightningModule):
         )
         return [img_index, rf_indices[0], rf_indices[1], rf_indices[2], rf_indices[3]]
 
+    def find_high_activation_crop(self, activation_map, percentile=95):
+        threshold = np.percentile(activation_map, percentile)
+        mask = np.ones(activation_map.shape)
+        mask[activation_map < threshold] = 0
+        lower_y, upper_y, lower_x, upper_x = 0, 0, 0, 0
+        for i in range(mask.shape[0]):
+            if np.amax(mask[i]) > 0.5:
+                lower_y = i
+                break
+        for i in reversed(range(mask.shape[0])):
+            if np.amax(mask[i]) > 0.5:
+                upper_y = i
+                break
+        for j in range(mask.shape[1]):
+            if np.amax(mask[:, j]) > 0.5:
+                lower_x = j
+                break
+        for j in reversed(range(mask.shape[1])):
+            if np.amax(mask[:, j]) > 0.5:
+                upper_x = j
+                break
+        return lower_y, upper_y + 1, lower_x, upper_x + 1
+
     def update_prototypes(self, root_dir_for_saving_prototypes):
         self.eval()
         prototype_shape = self.prototype_shape
@@ -677,7 +702,7 @@ class EdemaNet(pl.LightningModule):
         # 2: height end index
         # 3: width start index
         # 4: width end index
-        # 5: class identity
+        # 5: class identities
         proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
         proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
 
@@ -709,10 +734,16 @@ class EdemaNet(pl.LightningModule):
     def update_prototypes_on_batch(
         self,
         search_batch_images,
+        start_index_of_search_batch,
         search_labels,
         global_min_proto_dist,
         global_min_fmap_patches,
+        proto_rf_boxes,
+        proto_bound_boxes,
         prototype_layer_stride=1,
+        dir_for_saving_prototypes=None,
+        prototype_img_filename_prefix=None,
+        prototype_self_act_filename_prefix=None,
     ):
         # Model has to be in the eval mode
         if self.training:
@@ -793,6 +824,149 @@ class EdemaNet(pl.LightningModule):
                     search_batch.size(2), batch_argmin_proto_dist_j, protoL_rf_info
                 )
 
+                # get the whole image
+                original_img_j = search_batch_images[rf_prototype_j[0]]
+                original_img_j = original_img_j.numpy()
+                original_img_j = np.transpose(original_img_j, (1, 2, 0))
+                original_img_size = original_img_j.shape[0]
+
+                # crop out the receptive field
+                rf_img_j = original_img_j[
+                    rf_prototype_j[1] : rf_prototype_j[2], rf_prototype_j[3] : rf_prototype_j[4], :
+                ]
+
+                # save the prototype receptive field information (pixel indices in the input image)
+                proto_rf_boxes[j, 0] = rf_prototype_j[0] + start_index_of_search_batch
+                proto_rf_boxes[j, 1] = rf_prototype_j[1]
+                proto_rf_boxes[j, 2] = rf_prototype_j[2]
+                proto_rf_boxes[j, 3] = rf_prototype_j[3]
+                proto_rf_boxes[j, 4] = rf_prototype_j[4]
+                if proto_rf_boxes.shape[1] == 6 and search_labels is not None:
+                    # saves in the tensor dtype
+                    proto_rf_boxes[j, 5] = search_labels[rf_prototype_j[0]]
+
+                # find the highly activated region of the original image
+                proto_dist_img_j = proto_dist_[img_index_in_batch, j, :, :]
+                # the activation function of the distances is log
+                proto_act_img_j = np.log((proto_dist_img_j + 1) / (proto_dist_img_j + self.epsilon))
+                # upsample the matrix with distances (e.g., (14x14)->(224x224))
+                upsampled_act_img_j = cv2.resize(
+                    proto_act_img_j,
+                    dsize=(original_img_size, original_img_size),
+                    interpolation=cv2.INTER_CUBIC,
+                )
+                # find a high activation patch (default treshold = 95 %)
+                proto_bound_j = self.find_high_activation_crop(upsampled_act_img_j)
+                # crop out the image patch with high activation as prototype image
+                # the dimensions' order of original_img_j, e.g., (224, 224, 3)
+                proto_img_j = original_img_j[
+                    proto_bound_j[0] : proto_bound_j[1], proto_bound_j[2] : proto_bound_j[3], :
+                ]
+
+                # save the prototype boundary (rectangular boundary of highly activated region)
+                # the activated region can be larger than the receptive field of the prototype
+                proto_bound_boxes[j, 0] = proto_rf_boxes[j, 0]
+                proto_bound_boxes[j, 1] = proto_bound_j[0]
+                proto_bound_boxes[j, 2] = proto_bound_j[1]
+                proto_bound_boxes[j, 3] = proto_bound_j[2]
+                proto_bound_boxes[j, 4] = proto_bound_j[3]
+                if proto_bound_boxes.shape[1] == 6 and search_labels is not None:
+                    # saves in the tensor dtype
+                    proto_bound_boxes[j, 5] = search_labels[rf_prototype_j[0]]
+
+                # SAVING BLOCK (can be changed later)
+                if dir_for_saving_prototypes is not None:
+
+                    if prototype_self_act_filename_prefix is not None:
+                        # save the numpy array of the prototype activation map (e.g., (14x14))
+                        np.save(
+                            os.path.join(
+                                dir_for_saving_prototypes,
+                                prototype_self_act_filename_prefix + str(j) + '.npy',
+                            ),
+                            proto_act_img_j,
+                        )
+
+                    if prototype_img_filename_prefix is not None:
+                        # save the whole image containing the prototype as png
+                        plt.imsave(
+                            os.path.join(
+                                dir_for_saving_prototypes,
+                                prototype_img_filename_prefix + '-original' + str(j) + '.png',
+                            ),
+                            original_img_j,
+                            cmap='gray',
+                        )
+
+                        # overlay (upsampled) activation on original image and save the result
+                        # normalize the image
+                        rescaled_act_img_j = upsampled_act_img_j - np.amin(upsampled_act_img_j)
+                        rescaled_act_img_j = rescaled_act_img_j / np.amax(rescaled_act_img_j)
+                        heatmap = cv2.applyColorMap(
+                            np.uint8(255 * rescaled_act_img_j), cv2.COLORMAP_JET
+                        )
+                        heatmap = np.float32(heatmap) / 255
+                        heatmap = heatmap[..., ::-1]
+                        overlayed_original_img_j = 0.5 * original_img_j + 0.3 * heatmap
+                        plt.imsave(
+                            os.path.join(
+                                dir_for_saving_prototypes,
+                                prototype_img_filename_prefix
+                                + '-original_with_self_act'
+                                + str(j)
+                                + '.png',
+                            ),
+                            overlayed_original_img_j,
+                            vmin=0.0,
+                            vmax=1.0,
+                        )
+
+                        # if different from the original (whole) image, save the prototype receptive
+                        # field as png
+                        if (
+                            rf_img_j.shape[0] != original_img_size
+                            or rf_img_j.shape[1] != original_img_size
+                        ):
+                            plt.imsave(
+                                os.path.join(
+                                    dir_for_saving_prototypes,
+                                    prototype_img_filename_prefix
+                                    + '-receptive_field'
+                                    + str(j)
+                                    + '.png',
+                                ),
+                                rf_img_j,
+                                vmin=0.0,
+                                vmax=1.0,
+                            )
+                            overlayed_rf_img_j = overlayed_original_img_j[
+                                rf_prototype_j[1] : rf_prototype_j[2],
+                                rf_prototype_j[3] : rf_prototype_j[4],
+                            ]
+                            plt.imsave(
+                                os.path.join(
+                                    dir_for_saving_prototypes,
+                                    prototype_img_filename_prefix
+                                    + '-receptive_field_with_self_act'
+                                    + str(j)
+                                    + '.png',
+                                ),
+                                overlayed_rf_img_j,
+                                vmin=0.0,
+                                vmax=1.0,
+                            )
+
+                        # save the prototype image (highly activated region of the whole image)
+                        plt.imsave(
+                            os.path.join(
+                                dir_for_saving_prototypes,
+                                prototype_img_filename_prefix + str(j) + '.png',
+                            ),
+                            proto_img_j,
+                            vmin=0.0,
+                            vmax=1.0,
+                        )
+
 
 if __name__ == "__main__":
 
@@ -808,14 +982,10 @@ if __name__ == "__main__":
     batch = next(iter(test_dataloader))
     images, labels = batch
 
-    n_in = 11
-    layer_filter_size = 3
-    layer_stride = 2
-    n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
-    print(n_out)
-    pad = 0
+    map_act = np.ones((32, 32))
+    print(map_act.shape)
+    print(map_act[2])
 
-    assert n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1  # sanity check
     # assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
 
     # class_to_img_index_dict = {key: [] for key in range(7)}
