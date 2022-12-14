@@ -84,6 +84,31 @@ class SqueezeNet(nn.Module):
 
         return preprocess(x)
 
+    def conv_info(self):
+        features = {}
+        features['kernel_sizes'] = []
+        features['strides'] = []
+        features['paddings'] = []
+
+        for module in self.modules():
+            if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
+                if isinstance(module.kernel_size, tuple):
+                    features['kernel_sizes'].append(module.kernel_size[0])
+                else:
+                    features['kernel_sizes'].append(module.kernel_size)
+
+                if isinstance(module.stride, tuple):
+                    features['strides'].append(module.stride[0])
+                else:
+                    features['strides'].append(module.stride)
+
+                if isinstance(module.padding, tuple):
+                    features['paddings'].append(module.padding[0])
+                else:
+                    features['paddings'].append(module.padding)
+
+        return features
+
 
 class EdemaNet(pl.LightningModule):
     """PyTorch Lightning model class.
@@ -136,15 +161,17 @@ class EdemaNet(pl.LightningModule):
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
 
         # receptive-field information that is needed to cut out the chosen upsampled fmap patch
-        # TODO: implement conv_info func in the encoder class
-        # layer_filter_sizes, layer_strides, layer_paddings = encoder.conv_info()
-        # self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
-        #     img_size=img_size,
-        #     layer_filter_sizes=layer_filter_sizes,
-        #     layer_strides=layer_strides,
-        #     layer_paddings=layer_paddings,
-        #     prototype_kernel_size=prototype_shape[2],
-        # )
+        kernel_sizes = encoder.conv_info()['kernel_sizes']
+        layer_strides = encoder.conv_info()['strides'] 
+        layer_paddings = encoder.conv_info()['paddings'] 
+
+        self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
+            img_size=img_size,
+            layer_filter_sizes=kernel_sizes,
+            layer_strides=layer_strides,
+            layer_paddings=layer_paddings,
+            prototype_kernel_size=prototype_shape[2],
+        )
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
@@ -231,7 +258,6 @@ class EdemaNet(pl.LightningModule):
         # # logs costs after a training epoch
         # if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
 
-        #     # TODO implement update_prototype() func
         #     self.update_prototypes()
 
         #     # has to be test (to check out the performance after substituting the prototypes)
@@ -589,8 +615,6 @@ class EdemaNet(pl.LightningModule):
     def compute_proto_layer_rf_info(
         self, img_size, layer_filter_sizes, layer_strides, layer_paddings, prototype_kernel_size
     ):
-        # TODO: implement kernel_sizes = [...], strides = [...], paddings = [...] in the encoder
-        # class
         if len(layer_filter_sizes) != len(layer_strides):
             raise Exception("The number of kernels has to be equla to the number of strides")
         if len(layer_filter_sizes) != len(layer_paddings):
@@ -680,7 +704,16 @@ class EdemaNet(pl.LightningModule):
                 break
         return lower_y, upper_y + 1, lower_x, upper_x + 1
 
-    def update_prototypes(self, root_dir_for_saving_prototypes):
+    def update_prototypes(
+        self,
+        dataloader,  # pytorch dataloader (must be unnormalized in [0,1])
+        prototype_layer_stride=1,
+        root_dir_for_saving_prototypes=None,  # if not None, prototypes will be saved here
+        prototype_img_filename_prefix=None,
+        prototype_self_act_filename_prefix=None,
+        proto_bound_boxes_filename_prefix=None,
+        # log=print,
+    ):
         self.eval()
         prototype_shape = self.prototype_shape
         n_prototypes = self.num_prototypes
@@ -720,7 +753,6 @@ class EdemaNet(pl.LightningModule):
             proto_epoch_dir = None
 
         search_batch_size = dataloader.batch_size
-        num_classes = self.num_classes
 
         for push_iter, (search_batch_images, search_labels) in enumerate(dataloader):
             if search_batch_images.shape[1] > 3:
@@ -729,17 +761,57 @@ class EdemaNet(pl.LightningModule):
 
             start_index_of_search_batch = push_iter * search_batch_size
 
-            self.update_prototypes_on_batch(search_batch_images, search_labels)
+            self.update_prototypes_on_batch(
+                search_batch_images,
+                start_index_of_search_batch,
+                search_labels,
+                global_min_proto_dist,
+                global_min_fmap_patches,
+                proto_rf_boxes,
+                proto_bound_boxes,
+                prototype_layer_stride=prototype_layer_stride,
+                dir_for_saving_prototypes=None,
+                prototype_img_filename_prefix=prototype_img_filename_prefix,
+                prototype_self_act_filename_prefix=prototype_self_act_filename_prefix,
+            )
+
+        if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
+            np.save(
+                os.path.join(
+                    proto_epoch_dir,
+                    proto_bound_boxes_filename_prefix
+                    + '-receptive_field'
+                    + str(self.current_epoch)
+                    + '.npy',
+                ),
+                proto_rf_boxes,
+            )
+            np.save(
+                os.path.join(
+                    proto_epoch_dir,
+                    proto_bound_boxes_filename_prefix + str(self.current_epoch) + '.npy',
+                ),
+                proto_bound_boxes,
+            )
+
+        # log('\tExecuting push ...')
+        # prototype_update = np.reshape(global_min_fmap_patches, tuple(prototype_shape))
+        # prototype_network_parallel.module.prototype_vectors.data.copy_(
+        #     torch.tensor(prototype_update, dtype=torch.float32).cuda()
+        # )
+        # # prototype_network_parallel.cuda()
+        # end = time.time()
+        # log('\tpush time: \t{0}'.format(end - start))
 
     def update_prototypes_on_batch(
         self,
         search_batch_images,
         start_index_of_search_batch,
         search_labels,
-        global_min_proto_dist,
-        global_min_fmap_patches,
-        proto_rf_boxes,
-        proto_bound_boxes,
+        global_min_proto_dist,  # this will be updated
+        global_min_fmap_patches,  # this will be updated
+        proto_rf_boxes,  # this will be updated
+        proto_bound_boxes,  # this will be updated
         prototype_layer_stride=1,
         dir_for_saving_prototypes=None,
         prototype_img_filename_prefix=None,
@@ -774,7 +846,6 @@ class EdemaNet(pl.LightningModule):
         # max_dist is chosen arbitrarly
         max_dist = prototype_shape[1] * prototype_shape[2] * prototype_shape[3]
 
-        # TODO: finsih the cycle
         for j in range(n_prototypes):
             # target_class is the class of the class_specific prototype
             target_class = torch.argmax(self.prototype_class_identity[j]).item()
@@ -967,24 +1038,30 @@ class EdemaNet(pl.LightningModule):
                             vmax=1.0,
                         )
 
+        del class_to_img_index_dict
+
 
 if __name__ == "__main__":
 
     sq_net = SqueezeNet()
-    # summary(sq_net.model, (3, 224, 224))
+
     edema_net = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
+    print(edema_net.proto_layer_rf_info)
 
-    test_dataset = TensorDataset(
-        torch.rand(128, 10, 224, 224), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    )
-    test_dataloader = DataLoader(test_dataset, batch_size=32)
 
-    batch = next(iter(test_dataloader))
-    images, labels = batch
 
-    map_act = np.ones((32, 32))
-    print(map_act.shape)
-    print(map_act[2])
+
+    # test_dataset = TensorDataset(
+    #     torch.rand(128, 10, 224, 224), torch.randint(0, 2, (128, 7), dtype=torch.float32)
+    # )
+    # test_dataloader = DataLoader(test_dataset, batch_size=32)
+
+    # batch = next(iter(test_dataloader))
+    # images, labels = batch
+
+    # map_act = np.ones((32, 32))
+    # print(map_act.shape)
+    # print(map_act[2])
 
     # assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
 
