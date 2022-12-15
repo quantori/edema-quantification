@@ -127,8 +127,8 @@ class EdemaNet(pl.LightningModule):
         top_k: int = 1,
         fine_loader: torch.utils.data.DataLoader = None,
         num_warm_epochs: int = 10,
-        push_start: int = 10,
-        push_epoch: list = [],
+        push_start: int = 3,
+        push_epochs: list = [3, 6, 9],
         img_size=224,
     ):
         """PyTorch Lightning model class.
@@ -156,14 +156,14 @@ class EdemaNet(pl.LightningModule):
         self.num_prototypes_per_class = self.num_prototypes // self.num_classes
         self.num_warm_epochs = num_warm_epochs
         self.push_start = push_start
-        self.push_epoch = push_epoch
+        self.push_epochs = push_epochs
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
 
         # receptive-field information that is needed to cut out the chosen upsampled fmap patch
         kernel_sizes = encoder.conv_info()['kernel_sizes']
-        layer_strides = encoder.conv_info()['strides'] 
-        layer_paddings = encoder.conv_info()['paddings'] 
+        layer_strides = encoder.conv_info()['strides']
+        layer_paddings = encoder.conv_info()['paddings']
 
         self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
             img_size=img_size,
@@ -176,7 +176,7 @@ class EdemaNet(pl.LightningModule):
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
             self.num_prototypes, self.num_classes, dtype=torch.float
-        )
+        ).cuda()
         # fills with 1 only those prototypes, which correspond to the correct class. The rest is
         # filled with 0
         for j in range(self.num_prototypes):
@@ -253,29 +253,34 @@ class EdemaNet(pl.LightningModule):
             self.joint()
 
     def training_epoch_end(self, outputs):
-        pass
-        # # here, we have to put push_prototypes function
-        # # logs costs after a training epoch
-        # if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
+        # here, we have to put push_prototypes function
+        # logs costs after a training epoch
+        if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
 
-        #     self.update_prototypes()
+            self.update_prototypes(self.trainer.train_dataloader.loaders)
 
-        #     # has to be test (to check out the performance after substituting the prototypes)
-        #     accu = self.train_val_test()
+            # has to be test (to check out the performance after substituting the prototypes)
+            if self.training:
+                self.eval()
+            accu = self.train_val_test()
 
-        #     self.last_layer()
-        #     for i in range(10):
-        #         # has to be train
-        #         self.train_val_test()
+            self.last_layer()
+            for i in range(10):
+                # has to be train
+                if not self.training:
+                    self.train()
+                self.train_val_test()
 
-        #         # has to be test
-        #         self.train_val_test
+                # has to be test
+                if self.training:
+                    self.eval()
+                self.train_val_test
 
-        #         # save model performance
+                # save model performance
 
-        #         # calculate performance and update the global performance criterium, if it is worse
+                # calculate performance and update the global performance criterium, if it is worse
 
-        #         # optionally (plot something)
+                # optionally (plot something)
 
     def test_step(self, batch, batch_idx):
         # this is for testing after training and validation are done
@@ -295,6 +300,10 @@ class EdemaNet(pl.LightningModule):
 
         fine_annotations = images[:, 3:10, :, :]  # 7 classes of fine annotations
         images = images[:, 0:3, :, :]  # (no view, create slice)
+
+        # images = images.cuda()
+        # labels = labels.cuda()
+        # fine_annotations = fine_annotations.cuda()
 
         # nn.Module has implemented __call__() function, so no need to call .forward()
         output, min_distances, upsampled_activation = self(images)
@@ -718,7 +727,7 @@ class EdemaNet(pl.LightningModule):
         prototype_shape = self.prototype_shape
         n_prototypes = self.num_prototypes
         # train dataloader
-        dataloader = self.trainer.train_dataloader.loaders
+        dataloader = dataloader # self.trainer.train_dataloader.loaders
 
         # make an array for the global closest distance seen so far (initialized with floating point
         # representation of positive infinity)
@@ -736,6 +745,7 @@ class EdemaNet(pl.LightningModule):
         # 3: width start index
         # 4: width end index
         # 5: class identities
+        # TODO: change proto_rf_boxes and proto_bound_boxes to dicts?
         proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
         proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
 
@@ -914,6 +924,7 @@ class EdemaNet(pl.LightningModule):
                 proto_rf_boxes[j, 4] = rf_prototype_j[4]
                 if proto_rf_boxes.shape[1] == 6 and search_labels is not None:
                     # saves in the tensor dtype
+                    # TODO: change proto_rf_boxes to dict?
                     proto_rf_boxes[j, 5] = search_labels[rf_prototype_j[0]]
 
                 # find the highly activated region of the original image
@@ -1045,16 +1056,15 @@ if __name__ == "__main__":
 
     sq_net = SqueezeNet()
 
-    edema_net = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
-    print(edema_net.proto_layer_rf_info)
+    edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
+    edema_net = edema_net_st.cuda()
+    rf_info = edema_net.proto_layer_rf_info
 
 
-
-
-    # test_dataset = TensorDataset(
-    #     torch.rand(128, 10, 224, 224), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    # )
-    # test_dataloader = DataLoader(test_dataset, batch_size=32)
+    test_dataset = TensorDataset(
+        torch.rand(128, 10, 224, 224), torch.randint(0, 2, (128, 7), dtype=torch.float32)
+    )
+    test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
 
     # batch = next(iter(test_dataloader))
     # images, labels = batch
@@ -1086,8 +1096,8 @@ if __name__ == "__main__":
 
     # print(edema_net.trainer.train_dataloader)
 
-    # trainer = pl.Trainer(max_epochs=1, logger=False, enable_checkpointing=False, gpus=1)
-    # trainer.fit(edema_net, test_dataloader)
+    trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
+    trainer.fit(edema_net, test_dataloader)
 
     # for name, param in edema_net.named_parameters():
     # print(name, 'requires_grad: ', param[1].requires_grad)
