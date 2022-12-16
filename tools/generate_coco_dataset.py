@@ -51,6 +51,8 @@ def get_metadata_info(
             'Annotation path',
             'Subject ID',
             'Study ID',
+            'Image width',
+            'Image height',
             'Figure ID',
             'Class ID',
         ]
@@ -157,15 +159,17 @@ def prepare_coco(
                 img_path=img_path,
                 img_id=img_id,
             )
-            # TODO: fix the function in a way that processes images with no labels i.e. healthy patients
+            imgs_coco.append(img_data)
+
             ann_data, ann_id = get_ann_info(
                 label_path=ann_path,
                 img_id=img_id,
                 ann_id=ann_id,
                 box_extension=box_extension,
             )
-            imgs_coco.append(img_data)
-            anns_coco.extend(ann_data)
+
+            if len(ann_data) > 0:
+                anns_coco.extend(ann_data)
 
         dataset = {
             'images': imgs_coco,

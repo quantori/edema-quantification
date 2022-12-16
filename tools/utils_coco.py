@@ -19,7 +19,7 @@ def get_img_info(
     img_data['file_name'] = os.path.basename(img_path)
     return img_data
 
-# TODO: fix the function in a way that processes images with no labels i.e. healthy patients
+
 def get_ann_info(
     label_path: str,
     img_id: int,
@@ -31,22 +31,25 @@ def get_ann_info(
         df_ann = pd.read_csv(label_path, sep='\t', names=ANNOTATION_COLUMNS)
         for _, row in df_ann.iterrows():
             label = {}
-            box_extension_figure = box_extension[FIGURE_MAP_REVERSED[row['Figure ID']]]
-            x1, y1 = (
-                int(row['x1']) - box_extension_figure[0],
-                int(row['y1']) + box_extension_figure[1],
-            )
-            width = int(row['x2'] + box_extension_figure[0] - row['x1'])
-            height = int(row['y2'] - box_extension_figure[1] - row['y1'])
+            if row['Class ID'] > 0:
+                box_extension_figure = box_extension[FIGURE_MAP_REVERSED[row['Figure ID']]]
+                x1, y1 = (
+                    int(row['x1']) - box_extension_figure[0],
+                    int(row['y1']) + box_extension_figure[1],
+                )
+                width = int(row['x2'] + box_extension_figure[0] - row['x1'])
+                height = int(row['y2'] - box_extension_figure[1] - row['y1'])
 
-            label['id'] = ann_id  # Should be unique
-            label['image_id'] = img_id  # Image ID annotation relates to
-            label['category_id'] = int(row['Class ID'])
-            label['bbox'] = [x1, y1, width, height]
-            label['area'] = width * height
-            label['iscrowd'] = 0
+                label['id'] = ann_id  # Should be unique
+                label['image_id'] = img_id  # Image ID annotation relates to
+                label['category_id'] = int(row['Class ID'])
+                label['bbox'] = [x1, y1, width, height]
+                label['area'] = width * height
+                label['iscrowd'] = 0
 
-            ann_data.append(label)
-            ann_id += 1
+                ann_data.append(label)
+                ann_id += 1
+            else:
+                return [], 0
 
     return ann_data, ann_id
