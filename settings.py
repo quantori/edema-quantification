@@ -20,4 +20,5 @@ BOX_EXTENSION = {
     'Effusion': (0, 0),
     'Bat': (0, 0),
     'Infiltrate': (0, 0),
+    'Cuffing': (0, 0),
 }
