@@ -4,6 +4,7 @@ The description to be filled...
 """
 import os
 import math
+import json
 
 from typing import Tuple
 import torch
@@ -262,22 +263,31 @@ class EdemaNet(pl.LightningModule):
             # has to be test (to check out the performance after substituting the prototypes)
             if self.training:
                 self.eval()
-            accu = self.train_val_test()
+            for batch in self.trainer.train_dataloader.loaders:
+                with torch.no_grad():
+                    accu = self.train_val_test(batch)
 
-            self.last_layer()
+            self.last_only()
             for i in range(10):
                 # has to be train
                 if not self.training:
                     self.train()
-                self.train_val_test()
+                for batch in self.trainer.train_dataloader.loaders:
+                    with torch.enable_grad():
+                        loss = self.train_val_test(batch)
+
+                    # self.trainer.optimizers.zero_grad()
+                    # loss.backward()
+                    # self.trainer.optimizers.step()
 
                 # has to be test
                 if self.training:
                     self.eval()
-                self.train_val_test
+                for batch in self.trainer.train_dataloader.loaders:
+                    with torch.no_grad():
+                        _ = self.train_val_test(batch)
 
                 # save model performance
-
                 # calculate performance and update the global performance criterium, if it is worse
 
                 # optionally (plot something)
@@ -291,6 +301,8 @@ class EdemaNet(pl.LightningModule):
 
     def train_val_test(self, batch):
         images, labels = batch
+        images = images.cuda()
+        labels = labels.cuda()
         # labels - (batch, 7), dtype: float32
         # images - (batch, 10, H, W)
         # images have to have the shape (batch, 10, H, W). 7 extra channel implies fine annotations,
@@ -727,7 +739,7 @@ class EdemaNet(pl.LightningModule):
         prototype_shape = self.prototype_shape
         n_prototypes = self.num_prototypes
         # train dataloader
-        dataloader = dataloader # self.trainer.train_dataloader.loaders
+        # dataloader = dataloader  # self.trainer.train_dataloader.loaders
 
         # make an array for the global closest distance seen so far (initialized with floating point
         # representation of positive infinity)
@@ -746,8 +758,24 @@ class EdemaNet(pl.LightningModule):
         # 4: width end index
         # 5: class identities
         # TODO: change proto_rf_boxes and proto_bound_boxes to dicts?
-        proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
-        proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
+        # proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
+        # proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
+        proto_rf_boxes = {
+            'image_index': 0,
+            'height_start_index': 0,
+            'height_end_index': 0,
+            'width_start_index': 0,
+            'width_end_index': 0,
+            'class_indentities': [],
+        }
+        proto_bound_boxes = {
+            'image_index': 0,
+            'height_start_index': 0,
+            'height_end_index': 0,
+            'width_start_index': 0,
+            'width_end_index': 0,
+            'class_indentities': [],
+        }
 
         # making a directory for saving prototypes
         if root_dir_for_saving_prototypes != None:
@@ -764,7 +792,8 @@ class EdemaNet(pl.LightningModule):
 
         search_batch_size = dataloader.batch_size
 
-        for push_iter, (search_batch_images, search_labels) in enumerate(dataloader):
+        for push_iter, batch in enumerate(dataloader):
+            search_batch_images, search_labels = batch
             if search_batch_images.shape[1] > 3:
                 # only imagees (the extra channels in this dimension belong to fine annot masks)
                 search_batch_images = search_batch_images[:, 0:3, :, :]
@@ -786,23 +815,30 @@ class EdemaNet(pl.LightningModule):
             )
 
         if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
-            np.save(
+            proto_rf_boxes_json = json.dumps(proto_rf_boxes) 
+            f = open( 
                 os.path.join(
                     proto_epoch_dir,
                     proto_bound_boxes_filename_prefix
                     + '-receptive_field'
                     + str(self.current_epoch)
-                    + '.npy',
+                    + '.json',
                 ),
-                proto_rf_boxes,
+                'w'
             )
-            np.save(
+            f.write(proto_rf_boxes_json)
+            f.close()
+
+            proto_bound_boxes_json = json.dumps(proto_bound_boxes)
+            f = open(
                 os.path.join(
                     proto_epoch_dir,
-                    proto_bound_boxes_filename_prefix + str(self.current_epoch) + '.npy',
+                    proto_bound_boxes_filename_prefix + str(self.current_epoch) + '.json',
                 ),
-                proto_bound_boxes,
+                'w',
             )
+            f.write(proto_bound_boxes_json)
+            f.close()
 
         # log('\tExecuting push ...')
         # prototype_update = np.reshape(global_min_fmap_patches, tuple(prototype_shape))
@@ -917,15 +953,12 @@ class EdemaNet(pl.LightningModule):
                 ]
 
                 # save the prototype receptive field information (pixel indices in the input image)
-                proto_rf_boxes[j, 0] = rf_prototype_j[0] + start_index_of_search_batch
-                proto_rf_boxes[j, 1] = rf_prototype_j[1]
-                proto_rf_boxes[j, 2] = rf_prototype_j[2]
-                proto_rf_boxes[j, 3] = rf_prototype_j[3]
-                proto_rf_boxes[j, 4] = rf_prototype_j[4]
-                if proto_rf_boxes.shape[1] == 6 and search_labels is not None:
-                    # saves in the tensor dtype
-                    # TODO: change proto_rf_boxes to dict?
-                    proto_rf_boxes[j, 5] = search_labels[rf_prototype_j[0]]
+                proto_rf_boxes['image_index'] = rf_prototype_j[0] + start_index_of_search_batch
+                proto_rf_boxes['height_start_index'] = rf_prototype_j[1]
+                proto_rf_boxes['height_end_index'] = rf_prototype_j[2]
+                proto_rf_boxes['width_start_index'] = rf_prototype_j[3]
+                proto_rf_boxes['width_end_index'] = rf_prototype_j[4]
+                proto_rf_boxes['class_indentities'] = search_labels[rf_prototype_j[0]]
 
                 # find the highly activated region of the original image
                 proto_dist_img_j = proto_dist_[img_index_in_batch, j, :, :]
@@ -947,14 +980,12 @@ class EdemaNet(pl.LightningModule):
 
                 # save the prototype boundary (rectangular boundary of highly activated region)
                 # the activated region can be larger than the receptive field of the prototype
-                proto_bound_boxes[j, 0] = proto_rf_boxes[j, 0]
-                proto_bound_boxes[j, 1] = proto_bound_j[0]
-                proto_bound_boxes[j, 2] = proto_bound_j[1]
-                proto_bound_boxes[j, 3] = proto_bound_j[2]
-                proto_bound_boxes[j, 4] = proto_bound_j[3]
-                if proto_bound_boxes.shape[1] == 6 and search_labels is not None:
-                    # saves in the tensor dtype
-                    proto_bound_boxes[j, 5] = search_labels[rf_prototype_j[0]]
+                proto_bound_boxes['image_index'] = proto_rf_boxes['image_index']
+                proto_bound_boxes['height_start_index'] = proto_bound_j[0]
+                proto_bound_boxes['height_end_index'] = proto_bound_j[1]
+                proto_bound_boxes['width_start_index'] = proto_bound_j[2]
+                proto_bound_boxes['width_end_index'] = proto_bound_j[3]
+                proto_bound_boxes['class_indentities'] = search_labels[rf_prototype_j[0]]
 
                 # SAVING BLOCK (can be changed later)
                 if dir_for_saving_prototypes is not None:
@@ -1059,7 +1090,6 @@ if __name__ == "__main__":
     edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
     edema_net = edema_net_st.cuda()
     rf_info = edema_net.proto_layer_rf_info
-
 
     test_dataset = TensorDataset(
         torch.rand(128, 10, 224, 224), torch.randint(0, 2, (128, 7), dtype=torch.float32)
