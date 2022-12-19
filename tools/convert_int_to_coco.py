@@ -219,7 +219,7 @@ def main(
 
     prepare_coco(subsets, save_dir, box_extension)
 
-    logger.info(f'Complete')
+    logger.info('Complete')
 
 
 if __name__ == '__main__':
