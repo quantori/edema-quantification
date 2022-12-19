@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 import cv2
 import matplotlib.pyplot as plt
+from tqdm import trange, tqdm
 
 
 class SqueezeNet(nn.Module):
@@ -261,6 +262,7 @@ class EdemaNet(pl.LightningModule):
             self.update_prototypes(self.trainer.train_dataloader.loaders)
 
             # has to be test (to check out the performance after substituting the prototypes)
+            # TODO: change the data_loader to the test dataloader
             if self.training:
                 self.eval()
             for batch in self.trainer.train_dataloader.loaders:
@@ -268,24 +270,35 @@ class EdemaNet(pl.LightningModule):
                     accu = self.train_val_test(batch)
 
             self.last_only()
-            for i in range(10):
-                # has to be train
-                if not self.training:
-                    self.train()
-                for batch in self.trainer.train_dataloader.loaders:
-                    with torch.enable_grad():
-                        loss = self.train_val_test(batch)
+            with tqdm(
+                total=10,
+                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_loss={postfix[0][train_loss]}'
+                ' test_loss={postfix[1][test_loss]}]',
+                desc='Training last only',
+                postfix=[dict(train_loss=0), dict(test_loss=0)],
+            ) as t:
+                for i in range(10):
+                    # has to be train
+                    if not self.training:
+                        self.train()
+                    for batch in self.trainer.train_dataloader.loaders:
+                        with torch.enable_grad():
+                            train_loss = self.train_val_test(batch)
 
-                    # self.trainer.optimizers.zero_grad()
-                    # loss.backward()
-                    # self.trainer.optimizers.step()
+                        t.postfix[0]['train_loss'] = round(train_loss.item(), 2)
+                        train_loss.backward()
+                        self.trainer.optimizers[0].step()
+                        self.trainer.optimizers[0].zero_grad()
 
-                # has to be test
-                if self.training:
-                    self.eval()
-                for batch in self.trainer.train_dataloader.loaders:
-                    with torch.no_grad():
-                        _ = self.train_val_test(batch)
+                    # TODO: Change the data_loader to the test dataloader
+                    if self.training:
+                        self.eval()
+                    for batch in self.trainer.train_dataloader.loaders:
+                        with torch.no_grad():
+                            test_loss = self.train_val_test(batch)
+                        t.postfix[1]['test_loss'] = round(test_loss.item(), 2)
+
+                    t.update()
 
                 # save model performance
                 # calculate performance and update the global performance criterium, if it is worse
@@ -815,8 +828,8 @@ class EdemaNet(pl.LightningModule):
             )
 
         if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
-            proto_rf_boxes_json = json.dumps(proto_rf_boxes) 
-            f = open( 
+            proto_rf_boxes_json = json.dumps(proto_rf_boxes)
+            f = open(
                 os.path.join(
                     proto_epoch_dir,
                     proto_bound_boxes_filename_prefix
@@ -824,7 +837,7 @@ class EdemaNet(pl.LightningModule):
                     + str(self.current_epoch)
                     + '.json',
                 ),
-                'w'
+                'w',
             )
             f.write(proto_rf_boxes_json)
             f.close()
