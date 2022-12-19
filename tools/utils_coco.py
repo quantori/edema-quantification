@@ -35,13 +35,17 @@ def get_ann_info(
                 box_extension_figure = box_extension[FIGURE_MAP_REVERSED[row['Figure ID']]]
                 x1, y1 = (
                     int(row['x1']) - box_extension_figure[0],
-                    int(row['y1']) + box_extension_figure[1],
+                    int(row['y1']) - box_extension_figure[1],
                 )
-                width = int(row['x2'] + box_extension_figure[0] - row['x1'])
-                height = int(row['y2'] - box_extension_figure[1] - row['y1'])
+                x2, y2 = (
+                    int(row['x2']) + box_extension_figure[0],
+                    int(row['y2']) + box_extension_figure[1]
+                )
+                width = abs(x2 - x1 + 1)
+                height = abs(y2 - y1 + 1)
 
-                label['id'] = ann_id  # Should be unique
-                label['image_id'] = img_id  # Image ID annotation relates to
+                label['id'] = ann_id            # Should be unique
+                label['image_id'] = img_id      # Image ID annotation relates to
                 label['category_id'] = int(row['Class ID'])
                 label['bbox'] = [x1, y1, width, height]
                 label['area'] = width * height
