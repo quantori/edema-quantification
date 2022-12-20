@@ -770,7 +770,6 @@ class EdemaNet(pl.LightningModule):
         # 3: width start index
         # 4: width end index
         # 5: class identities
-        # TODO: change proto_rf_boxes and proto_bound_boxes to dicts?
         # proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
         # proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
         proto_rf_boxes = {
@@ -853,11 +852,10 @@ class EdemaNet(pl.LightningModule):
             f.write(proto_bound_boxes_json)
             f.close()
 
-        # log('\tExecuting push ...')
-        # prototype_update = np.reshape(global_min_fmap_patches, tuple(prototype_shape))
-        # prototype_network_parallel.module.prototype_vectors.data.copy_(
-        #     torch.tensor(prototype_update, dtype=torch.float32).cuda()
-        # )
+        prototype_update = np.reshape(global_min_fmap_patches, tuple(prototype_shape))
+        self.prototype_layer.data.copy_(
+            torch.tensor(prototype_update, dtype=torch.float32).cuda()
+        )
         # # prototype_network_parallel.cuda()
         # end = time.time()
         # log('\tpush time: \t{0}'.format(end - start))
