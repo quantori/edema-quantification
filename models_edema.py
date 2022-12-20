@@ -853,9 +853,7 @@ class EdemaNet(pl.LightningModule):
             f.close()
 
         prototype_update = np.reshape(global_min_fmap_patches, tuple(prototype_shape))
-        self.prototype_layer.data.copy_(
-            torch.tensor(prototype_update, dtype=torch.float32).cuda()
-        )
+        self.prototype_layer.data.copy_(torch.tensor(prototype_update, dtype=torch.float32).cuda())
         # # prototype_network_parallel.cuda()
         # end = time.time()
         # log('\tpush time: \t{0}'.format(end - start))
