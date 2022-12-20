@@ -18,15 +18,18 @@ CLASS_MAP = {
 }
 
 FIGURE_MAP = {
-    'Cephalization': 0,
-    'Artery': 1,
+    'Cephalization': 1,
     'Heart': 2,
-    'Kerley': 3,
+    'Artery': 3,
     'Bronchus': 4,
-    'Effusion': 5,
-    'Bat': 6,
-    'Infiltrate': 7,
+    'Kerley': 5,
+    'Cuffing': 6,
+    'Effusion': 7,
+    'Bat': 8,
+    'Infiltrate': 9,
 }
+
+FIGURE_MAP_REVERSED = dict((v, k) for k, v in FIGURE_MAP.items())
 
 METADATA_COLUMNS = [
     'Image path',
@@ -34,6 +37,7 @@ METADATA_COLUMNS = [
     'Study ID',
     'Image width',
     'Image height',
+    'Figure ID',
     'Figure',
     'x1',
     'y1',
