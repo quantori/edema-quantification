@@ -1096,20 +1096,20 @@ class EdemaNet(pl.LightningModule):
         del class_to_img_index_dict
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 
-    # torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
 
-    # sq_net = SqueezeNet()
+    sq_net = SqueezeNet()
 
-    # edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
-    # edema_net = edema_net_st.cuda()
-    # rf_info = edema_net.proto_layer_rf_info
+    edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
+    edema_net = edema_net_st.cuda()
+    rf_info = edema_net.proto_layer_rf_info
 
-    # test_dataset = TensorDataset(
-    #     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    # )
-    # test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
+    test_dataset = TensorDataset(
+        torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
+    )
+    test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
 
-    # trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
-    # trainer.fit(edema_net, test_dataloader)
+    trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
+    trainer.fit(edema_net, test_dataloader)
