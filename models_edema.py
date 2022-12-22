@@ -742,10 +742,10 @@ class EdemaNet(pl.LightningModule):
         self,
         dataloader,  # pytorch dataloader (must be unnormalized in [0,1])
         prototype_layer_stride=1,
-        root_dir_for_saving_prototypes=None,  # if not None, prototypes will be saved here
-        prototype_img_filename_prefix=None,
-        prototype_self_act_filename_prefix=None,
-        proto_bound_boxes_filename_prefix=None,
+        root_dir_for_saving_prototypes='./savings/',  # if not None, prototypes will be saved here
+        prototype_img_filename_prefix='prototype-img',
+        prototype_self_act_filename_prefix='prototype-self-act',
+        proto_bound_boxes_filename_prefix='bb',
         # log=print,
     ):
         self.eval()
@@ -773,20 +773,20 @@ class EdemaNet(pl.LightningModule):
         # proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
         # proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
         proto_rf_boxes = {
-            'image_index': 0,
-            'height_start_index': 0,
-            'height_end_index': 0,
-            'width_start_index': 0,
-            'width_end_index': 0,
-            'class_indentities': [],
+            # 'image_index': 0,
+            # 'height_start_index': 0,
+            # 'height_end_index': 0,
+            # 'width_start_index': 0,
+            # 'width_end_index': 0,
+            # 'class_indentities': 0,
         }
         proto_bound_boxes = {
-            'image_index': 0,
-            'height_start_index': 0,
-            'height_end_index': 0,
-            'width_start_index': 0,
-            'width_end_index': 0,
-            'class_indentities': [],
+            # 'image_index': 0,
+            # 'height_start_index': 0,
+            # 'height_end_index': 0,
+            # 'width_start_index': 0,
+            # 'width_end_index': 0,
+            # 'class_indentities': 0,
         }
 
         # making a directory for saving prototypes
@@ -821,7 +821,7 @@ class EdemaNet(pl.LightningModule):
                 proto_rf_boxes,
                 proto_bound_boxes,
                 prototype_layer_stride=prototype_layer_stride,
-                dir_for_saving_prototypes=None,
+                dir_for_saving_prototypes=proto_epoch_dir,
                 prototype_img_filename_prefix=prototype_img_filename_prefix,
                 prototype_self_act_filename_prefix=prototype_self_act_filename_prefix,
             )
@@ -962,12 +962,13 @@ class EdemaNet(pl.LightningModule):
                 ]
 
                 # save the prototype receptive field information (pixel indices in the input image)
-                proto_rf_boxes['image_index'] = rf_prototype_j[0] + start_index_of_search_batch
-                proto_rf_boxes['height_start_index'] = rf_prototype_j[1]
-                proto_rf_boxes['height_end_index'] = rf_prototype_j[2]
-                proto_rf_boxes['width_start_index'] = rf_prototype_j[3]
-                proto_rf_boxes['width_end_index'] = rf_prototype_j[4]
-                proto_rf_boxes['class_indentities'] = search_labels[rf_prototype_j[0]]
+                proto_rf_boxes[j] = {}
+                proto_rf_boxes[j]['image_index'] = rf_prototype_j[0] + start_index_of_search_batch
+                proto_rf_boxes[j]['height_start_index'] = rf_prototype_j[1]
+                proto_rf_boxes[j]['height_end_index'] = rf_prototype_j[2]
+                proto_rf_boxes[j]['width_start_index'] = rf_prototype_j[3]
+                proto_rf_boxes[j]['width_end_index'] = rf_prototype_j[4]
+                proto_rf_boxes[j]['class_indentities'] = search_labels[rf_prototype_j[0]].tolist()
 
                 # find the highly activated region of the original image
                 proto_dist_img_j = proto_dist_[img_index_in_batch, j, :, :]
@@ -989,12 +990,15 @@ class EdemaNet(pl.LightningModule):
 
                 # save the prototype boundary (rectangular boundary of highly activated region)
                 # the activated region can be larger than the receptive field of the prototype
-                proto_bound_boxes['image_index'] = proto_rf_boxes['image_index']
-                proto_bound_boxes['height_start_index'] = proto_bound_j[0]
-                proto_bound_boxes['height_end_index'] = proto_bound_j[1]
-                proto_bound_boxes['width_start_index'] = proto_bound_j[2]
-                proto_bound_boxes['width_end_index'] = proto_bound_j[3]
-                proto_bound_boxes['class_indentities'] = search_labels[rf_prototype_j[0]]
+                proto_bound_boxes[j] = {}
+                proto_bound_boxes[j]['image_index'] = proto_rf_boxes[j]['image_index']
+                proto_bound_boxes[j]['height_start_index'] = proto_bound_j[0]
+                proto_bound_boxes[j]['height_end_index'] = proto_bound_j[1]
+                proto_bound_boxes[j]['width_start_index'] = proto_bound_j[2]
+                proto_bound_boxes[j]['width_end_index'] = proto_bound_j[3]
+                proto_bound_boxes[j]['class_indentities'] = search_labels[
+                    rf_prototype_j[0]
+                ].tolist()
 
                 # SAVING BLOCK (can be changed later)
                 if dir_for_saving_prototypes is not None:
@@ -1092,55 +1096,20 @@ class EdemaNet(pl.LightningModule):
         del class_to_img_index_dict
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    sq_net = SqueezeNet()
+    # torch.cuda.empty_cache()
 
-    edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
-    edema_net = edema_net_st.cuda()
-    rf_info = edema_net.proto_layer_rf_info
+    # sq_net = SqueezeNet()
 
-    test_dataset = TensorDataset(
-        torch.rand(128, 10, 224, 224), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    )
-    test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
+    # edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
+    # edema_net = edema_net_st.cuda()
+    # rf_info = edema_net.proto_layer_rf_info
 
-    # batch = next(iter(test_dataloader))
-    # images, labels = batch
+    # test_dataset = TensorDataset(
+    #     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
+    # )
+    # test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
 
-    # map_act = np.ones((32, 32))
-    # print(map_act.shape)
-    # print(map_act[2])
-
-    # assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
-
-    # class_to_img_index_dict = {key: [] for key in range(7)}
-    # for img_index, img_y in enumerate(labels):
-    #     img_y.tolist()
-    #     for idx, i in enumerate(img_y):
-    #         if i:
-    #             class_to_img_index_dict[idx].append(img_index)
-    # print(class_to_img_index_dict)
-    # batch[0].cuda
-    # print(batch[0].is_cuda)
-    # print(torch.__version__)
-
-    # print(edema_net.training)
-    # edema_net.eval()
-    # print(edema_net.training)
-
-    # print(list(edema_net.named_parameters())[0][1].requires_grad)
-    # for name, param in edema_net.named_parameters():
-    # print(name, 'requires_grad: ', param[1].requires_grad)
-
-    # print(edema_net.trainer.train_dataloader)
-
-    trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
-    trainer.fit(edema_net, test_dataloader)
-
-    # for name, param in edema_net.named_parameters():
-    # print(name, 'requires_grad: ', param[1].requires_grad)
-
-    # use it for the prototype pushing function
-    # print(type(edema_net.trainer.train_dataloader.loaders))
-    # print(edema_net.trainer.train_dataloader.loaders.batch_size)
+    # trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
+    # trainer.fit(edema_net, test_dataloader)
