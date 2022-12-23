@@ -146,6 +146,7 @@ calculations/
 
 # Logs directory
 logs/
+lightning_logs/
 
 # DVC files
 .dvc/config.local
@@ -153,4 +154,4 @@ logs/
 .dvc/cache
 
 # savings from training
-savings
+savings/

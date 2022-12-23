@@ -262,7 +262,7 @@ class EdemaNet(pl.LightningModule):
             self.update_prototypes(self.trainer.train_dataloader.loaders)
 
             # has to be test (to check out the performance after substituting the prototypes)
-            # TODO: change the data_loader to the test dataloader
+            # TODO: change the data_loader to the validation dataloader
             if self.training:
                 self.eval()
             for batch in self.trainer.train_dataloader.loaders:
@@ -290,13 +290,13 @@ class EdemaNet(pl.LightningModule):
                         self.trainer.optimizers[0].step()
                         self.trainer.optimizers[0].zero_grad()
 
-                    # TODO: Change the data_loader to the test dataloader
+                    # TODO: Change the data_loader to the validation dataloader
                     if self.training:
                         self.eval()
                     for batch in self.trainer.train_dataloader.loaders:
                         with torch.no_grad():
                             test_loss = self.train_val_test(batch)
-                        t.postfix[1]['test_loss'] = round(test_loss.item(), 2)
+                        t.postfix[1]['val_loss'] = round(test_loss.item(), 2)
 
                     t.update()
 
@@ -305,12 +305,14 @@ class EdemaNet(pl.LightningModule):
 
                 # optionally (plot something)
 
-    def test_step(self, batch, batch_idx):
-        # this is for testing after training and validation are done
-        pass
+    def validation_step(self, batch, batch_idx):
+        cost = self.train_val_test(batch)
+        self.log('val_loss', cost, prog_bar=True)
+        return cost
 
-    def test_epoch_end(self, outputs):
-        pass
+    def test_step(self, batch, batch_idx):
+        cost = self.train_val_test(batch)
+        return cost
 
     def train_val_test(self, batch):
         images, labels = batch
