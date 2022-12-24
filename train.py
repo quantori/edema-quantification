@@ -28,5 +28,5 @@ if __name__ == '__main__':
     val_dataloader = DataLoader(val_dataset, batch_size=32, num_workers=4)
 
     # create the trainer and start training
-    trainer = pl.Trainer(max_epochs=9, logger=, enable_checkpointing=False, gpus=1)
+    trainer = pl.Trainer(max_epochs=9, logger=True, enable_checkpointing=False, gpus=1)
     trainer.fit(edema_net, train_dataloader, val_dataloaders=val_dataloader)

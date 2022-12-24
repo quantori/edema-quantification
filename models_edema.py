@@ -5,6 +5,7 @@ The description to be filled...
 import os
 import math
 import json
+from typing import Optional
 
 from typing import Tuple
 import torch
@@ -261,58 +262,61 @@ class EdemaNet(pl.LightningModule):
 
             self.update_prototypes(self.trainer.train_dataloader.loaders)
 
-            # has to be test (to check out the performance after substituting the prototypes)
-            # TODO: change the data_loader to the validation dataloader
-            if self.training:
-                self.eval()
-            for batch in self.trainer.train_dataloader.loaders:
-                with torch.no_grad():
-                    accu = self.train_val_test(batch)
+            val_cost = self.custom_validation_epoch()
+            # TODO: save the model if the performance metric is better
 
             self.last_only()
             with tqdm(
                 total=10,
-                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_loss={postfix[0][train_loss]}'
-                ' test_loss={postfix[1][test_loss]}]',
+                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_cost={postfix[0][train_cost]}'
+                ' val_cost={postfix[1][val_cost]}]',
                 desc='Training last only',
-                postfix=[dict(train_loss=0), dict(test_loss=0)],
+                postfix=[dict(train_cost=0), dict(val_cost=0)],
             ) as t:
                 for i in range(10):
-                    # has to be train
-                    if not self.training:
-                        self.train()
-                    for batch in self.trainer.train_dataloader.loaders:
-                        with torch.enable_grad():
-                            train_loss = self.train_val_test(batch)
-
-                        t.postfix[0]['train_loss'] = round(train_loss.item(), 2)
-                        train_loss.backward()
-                        self.trainer.optimizers[0].step()
-                        self.trainer.optimizers[0].zero_grad()
-
-                    # TODO: Change the data_loader to the validation dataloader
-                    if self.training:
-                        self.eval()
-                    for batch in self.trainer.train_dataloader.loaders:
-                        with torch.no_grad():
-                            test_loss = self.train_val_test(batch)
-                        t.postfix[1]['val_loss'] = round(test_loss.item(), 2)
-
+                    train_cost = self.custom_train_epoch(t)
+                    val_cost = self.custom_validation_epoch(t)
                     t.update()
 
                 # save model performance
-                # calculate performance and update the global performance criterium, if it is worse
+                # TODO: calculate performance and update the global performance criterium, if it is
+                # worse
 
                 # optionally (plot something)
 
     def validation_step(self, batch, batch_idx):
         cost = self.train_val_test(batch)
-        self.log('val_loss', cost, prog_bar=True)
+        self.log('val_cost', cost, prog_bar=True)
         return cost
 
     def test_step(self, batch, batch_idx):
         cost = self.train_val_test(batch)
         return cost
+
+    def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
+        if self.training:
+            self.eval()
+        for batch in self.trainer.val_dataloaders[0]:
+            with torch.no_grad():
+                val_cost = self.train_val_test(batch)
+            if t:
+                # this implementation implies that only the last cost will be saved and shown
+                t.postfix[1]['val_cost'] = round(val_cost.item(), 2)
+        return val_cost
+
+    def custom_train_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
+        if not self.training:
+            self.train()
+        for batch in self.trainer.train_dataloader.loaders:
+            with torch.enable_grad():
+                train_cost = self.train_val_test(batch)
+            if t:
+                # this implementation implies that only the last cost will be saved and shown
+                t.postfix[0]['train_cost'] = round(train_cost.item(), 2)
+            train_cost.backward()
+            self.trainer.optimizers[0].step()
+            self.trainer.optimizers[0].zero_grad()
+        return train_cost
 
     def train_val_test(self, batch):
         images, labels = batch
@@ -1106,12 +1110,19 @@ if __name__ == "__main__":
 
     edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
     edema_net = edema_net_st.cuda()
-    rf_info = edema_net.proto_layer_rf_info
 
-    test_dataset = TensorDataset(
-        torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    )
-    test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
+    images = torch.rand(32, 3, 224, 224)
+    images = images.cuda()
+    print(images[0])
+    logits, _, _ = edema_net.forward(images)
+    print(logits)
+    prop = torch.nn.functional.softmax(logits, dim=1)
+    print(prop)
 
-    trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
-    trainer.fit(edema_net, test_dataloader)
+    # test_dataset = TensorDataset(
+    #     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
+    # )
+    # test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
+
+    # trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
+    # trainer.fit(edema_net, test_dataloader)
