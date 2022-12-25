@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import cv2
 import matplotlib.pyplot as plt
 from tqdm import trange, tqdm
+from torchmetrics.functional.classification import multilabel_f1_score 
 
 
 class SqueezeNet(nn.Module):
@@ -246,7 +247,7 @@ class EdemaNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # based on universal train_val_test(). Logs costs after each train step
-        cost = self.train_val_test(batch)
+        cost, f1_score = self.train_val_test(batch)
         return cost
 
     def on_train_epoch_start(self):
@@ -285,12 +286,12 @@ class EdemaNet(pl.LightningModule):
                 # optionally (plot something)
 
     def validation_step(self, batch, batch_idx):
-        cost = self.train_val_test(batch)
+        cost, f1_score = self.train_val_test(batch)
         self.log('val_cost', cost, prog_bar=True)
         return cost
 
     def test_step(self, batch, batch_idx):
-        cost = self.train_val_test(batch)
+        cost, f1_score = self.train_val_test(batch)
         return cost
 
     def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
@@ -298,7 +299,7 @@ class EdemaNet(pl.LightningModule):
             self.eval()
         for batch in self.trainer.val_dataloaders[0]:
             with torch.no_grad():
-                val_cost = self.train_val_test(batch)
+                val_cost, f1_score = self.train_val_test(batch)
             if t:
                 # this implementation implies that only the last cost will be saved and shown
                 t.postfix[1]['val_cost'] = round(val_cost.item(), 2)
@@ -309,7 +310,7 @@ class EdemaNet(pl.LightningModule):
             self.train()
         for batch in self.trainer.train_dataloader.loaders:
             with torch.enable_grad():
-                train_cost = self.train_val_test(batch)
+                train_cost, f1_score = self.train_val_test(batch)
             if t:
                 # this implementation implies that only the last cost will be saved and shown
                 t.postfix[0]['train_cost'] = round(train_cost.item(), 2)
@@ -357,12 +358,14 @@ class EdemaNet(pl.LightningModule):
             fine_annotations, upsampled_activation, self.num_prototypes_per_class
         )
 
-        loss = cross_entropy + 0.8 * cluster_cost - 0.08 * separation_cost + 0.001 * fine_cost
+        cost = cross_entropy + 0.8 * cluster_cost - 0.08 * separation_cost + 0.001 * fine_cost
+
+        f1_score = multilabel_f1_score(output, labels, num_labels=self.num_classes, threshold=0.5)
 
         # x, y = batch
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
-        return loss
+        return cost, f1_score
 
     def warm_only(self):
         self.encoder.requires_grad_(False)
