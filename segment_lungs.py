@@ -1,11 +1,12 @@
 import os
-import cv2
 import logging
 import argparse
 from pathlib import Path
 from typing import Tuple
 
+import cv2
 from tqdm import tqdm
+
 from tools.models import LungSegmentation
 from tools.utils import BorderExtractor, get_file_list
 
@@ -20,18 +21,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def boundary_extraction(
-        img_dir: str,
-        model_dir: str,
-        save_dir: str,
-        output_size: Tuple[int, int] = (1024, 1024),
-        thresh_method: str = 'otsu',
-        thresh_val: int = None,
+def lung_segmentation(
+    img_dir: str,
+    model_dir: str,
+    save_dir: str,
+    output_size: Tuple[int, int] = (1024, 1024),
+    thresh_method: str = 'otsu',
+    thresh_val: int = None,
 ) -> None:
 
-    model_name = Path(model_dir).name
-    mask_dir = os.path.join(save_dir, f'masks_{model_name}')
-    border_dir = os.path.join(save_dir, f'border_{model_name}')
+    map_dir = os.path.join(save_dir, 'map')
+    mask_dir = os.path.join(save_dir, 'mask')
+    border_dir = os.path.join(save_dir, 'delineation')
+    os.makedirs(map_dir, exist_ok=True)
     os.makedirs(mask_dir, exist_ok=True)
     os.makedirs(border_dir, exist_ok=True)
 
@@ -65,18 +67,24 @@ def boundary_extraction(
         thresh_val=thresh_val,
     )
 
-    for img_path in tqdm(img_paths, desc='Border extraction', unit=' images'):
+    for img_path in tqdm(img_paths, desc='Lung segmentation', unit='images'):
         img_name = Path(img_path).name
         img_input = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
-        mask = model(img_path)
+        # Get and save a probability map
+        map = model(img_path)
+        map_path = os.path.join(map_dir, img_name)
+        cv2.imwrite(map_path, map)
+
+        # Get and save a binary mask
+        mask = extractor.binarize(mask=map)
+        mask_border = extractor.extract_boundary(
+            mask=mask,
+        )
         mask_path = os.path.join(mask_dir, img_name)
         cv2.imwrite(mask_path, mask)
 
-        mask_bin = extractor.binarize(mask=mask)
-        mask_border = extractor.extract_boundary(
-            mask=mask_bin,
-        )
+        # Get and save a delineated image
         img_output = extractor.overlay_mask(
             image=img_input,
             mask=mask_border,
@@ -90,15 +98,19 @@ def boundary_extraction(
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Boundary extraction')
-    parser.add_argument('--img_dir', default='dataset/img', type=str)
-    parser.add_argument('--model_dir', default='models/lung_segmentation/DeepLabV3+', type=str)
+    parser.add_argument('--img_dir', default='dataset/lung_segmentation/input', type=str)
+    parser.add_argument('--model_dir', default='models/lung_segmentation_models/DeepLabV3+', type=str)
     parser.add_argument('--output_size', default=(1024, 1024), type=int, nargs='+')
     parser.add_argument('--threshold_method', default='otsu', type=str, choices=['otsu', 'triangle', 'manual'])
     parser.add_argument('--threshold_value', type=int, default=None)
     parser.add_argument('--save_dir', default='dataset/output', type=str)
     args = parser.parse_args()
 
-    boundary_extraction(
+    if args.save_dir is None:
+        model_name = Path(args.model_dir).name
+        args.save_dir = f'{args.img_dir}_{model_name}'
+
+    lung_segmentation(
         img_dir=args.img_dir,
         model_dir=args.model_dir,
         save_dir=args.save_dir,
