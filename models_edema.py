@@ -248,6 +248,8 @@ class EdemaNet(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         # based on universal train_val_test(). Logs costs after each train step
         cost, f1_score = self.train_val_test(batch)
+        self.log('f1_score_train', f1_score, prog_bar=True)
+        self.log('train_cost', cost, prog_bar=True)
         return cost
 
     def on_train_epoch_start(self):
@@ -288,6 +290,7 @@ class EdemaNet(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         cost, f1_score = self.train_val_test(batch)
         self.log('val_cost', cost, prog_bar=True)
+        self.log('f1_score_val', f1_score, prog_bar=True)
         return cost
 
     def test_step(self, batch, batch_idx):
