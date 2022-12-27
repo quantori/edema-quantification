@@ -1,12 +1,16 @@
 import os
 import logging
 import warnings
+import multiprocessing
 from pathlib import Path
+from functools import partial
 from PIL import Image, ImageFilter
 from typing import Dict, List, Union, Tuple
 
 import cv2
+import shutil
 import numpy as np
+from tqdm import tqdm
 
 
 def get_file_list(
@@ -44,8 +48,35 @@ def get_file_list(
     return all_files
 
 
+def copy_single_file(
+    file_path: str,
+    save_dir: str
+) -> None:
+    try:
+        shutil.copy(file_path, save_dir)
+    except Exception as e:
+        logging.info(f'Exception: {e}\nCould not copy {file_path}')
+
+
+def copy_files(
+    file_list: List[str],
+    save_dir: str
+) -> None:
+    os.makedirs(save_dir) if not os.path.isdir(save_dir) else False
+    num_cores = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(num_cores)
+    copy_func = partial(
+        copy_single_file,
+        save_dir=save_dir
+    )
+    pool.map(
+        copy_func,
+        tqdm(file_list, desc='Copy files', unit=' files'))
+    pool.close()
+
+
 def convert_seconds_to_hms(
-        sec: Union[float, int],
+    sec: Union[float, int],
 ) -> str:
     """Function that converts time period in seconds into %h:%m:%s expression.
     Args:
@@ -62,9 +93,12 @@ def convert_seconds_to_hms(
 
 
 def separate_lungs(
-        mask: np.array,
+    mask: np.array,
 ):
-    assert np.max(mask) <= 1 and np.min(mask) >= 0, f'Mask values should be in [0,1] scale (max: {np.max(mask)}, min: {np.min(mask)}'
+    assert (
+        np.max(mask) <= 1
+        and np.min(mask) >= 0
+    ), f'Mask values should be in [0,1] scale (max: {np.max(mask)}, min: {np.min(mask)}'
     binary_map = (mask > 0.5).astype(np.uint8)
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
         image=binary_map,
@@ -75,7 +109,7 @@ def separate_lungs(
     lungs = []
 
     if num_labels != 3:
-        warnings.warn("There aren't 2 objects on predicted mask, this might cause incorrect results")
+        warnings.warn('There are no 2 objects on the predicted mask, this might cause incorrect results')
 
         while num_labels <= 2:
             stats = np.append(stats, [stats[-1]], axis=0)
@@ -97,7 +131,7 @@ def separate_lungs(
 
 
 def extract_model_params(
-        model_path: str,
+    model_path: str,
 ) -> Dict:
 
     models = [
@@ -256,10 +290,10 @@ def extract_model_params(
 
 
 def normalize_image(
-        image: np.ndarray,
-        target_min: Union[int, float] = 0.0,
-        target_max: Union[int, float] = 1.0,
-        target_type=np.float32,
+    image: np.ndarray,
+    target_min: Union[int, float] = 0.0,
+    target_max: Union[int, float] = 1.0,
+    target_type=np.float32,
 ) -> Union[int, float]:
     a = (target_max - target_min) / (image.max() - image.min())
     b = target_max - a * image.max()
@@ -269,9 +303,9 @@ def normalize_image(
 
 class BorderExtractor:
     def __init__(
-            self,
-            thresh_method: str,
-            thresh_val: int,
+        self,
+        thresh_method: str,
+        thresh_val: int,
     ) -> None:
 
         self.thresh_method = thresh_method
@@ -282,8 +316,8 @@ class BorderExtractor:
             raise ValueError(f'Manual thresholding requires a thresholding value to be set. The thresh_val is {thresh_val}')
 
     def binarize(
-            self,
-            mask: np.ndarray,
+        self,
+        mask: np.ndarray,
     ) -> np.ndarray:
 
         mask_bin = mask.copy()
@@ -300,7 +334,7 @@ class BorderExtractor:
 
     @staticmethod
     def extract_boundary(
-            mask: np.ndarray,
+        mask: np.ndarray,
     ) -> np.ndarray:
         _mask = Image.fromarray(mask)
         _mask = _mask.filter(ImageFilter.ModeFilter(size=7))
@@ -310,10 +344,10 @@ class BorderExtractor:
 
     @staticmethod
     def overlay_mask(
-            image: np.ndarray,
-            mask: np.ndarray,
-            output_size: Tuple[int, int] = (1024, 1024),
-            color: Tuple[int, int, int] = (255, 255, 0),
+        image: np.ndarray,
+        mask: np.ndarray,
+        output_size: Tuple[int, int] = (1024, 1024),
+        color: Tuple[int, int, int] = (255, 255, 0),
     ) -> np.ndarray:
 
         mask = cv2.resize(mask, dsize=output_size, interpolation=cv2.INTER_NEAREST)

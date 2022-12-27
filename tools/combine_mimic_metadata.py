@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+
 from utils import get_file_list
 
 os.makedirs('logs', exist_ok=True)
@@ -98,7 +99,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Combine metadata')
     parser.add_argument('--metadata_csv', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-metadata.csv.gz', type=str)
-    parser.add_argument('--findings_path', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-chexpert.csv.gz', type=str)
+    parser.add_argument('--findings_csv', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-chexpert.csv.gz', type=str)
     parser.add_argument('--split_csv', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-split.csv.gz', type=str)
     parser.add_argument('--dataset_dir', default=None, type=str)
     parser.add_argument('--save_dir', default='dataset/MIMIC-CXR', type=str)
@@ -106,7 +107,7 @@ if __name__ == '__main__':
 
     combine_metadata(
         metadata_csv=args.metadata_csv,
-        findings_csv=args.findings_path,
+        findings_csv=args.findings_csv,
         split_csv=args.split_csv,
         save_dir=args.save_dir,
         dataset_dir=args.dataset_dir,
