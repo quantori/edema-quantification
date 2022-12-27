@@ -2,6 +2,8 @@ add-trailing-comma==2.4.0
 black==22.6.0
 dvc[s3]==2.13.0
 efficientnet-pytorch==0.7.1
+fastapi==0.86.0
+fiftyone==0.18.0
 flake8==6.0.0
 imutils==0.5.4
 interrogate==1.5.0
@@ -19,6 +21,7 @@ pytest~=7.2.0
 scikit-image==0.19.3
 scikit-learn==1.1.3
 scipy==1.9.3
+starlette==0.20.4
 supervisely==6.68.10
 timm==0.6.12                     # Linknet and PSPNet are not tested with timm > 0.3.2
 torch==1.13.0                    # Linknet and PSPNet are not working with torch > 1.8.1
