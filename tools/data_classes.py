@@ -1,0 +1,124 @@
+import os
+from typing import Dict, Tuple
+
+import pandas as pd
+import torch
+from PIL import Image
+
+from torch.utils.data import Dataset, DataLoader
+from pytorch_lightning import LightningDataModule
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+import tools.data_classes_utils as data_classes_utils
+
+
+class EdemaDataset(Dataset):
+    def __init__(self,
+                 metadata_df: pd.DataFrame,
+                 make_augmentation: bool = False,
+                 normalize_tensors: bool = False,
+                 resize: Tuple[int, int] = (500, 500),
+                 ) -> None:
+        self.img_data = self._process_metadata_df(metadata_df)
+        self.make_augmentation = make_augmentation
+        self.normalize_tensors = normalize_tensors
+        self.resize = resize
+
+    def _process_metadata_df(self, metadata_df: pd.DataFrame)\
+            -> Dict[int, Dict]:
+        """
+
+        Args:
+            metadata_df: 'metadata.xlsx' spreadsheet table in the folder with converted images
+
+        Returns:
+            Dict[int, Dict[str, Union[str, int, Dict[str, List[np.array]]]]] dict of dicts with data
+                extracted from image metadata
+        """
+        img_data = dict()
+        for img_idx, (img_path, img_objects) in enumerate(metadata_df.groupby('Image path')):
+            img_data[img_idx] = dict()
+            img_data[img_idx]['path'] = img_path
+            img_data[img_idx]['label'] = int(img_objects['Class ID'].iloc[0])
+            annotations = data_classes_utils.extract_annotations(img_objects)
+            img_data[img_idx]['annotations'] = annotations
+
+        return img_data
+
+    def __len__(self) -> int:
+        return len(self.img_data)
+
+    def __getitem__(self, idx):
+        img_path = self.img_data[idx]['path']
+        image = Image.open(img_path)
+        label = self.img_data[idx]['label']
+        annotations = self.img_data[idx]['annotations']
+
+        # resize image to target size and create list with masks
+        image_arr, masks, findings = data_classes_utils.resize_and_create_masks(image, annotations, self.resize)
+
+        if self.make_augmentation:
+            augmentation_functions = [
+                A.RandomBrightnessContrast(p=0.5),
+                A.RandomGamma(p=0.5),
+                A.GaussianBlur(p=0.2),
+            ]
+        else:
+            augmentation_functions = [A.NoOp(p=1.0)]
+
+        if self.normalize_tensors:
+            normalization = A.Normalize(mean=[0.4675, 0.4675, 0.4675],
+                                        std=[0.3039, 0.3039, 0.3039])
+        else:
+            normalization = A.NoOp(p=1.0)
+
+        transform = A.Compose([
+            *augmentation_functions,
+            normalization,
+            ToTensorV2(),
+        ])
+
+        transformed = transform(image=image_arr, masks=masks)
+
+        findings = torch.tensor(findings, dtype=torch.uint8)
+        tensor = data_classes_utils.combine_image_and_masks(transformed['image'],
+                                                            transformed['masks'])
+        return tensor, findings
+
+
+class EdemaDataModule(LightningDataModule):
+
+    def __init__(self,
+                 data_dir: str = './',
+                 batch_size: int = 32,
+                 resize: Tuple[int, int] = (500, 500),
+                 make_augmentation: bool = False,
+                 normalize_tensors: bool = False,
+                 train_share: float = 0.8,
+                 ) -> None:
+        super().__init__()
+        self.data_dir = data_dir
+        self.batch_size = batch_size
+        self.resize = resize
+        self.make_augmentation = make_augmentation
+        self.normalize_tensors = normalize_tensors
+        self.train_share = train_share
+
+    def setup(self, stage):
+        metadata_df = pd.read_excel(os.path.join(self.data_dir, 'metadata.xlsx'))\
+                        .fillna({'Class ID': -1})
+        edema_full = EdemaDataset(metadata_df,
+                                  make_augmentation=self.make_augmentation,
+                                  normalize_tensors=self.normalize_tensors,
+                                  resize=self.resize)
+        if stage == 'fit':
+            self.edema_train, self.edema_test = data_classes_utils.split_dataset(
+                edema_full, self.train_share, metadata_df
+            )
+
+    def train_dataloader(self):
+        return DataLoader(self.edema_train, batch_size=self.batch_size)
+
+    def test_dataloader(self):
+        return DataLoader(self.edema_test, batch_size=self.batch_size)
