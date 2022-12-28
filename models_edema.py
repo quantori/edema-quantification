@@ -4,17 +4,21 @@ The description to be filled...
 """
 import os
 import math
+import json
+from typing import Optional
 
-from turtle import shape
 from typing import Tuple
-from matplotlib import image
 import torch
 from torch import nn
 import pytorch_lightning as pl
-from torchvision import transforms, datasets
+from torchvision import transforms
 import numpy as np
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
+import cv2
+import matplotlib.pyplot as plt
+from tqdm import trange, tqdm
+from torchmetrics.functional.classification import multilabel_f1_score 
 
 
 class SqueezeNet(nn.Module):
@@ -84,6 +88,31 @@ class SqueezeNet(nn.Module):
 
         return preprocess(x)
 
+    def conv_info(self):
+        features = {}
+        features['kernel_sizes'] = []
+        features['strides'] = []
+        features['paddings'] = []
+
+        for module in self.modules():
+            if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
+                if isinstance(module.kernel_size, tuple):
+                    features['kernel_sizes'].append(module.kernel_size[0])
+                else:
+                    features['kernel_sizes'].append(module.kernel_size)
+
+                if isinstance(module.stride, tuple):
+                    features['strides'].append(module.stride[0])
+                else:
+                    features['strides'].append(module.stride)
+
+                if isinstance(module.padding, tuple):
+                    features['paddings'].append(module.padding[0])
+                else:
+                    features['paddings'].append(module.padding)
+
+        return features
+
 
 class EdemaNet(pl.LightningModule):
     """PyTorch Lightning model class.
@@ -102,8 +131,9 @@ class EdemaNet(pl.LightningModule):
         top_k: int = 1,
         fine_loader: torch.utils.data.DataLoader = None,
         num_warm_epochs: int = 10,
-        push_start: int = 10,
-        push_epoch: list = [],
+        push_start: int = 3,
+        push_epochs: list = [3, 6, 9],
+        img_size=224,
     ):
         """PyTorch Lightning model class.
 
@@ -130,23 +160,27 @@ class EdemaNet(pl.LightningModule):
         self.num_prototypes_per_class = self.num_prototypes // self.num_classes
         self.num_warm_epochs = num_warm_epochs
         self.push_start = push_start
-        self.push_epoch = push_epoch
+        self.push_epochs = push_epochs
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
+
         # receptive-field information that is needed to cut out the chosen upsampled fmap patch
-        # TODO: kernels, strides, and paddings
-        # self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
-        #     img_size=img_size,
-        #     layer_filter_sizes=layer_filter_sizes,
-        #     layer_strides=layer_strides,
-        #     layer_paddings=layer_paddings,
-        #     prototype_kernel_size=prototype_shape[2],
-        # )
+        kernel_sizes = encoder.conv_info()['kernel_sizes']
+        layer_strides = encoder.conv_info()['strides']
+        layer_paddings = encoder.conv_info()['paddings']
+
+        self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
+            img_size=img_size,
+            layer_filter_sizes=kernel_sizes,
+            layer_strides=layer_strides,
+            layer_paddings=layer_paddings,
+            prototype_kernel_size=prototype_shape[2],
+        )
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
             self.num_prototypes, self.num_classes, dtype=torch.float
-        )
+        ).cuda()
         # fills with 1 only those prototypes, which correspond to the correct class. The rest is
         # filled with 0
         for j in range(self.num_prototypes):
@@ -204,7 +238,7 @@ class EdemaNet(pl.LightningModule):
 
         return logits, min_distances, upsampled_activation
 
-    def update_prootypes_forward(self, x):
+    def update_prototypes_forward(self, x):
         """This method is needed for the prototype updating operation"""
         conv_output = self.encoder(x)
         conv_output = self.transient_layers(conv_output)
@@ -213,7 +247,9 @@ class EdemaNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # based on universal train_val_test(). Logs costs after each train step
-        cost = self.train_val_test(batch)
+        cost, f1_score = self.train_val_test(batch)
+        self.log('f1_score_train', f1_score, prog_bar=True)
+        self.log('train_cost', cost, prog_bar=True)
         return cost
 
     def on_train_epoch_start(self):
@@ -223,40 +259,73 @@ class EdemaNet(pl.LightningModule):
             self.joint()
 
     def training_epoch_end(self, outputs):
-        pass
-        # # here, we have to put push_prototypes function
-        # # logs costs after a training epoch
-        # if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
+        # here, we have to put push_prototypes function
+        # logs costs after a training epoch
+        if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
 
-        #     # TODO implement update_prototype() func
-        #     self.update_prototypes()
+            self.update_prototypes(self.trainer.train_dataloader.loaders)
 
-        #     # has to be test (to check out the performance after substituting the prototypes)
-        #     accu = self.train_val_test()
+            val_cost = self.custom_validation_epoch()
+            # TODO: save the model if the performance metric is better
 
-        #     self.last_layer()
-        #     for i in range(10):
-        #         # has to be train
-        #         self.train_val_test()
+            self.last_only()
+            with tqdm(
+                total=10,
+                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_cost={postfix[0][train_cost]}'
+                ' val_cost={postfix[1][val_cost]}]',
+                desc='Training last only',
+                postfix=[dict(train_cost=0), dict(val_cost=0)],
+            ) as t:
+                for i in range(10):
+                    train_cost = self.custom_train_epoch(t)
+                    val_cost = self.custom_validation_epoch(t)
+                    t.update()
 
-        #         # has to be test
-        #         self.train_val_test
+                # save model performance
+                # TODO: calculate performance and update the global performance criterium, if it is
+                # worse
 
-        #         # save model performance
+                # optionally (plot something)
 
-        #         # calculate performance and update the global performance criterium, if it is worse
-
-        #         # optionally (plot something)
+    def validation_step(self, batch, batch_idx):
+        cost, f1_score = self.train_val_test(batch)
+        self.log('val_cost', cost, prog_bar=True)
+        self.log('f1_score_val', f1_score, prog_bar=True)
+        return cost
 
     def test_step(self, batch, batch_idx):
-        # this is for testing after training and validation are done
-        pass
+        cost, f1_score = self.train_val_test(batch)
+        return cost
 
-    def test_epoch_end(self, outputs):
-        pass
+    def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
+        if self.training:
+            self.eval()
+        for batch in self.trainer.val_dataloaders[0]:
+            with torch.no_grad():
+                val_cost, f1_score = self.train_val_test(batch)
+            if t:
+                # this implementation implies that only the last cost will be saved and shown
+                t.postfix[1]['val_cost'] = round(val_cost.item(), 2)
+        return val_cost
+
+    def custom_train_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
+        if not self.training:
+            self.train()
+        for batch in self.trainer.train_dataloader.loaders:
+            with torch.enable_grad():
+                train_cost, f1_score = self.train_val_test(batch)
+            if t:
+                # this implementation implies that only the last cost will be saved and shown
+                t.postfix[0]['train_cost'] = round(train_cost.item(), 2)
+            train_cost.backward()
+            self.trainer.optimizers[0].step()
+            self.trainer.optimizers[0].zero_grad()
+        return train_cost
 
     def train_val_test(self, batch):
         images, labels = batch
+        images = images.cuda()
+        labels = labels.cuda()
         # labels - (batch, 7), dtype: float32
         # images - (batch, 10, H, W)
         # images have to have the shape (batch, 10, H, W). 7 extra channel implies fine annotations,
@@ -266,6 +335,10 @@ class EdemaNet(pl.LightningModule):
 
         fine_annotations = images[:, 3:10, :, :]  # 7 classes of fine annotations
         images = images[:, 0:3, :, :]  # (no view, create slice)
+
+        # images = images.cuda()
+        # labels = labels.cuda()
+        # fine_annotations = fine_annotations.cuda()
 
         # nn.Module has implemented __call__() function, so no need to call .forward()
         output, min_distances, upsampled_activation = self(images)
@@ -288,12 +361,14 @@ class EdemaNet(pl.LightningModule):
             fine_annotations, upsampled_activation, self.num_prototypes_per_class
         )
 
-        loss = cross_entropy + 0.8 * cluster_cost - 0.08 * separation_cost + 0.001 * fine_cost
+        cost = cross_entropy + 0.8 * cluster_cost - 0.08 * separation_cost + 0.001 * fine_cost
+
+        f1_score = multilabel_f1_score(output, labels, num_labels=self.num_classes, threshold=0.5)
 
         # x, y = batch
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
-        return loss
+        return cost, f1_score
 
     def warm_only(self):
         self.encoder.requires_grad_(False)
@@ -544,46 +619,48 @@ class EdemaNet(pl.LightningModule):
 
             return transient_layers
 
-    def compute_layer_rf_info(self, layer_filter_size, layer_stride, layer_padding,
-                          previous_layer_rf_info):
+    def compute_layer_rf_info(
+        self, layer_filter_size, layer_stride, layer_padding, previous_layer_rf_info
+    ):
         # based on https://blog.mlreview.com/a-guide-to-receptive-field-arithmetic-for-convolutional-neural-networks-e0f514068807
-        n_in = previous_layer_rf_info[0] # receptive-field input size
-        j_in = previous_layer_rf_info[1] # receptive field jump of input layer
-        r_in = previous_layer_rf_info[2] # receptive field size of input layer
-        start_in = previous_layer_rf_info[3] # center of receptive field of input layer
+        n_in = previous_layer_rf_info[0]  # receptive-field input size
+        j_in = previous_layer_rf_info[1]  # receptive field jump of input layer
+        r_in = previous_layer_rf_info[2]  # receptive field size of input layer
+        start_in = previous_layer_rf_info[3]  # center of receptive field of input layer
 
         if layer_padding == 'SAME':
             n_out = math.ceil(float(n_in) / float(layer_stride))
-            if (n_in % layer_stride == 0):
+            if n_in % layer_stride == 0:
                 pad = max(layer_filter_size - layer_stride, 0)
             else:
                 pad = max(layer_filter_size - (n_in % layer_stride), 0)
-            assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
-            assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
+            assert (
+                n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+            )  # sanity check
+            assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
         elif layer_padding == 'VALID':
             n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
             pad = 0
-            assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
-            assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
+            assert (
+                n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+            )  # sanity check
+            assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
         else:
             # layer_padding is an int that is the amount of padding on one side
             pad = layer_padding * 2
-            n_out = math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1
+            n_out = math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
 
-        pL = math.floor(pad/2)
+        pL = math.floor(pad / 2)
 
         j_out = j_in * layer_stride
-        r_out = r_in + (layer_filter_size - 1)*j_in
-        start_out = start_in + ((layer_filter_size - 1)/2 - pL)*j_in
-        
-        return [n_out, j_out, r_out, start_out]
+        r_out = r_in + (layer_filter_size - 1) * j_in
+        start_out = start_in + ((layer_filter_size - 1) / 2 - pL) * j_in
 
+        return [n_out, j_out, r_out, start_out]
 
     def compute_proto_layer_rf_info(
         self, img_size, layer_filter_sizes, layer_strides, layer_paddings, prototype_kernel_size
     ):
-        # TODO: implement kernel_sizes = [...], strides = [...], paddings = [...] in the encoder
-        # class
         if len(layer_filter_sizes) != len(layer_strides):
             raise Exception("The number of kernels has to be equla to the number of strides")
         if len(layer_filter_sizes) != len(layer_paddings):
@@ -604,21 +681,90 @@ class EdemaNet(pl.LightningModule):
                 previous_layer_rf_info=rf_info,
             )
 
-            proto_layer_rf_info = self.compute_layer_rf_info(
-                layer_filter_size=prototype_kernel_size,
-                layer_stride=1,
-                layer_padding='VALID',
-                previous_layer_rf_info=rf_info,
-            )
+        proto_layer_rf_info = self.compute_layer_rf_info(
+            layer_filter_size=prototype_kernel_size,
+            layer_stride=1,
+            layer_padding='VALID',
+            previous_layer_rf_info=rf_info,
+        )
 
-            return proto_layer_rf_info
+        return proto_layer_rf_info
 
-    def update_prototypes(self, root_dir_for_saving_prototypes):
+    def compute_rf_protoL_at_spatial_location(
+        self, img_size, height_index, width_index, protoL_rf_info
+    ):
+        # computes the pixel indices of the input-image patch (e.g. 224x224) that corresponds
+        # to the feature-map patch with the closest distance to the current prototype
+        n = protoL_rf_info[0]
+        j = protoL_rf_info[1]
+        r = protoL_rf_info[2]
+        start = protoL_rf_info[3]
+        assert height_index < n
+        assert width_index < n
+
+        center_h = start + (height_index * j)
+        center_w = start + (width_index * j)
+
+        rf_start_height_index = max(int(center_h - (r / 2)), 0)
+        rf_end_height_index = min(int(center_h + (r / 2)), img_size)
+
+        rf_start_width_index = max(int(center_w - (r / 2)), 0)
+        rf_end_width_index = min(int(center_w + (r / 2)), img_size)
+
+        return [
+            rf_start_height_index,
+            rf_end_height_index,
+            rf_start_width_index,
+            rf_end_width_index,
+        ]
+
+    def compute_rf_prototype(self, img_size, prototype_patch_index, protoL_rf_info):
+        img_index = prototype_patch_index[0]
+        height_index = prototype_patch_index[1]
+        width_index = prototype_patch_index[2]
+        rf_indices = self.compute_rf_protoL_at_spatial_location(
+            img_size, height_index, width_index, protoL_rf_info
+        )
+        return [img_index, rf_indices[0], rf_indices[1], rf_indices[2], rf_indices[3]]
+
+    def find_high_activation_crop(self, activation_map, percentile=95):
+        threshold = np.percentile(activation_map, percentile)
+        mask = np.ones(activation_map.shape)
+        mask[activation_map < threshold] = 0
+        lower_y, upper_y, lower_x, upper_x = 0, 0, 0, 0
+        for i in range(mask.shape[0]):
+            if np.amax(mask[i]) > 0.5:
+                lower_y = i
+                break
+        for i in reversed(range(mask.shape[0])):
+            if np.amax(mask[i]) > 0.5:
+                upper_y = i
+                break
+        for j in range(mask.shape[1]):
+            if np.amax(mask[:, j]) > 0.5:
+                lower_x = j
+                break
+        for j in reversed(range(mask.shape[1])):
+            if np.amax(mask[:, j]) > 0.5:
+                upper_x = j
+                break
+        return lower_y, upper_y + 1, lower_x, upper_x + 1
+
+    def update_prototypes(
+        self,
+        dataloader,  # pytorch dataloader (must be unnormalized in [0,1])
+        prototype_layer_stride=1,
+        root_dir_for_saving_prototypes='./savings/',  # if not None, prototypes will be saved here
+        prototype_img_filename_prefix='prototype-img',
+        prototype_self_act_filename_prefix='prototype-self-act',
+        proto_bound_boxes_filename_prefix='bb',
+        # log=print,
+    ):
         self.eval()
         prototype_shape = self.prototype_shape
         n_prototypes = self.num_prototypes
         # train dataloader
-        dataloader = self.trainer.train_dataloader.loaders
+        # dataloader = dataloader  # self.trainer.train_dataloader.loaders
 
         # make an array for the global closest distance seen so far (initialized with floating point
         # representation of positive infinity)
@@ -635,9 +781,25 @@ class EdemaNet(pl.LightningModule):
         # 2: height end index
         # 3: width start index
         # 4: width end index
-        # 5: class identity
-        proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
-        proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
+        # 5: class identities
+        # proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
+        # proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
+        proto_rf_boxes = {
+            # 'image_index': 0,
+            # 'height_start_index': 0,
+            # 'height_end_index': 0,
+            # 'width_start_index': 0,
+            # 'width_end_index': 0,
+            # 'class_indentities': 0,
+        }
+        proto_bound_boxes = {
+            # 'image_index': 0,
+            # 'height_start_index': 0,
+            # 'height_end_index': 0,
+            # 'width_start_index': 0,
+            # 'width_end_index': 0,
+            # 'class_indentities': 0,
+        }
 
         # making a directory for saving prototypes
         if root_dir_for_saving_prototypes != None:
@@ -653,24 +815,74 @@ class EdemaNet(pl.LightningModule):
             proto_epoch_dir = None
 
         search_batch_size = dataloader.batch_size
-        num_classes = self.num_classes
 
-        for push_iter, (search_batch_images, search_labels) in enumerate(dataloader):
+        for push_iter, batch in enumerate(dataloader):
+            search_batch_images, search_labels = batch
             if search_batch_images.shape[1] > 3:
                 # only imagees (the extra channels in this dimension belong to fine annot masks)
                 search_batch_images = search_batch_images[:, 0:3, :, :]
 
             start_index_of_search_batch = push_iter * search_batch_size
 
-            self.update_prototypes_on_batch(search_batch_images, search_labels)
+            self.update_prototypes_on_batch(
+                search_batch_images,
+                start_index_of_search_batch,
+                search_labels,
+                global_min_proto_dist,
+                global_min_fmap_patches,
+                proto_rf_boxes,
+                proto_bound_boxes,
+                prototype_layer_stride=prototype_layer_stride,
+                dir_for_saving_prototypes=proto_epoch_dir,
+                prototype_img_filename_prefix=prototype_img_filename_prefix,
+                prototype_self_act_filename_prefix=prototype_self_act_filename_prefix,
+            )
+
+        if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
+            proto_rf_boxes_json = json.dumps(proto_rf_boxes)
+            f = open(
+                os.path.join(
+                    proto_epoch_dir,
+                    proto_bound_boxes_filename_prefix
+                    + '-receptive_field'
+                    + str(self.current_epoch)
+                    + '.json',
+                ),
+                'w',
+            )
+            f.write(proto_rf_boxes_json)
+            f.close()
+
+            proto_bound_boxes_json = json.dumps(proto_bound_boxes)
+            f = open(
+                os.path.join(
+                    proto_epoch_dir,
+                    proto_bound_boxes_filename_prefix + str(self.current_epoch) + '.json',
+                ),
+                'w',
+            )
+            f.write(proto_bound_boxes_json)
+            f.close()
+
+        prototype_update = np.reshape(global_min_fmap_patches, tuple(prototype_shape))
+        self.prototype_layer.data.copy_(torch.tensor(prototype_update, dtype=torch.float32).cuda())
+        # # prototype_network_parallel.cuda()
+        # end = time.time()
+        # log('\tpush time: \t{0}'.format(end - start))
 
     def update_prototypes_on_batch(
         self,
         search_batch_images,
+        start_index_of_search_batch,
         search_labels,
-        global_min_proto_dist,
-        global_min_fmap_patches,
+        global_min_proto_dist,  # this will be updated
+        global_min_fmap_patches,  # this will be updated
+        proto_rf_boxes,  # this will be updated
+        proto_bound_boxes,  # this will be updated
         prototype_layer_stride=1,
+        dir_for_saving_prototypes=None,
+        prototype_img_filename_prefix=None,
+        prototype_self_act_filename_prefix=None,
     ):
         # Model has to be in the eval mode
         if self.training:
@@ -701,7 +913,6 @@ class EdemaNet(pl.LightningModule):
         # max_dist is chosen arbitrarly
         max_dist = prototype_shape[1] * prototype_shape[2] * prototype_shape[3]
 
-        # TODO: finsih the cycle
         for j in range(n_prototypes):
             # target_class is the class of the class_specific prototype
             target_class = torch.argmax(self.prototype_class_identity[j]).item()
@@ -744,65 +955,180 @@ class EdemaNet(pl.LightningModule):
                 global_min_proto_dist[j] = batch_min_proto_dist_j
                 global_min_fmap_patches[j] = batch_min_fmap_patch_j
 
-                # get the receptive field boundary of the image patch
+                # get the receptive field boundary of the image patch (the input image e.g. 224x224)
                 # that generates the representation
                 protoL_rf_info = self.proto_layer_rf_info
-                rf_prototype_j = compute_rf_prototype(
+                rf_prototype_j = self.compute_rf_prototype(
                     search_batch.size(2), batch_argmin_proto_dist_j, protoL_rf_info
                 )
+
+                # get the whole image
+                original_img_j = search_batch_images[rf_prototype_j[0]]
+                original_img_j = original_img_j.numpy()
+                original_img_j = np.transpose(original_img_j, (1, 2, 0))
+                original_img_size = original_img_j.shape[0]
+
+                # crop out the receptive field
+                rf_img_j = original_img_j[
+                    rf_prototype_j[1] : rf_prototype_j[2], rf_prototype_j[3] : rf_prototype_j[4], :
+                ]
+
+                # save the prototype receptive field information (pixel indices in the input image)
+                proto_rf_boxes[j] = {}
+                proto_rf_boxes[j]['image_index'] = rf_prototype_j[0] + start_index_of_search_batch
+                proto_rf_boxes[j]['height_start_index'] = rf_prototype_j[1]
+                proto_rf_boxes[j]['height_end_index'] = rf_prototype_j[2]
+                proto_rf_boxes[j]['width_start_index'] = rf_prototype_j[3]
+                proto_rf_boxes[j]['width_end_index'] = rf_prototype_j[4]
+                proto_rf_boxes[j]['class_indentities'] = search_labels[rf_prototype_j[0]].tolist()
+
+                # find the highly activated region of the original image
+                proto_dist_img_j = proto_dist_[img_index_in_batch, j, :, :]
+                # the activation function of the distances is log
+                proto_act_img_j = np.log((proto_dist_img_j + 1) / (proto_dist_img_j + self.epsilon))
+                # upsample the matrix with distances (e.g., (14x14)->(224x224))
+                upsampled_act_img_j = cv2.resize(
+                    proto_act_img_j,
+                    dsize=(original_img_size, original_img_size),
+                    interpolation=cv2.INTER_CUBIC,
+                )
+                # find a high activation patch (default treshold = 95 %)
+                proto_bound_j = self.find_high_activation_crop(upsampled_act_img_j)
+                # crop out the image patch with high activation as prototype image
+                # the dimensions' order of original_img_j, e.g., (224, 224, 3)
+                proto_img_j = original_img_j[
+                    proto_bound_j[0] : proto_bound_j[1], proto_bound_j[2] : proto_bound_j[3], :
+                ]
+
+                # save the prototype boundary (rectangular boundary of highly activated region)
+                # the activated region can be larger than the receptive field of the prototype
+                proto_bound_boxes[j] = {}
+                proto_bound_boxes[j]['image_index'] = proto_rf_boxes[j]['image_index']
+                proto_bound_boxes[j]['height_start_index'] = proto_bound_j[0]
+                proto_bound_boxes[j]['height_end_index'] = proto_bound_j[1]
+                proto_bound_boxes[j]['width_start_index'] = proto_bound_j[2]
+                proto_bound_boxes[j]['width_end_index'] = proto_bound_j[3]
+                proto_bound_boxes[j]['class_indentities'] = search_labels[
+                    rf_prototype_j[0]
+                ].tolist()
+
+                # SAVING BLOCK (can be changed later)
+                if dir_for_saving_prototypes is not None:
+
+                    if prototype_self_act_filename_prefix is not None:
+                        # save the numpy array of the prototype activation map (e.g., (14x14))
+                        np.save(
+                            os.path.join(
+                                dir_for_saving_prototypes,
+                                prototype_self_act_filename_prefix + str(j) + '.npy',
+                            ),
+                            proto_act_img_j,
+                        )
+
+                    if prototype_img_filename_prefix is not None:
+                        # save the whole image containing the prototype as png
+                        plt.imsave(
+                            os.path.join(
+                                dir_for_saving_prototypes,
+                                prototype_img_filename_prefix + '-original' + str(j) + '.png',
+                            ),
+                            original_img_j,
+                            cmap='gray',
+                        )
+
+                        # overlay (upsampled) activation on original image and save the result
+                        # normalize the image
+                        rescaled_act_img_j = upsampled_act_img_j - np.amin(upsampled_act_img_j)
+                        rescaled_act_img_j = rescaled_act_img_j / np.amax(rescaled_act_img_j)
+                        heatmap = cv2.applyColorMap(
+                            np.uint8(255 * rescaled_act_img_j), cv2.COLORMAP_JET
+                        )
+                        heatmap = np.float32(heatmap) / 255
+                        heatmap = heatmap[..., ::-1]
+                        overlayed_original_img_j = 0.5 * original_img_j + 0.3 * heatmap
+                        plt.imsave(
+                            os.path.join(
+                                dir_for_saving_prototypes,
+                                prototype_img_filename_prefix
+                                + '-original_with_self_act'
+                                + str(j)
+                                + '.png',
+                            ),
+                            overlayed_original_img_j,
+                            vmin=0.0,
+                            vmax=1.0,
+                        )
+
+                        # if different from the original (whole) image, save the prototype receptive
+                        # field as png
+                        if (
+                            rf_img_j.shape[0] != original_img_size
+                            or rf_img_j.shape[1] != original_img_size
+                        ):
+                            plt.imsave(
+                                os.path.join(
+                                    dir_for_saving_prototypes,
+                                    prototype_img_filename_prefix
+                                    + '-receptive_field'
+                                    + str(j)
+                                    + '.png',
+                                ),
+                                rf_img_j,
+                                vmin=0.0,
+                                vmax=1.0,
+                            )
+                            overlayed_rf_img_j = overlayed_original_img_j[
+                                rf_prototype_j[1] : rf_prototype_j[2],
+                                rf_prototype_j[3] : rf_prototype_j[4],
+                            ]
+                            plt.imsave(
+                                os.path.join(
+                                    dir_for_saving_prototypes,
+                                    prototype_img_filename_prefix
+                                    + '-receptive_field_with_self_act'
+                                    + str(j)
+                                    + '.png',
+                                ),
+                                overlayed_rf_img_j,
+                                vmin=0.0,
+                                vmax=1.0,
+                            )
+
+                        # save the prototype image (highly activated region of the whole image)
+                        plt.imsave(
+                            os.path.join(
+                                dir_for_saving_prototypes,
+                                prototype_img_filename_prefix + str(j) + '.png',
+                            ),
+                            proto_img_j,
+                            vmin=0.0,
+                            vmax=1.0,
+                        )
+
+        del class_to_img_index_dict
 
 
 if __name__ == "__main__":
 
+    torch.cuda.empty_cache()
+
     sq_net = SqueezeNet()
-    # summary(sq_net.model, (3, 224, 224))
-    edema_net = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
 
-    test_dataset = TensorDataset(
-        torch.rand(128, 10, 224, 224), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    )
-    test_dataloader = DataLoader(test_dataset, batch_size=32)
+    edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
+    edema_net = edema_net_st.cuda()
 
-    batch = next(iter(test_dataloader))
-    images, labels = batch
+    images = torch.rand(32, 3, 224, 224)
+    images = images.cuda()
+    print(images[0])
+    logits, _, _ = edema_net.forward(images)
+    print(logits)
+    prop = torch.nn.functional.softmax(logits, dim=1)
+    print(prop)
 
-    n_in = 11
-    layer_filter_size = 3
-    layer_stride = 2
-    n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
-    print(n_out)
-    pad = 0
+    # test_dataset = TensorDataset(
+    #     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
+    # )
+    # test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
 
-    assert(n_out == math.floor((n_in - layer_filter_size + pad)/layer_stride) + 1) # sanity check
-    # assert(pad == (n_out-1)*layer_stride - n_in + layer_filter_size) # sanity check
-
-    # class_to_img_index_dict = {key: [] for key in range(7)}
-    # for img_index, img_y in enumerate(labels):
-    #     img_y.tolist()
-    #     for idx, i in enumerate(img_y):
-    #         if i:
-    #             class_to_img_index_dict[idx].append(img_index)
-    # print(class_to_img_index_dict)
-    # batch[0].cuda
-    # print(batch[0].is_cuda)
-    # print(torch.__version__)
-
-    # print(edema_net.training)
-    # edema_net.eval()
-    # print(edema_net.training)
-
-    # print(list(edema_net.named_parameters())[0][1].requires_grad)
-    # for name, param in edema_net.named_parameters():
-    # print(name, 'requires_grad: ', param[1].requires_grad)
-
-    # print(edema_net.trainer.train_dataloader)
-
-    # trainer = pl.Trainer(max_epochs=1, logger=False, enable_checkpointing=False, gpus=1)
+    # trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
     # trainer.fit(edema_net, test_dataloader)
-
-    # for name, param in edema_net.named_parameters():
-    # print(name, 'requires_grad: ', param[1].requires_grad)
-
-    # use it for the prototype pushing function
-    # print(type(edema_net.trainer.train_dataloader.loaders))
-    # print(edema_net.trainer.train_dataloader.loaders.batch_size)

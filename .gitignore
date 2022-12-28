@@ -132,11 +132,8 @@ dmypy.json
 # Dataset
 dataset/
 
-# Dataset on DVC
-!dvc/dataset/
-
 # Models
-*.pth
+models/
 
 # Different computations
 calculations/
@@ -149,11 +146,12 @@ calculations/
 
 # Logs directory
 logs/
+lightning_logs/
 
 # DVC files
 .dvc/config.local
 .dvc/tmp
 .dvc/cache
 
-# Directory with temporary files
-/temp/
+# savings from training
+savings/
