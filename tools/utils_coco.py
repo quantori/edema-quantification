@@ -46,7 +46,7 @@ def get_ann_info(
 
                 label['id'] = ann_id            # Should be unique
                 label['image_id'] = img_id      # Image ID annotation relates to
-                label['category_id'] = int(row['Class ID'])
+                label['category_id'] = int(row['Figure ID'])
                 label['bbox'] = [x1, y1, width, height]
                 label['area'] = width * height
                 label['iscrowd'] = 0
