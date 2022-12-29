@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='COCO dataset visualization')
     parser.add_argument('--dataset_dir', default=COCO_SAVE_DIR, type=str)
-    parser.add_argument('--subset', default='test', type=str)
+    parser.add_argument('--subset', default='train', type=str)
     parser.add_argument('--dataset_name', default=None, type=str)
     parser.add_argument('--max_samples', default=None, type=int)
     parser.add_argument('--seed', default=SEED, type=int)
