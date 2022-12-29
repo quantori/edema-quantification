@@ -152,7 +152,7 @@ def process_annotation(
         )
     elif (
             len(ann['objects']) == 0
-            and class_name == 'No pathology'
+            and class_name == 'No edema'
     ):
         ann_info = {
             'Class ID': CLASS_MAP[class_name],
