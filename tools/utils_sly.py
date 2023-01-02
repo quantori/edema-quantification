@@ -11,7 +11,7 @@ import supervisely_lib as sly
 
 CLASS_MAP = {
     '': None,
-    'No pathology': 0,
+    'No edema': 0,
     'Vascular congestion': 1,
     'Interstitial edema': 2,
     'Alveolar edema': 3,
