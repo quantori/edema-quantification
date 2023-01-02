@@ -6,10 +6,17 @@ repos:
     -   id: check-yaml
     -   id: check-toml
     -   id: check-json
+    -   id: check-ast
     -   id: requirements-txt-fixer
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
     -   id: double-quote-string-fixer
+
+# add-trailing-comma
+-   repo: https://github.com/asottile/add-trailing-comma
+    rev: v2.4.0
+    hooks:
+    -   id: add-trailing-comma
 
 # black
 - repo: https://github.com/ambv/black
@@ -30,20 +37,19 @@ repos:
     -   id: pylint
         args: [--disable=all, --enable=unused-import]
 
-# interrogate
--   repo: https://github.com/econchick/interrogate
-    rev: 1.5.0
-    hooks:
-    - id: interrogate
-
 # isort
 -   repo: https://github.com/timothycrosley/isort
     rev: 5.11.4
     hooks:
     -   id: isort
 
-# add-trailing-comma
--   repo: https://github.com/asottile/add-trailing-comma
-    rev: v2.4.0
+# pydocstyle
+-   repo: https://github.com/pycqa/pydocstyle
+    rev: '6.1.1'
     hooks:
-    -   id: add-trailing-comma
+    -   id: pydocstyle
+        additional_dependencies: ['toml']
+        args: [
+            '--convention=google',
+            '--add-ignore=D102,D103,D104,D105,D106,D107',
+        ]
