@@ -24,8 +24,8 @@ repos:
   hooks:
     - id: black
       args: [
-          '--line-length=79',
-          '--skip-string-normalization=true',
+          '--line-length', '100',
+          '--skip-string-normalization',
       ]
 
 # flake8
@@ -39,7 +39,10 @@ repos:
     rev: v3.0.0a5
     hooks:
     -   id: pylint
-        args: [--disable=all, --enable=unused-import]
+        args: [
+            '--disable', 'all',
+            '--enable', 'unused-import',
+        ]
 
 # isort
 -   repo: https://github.com/timothycrosley/isort
@@ -54,6 +57,6 @@ repos:
     -   id: pydocstyle
         additional_dependencies: ['toml']
         args: [
-            '--convention=google',
-            '--add-ignore=D102,D103,D104,D105,D106,D107',
+            '--convention', 'google',
+            '--add-ignore', 'D102,D103,D104,D105,D106,D107',
         ]
