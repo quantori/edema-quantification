@@ -28,20 +28,13 @@ repos:
           '--skip-string-normalization',
       ]
 
-# flake8
--   repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
+# pycln
+-   repo: https://github.com/hadialqattan/pycln
+    rev: v2.1.2
     hooks:
-    -   id: flake8
-
-# pylint
--   repo: https://github.com/pre-commit/mirrors-pylint
-    rev: v3.0.0a5
-    hooks:
-    -   id: pylint
+    -   id: pycln
         args: [
-            '--disable', 'all',
-            '--enable', 'unused-import',
+            'all',
         ]
 
 # isort
@@ -49,6 +42,15 @@ repos:
     rev: 5.11.4
     hooks:
     -   id: isort
+        files: "\\.(py)$"
+        args: [
+            '--line_length', '100',
+            '--multi_line_output', '3',
+            '--force_grid_wrap', '0',
+            '--include_trailing_comma',
+            '--use_parentheses',
+            '--ensure_newline_before_comments',
+        ]
 
 # pydocstyle
 -   repo: https://github.com/pycqa/pydocstyle
