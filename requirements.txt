@@ -1,9 +1,6 @@
-add-trailing-comma==2.4.0
-black==22.6.0
 dvc[s3]==2.13.0
 efficientnet-pytorch==0.7.1
 imutils==0.5.4
-isort==5.11.4
 joblib==1.1.0
 matplotlib==3.5.3
 numpy==1.23.2
@@ -14,8 +11,6 @@ Pillow==9.2.0
 pre-commit==2.21.0
 pretrainedmodels==0.7.4
 ptflops==0.6.9
-pycln==2.1.2
-pydocstyle==6.1.1
 pytest==7.2.0
 scikit-image==0.19.3
 scikit-learn==1.1.3
