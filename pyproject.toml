@@ -14,5 +14,10 @@ use_parentheses = true
 ensure_newline_before_comments = true
 
 [tool.pydocstyle]
-convention = "google"
-add-ignore = "D100, D102, D103, D104, D105, D106, D107"
+convention = 'google'
+add-ignore = 'D100, D102, D103, D104, D105, D106, D107'
+
+[tool.mypy]
+install-types = true
+no-strict-optional = true
+ignore-missing-imports = true

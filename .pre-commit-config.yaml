@@ -53,5 +53,4 @@ repos:
     rev: v0.991
     hooks:
     -   id: mypy
-        additional_dependencies: [tokenize-rt==3.2.0]
-        args: [--install-types, --no-strict-optional, --ignore-missing-imports]
+        args: ['--config-file',  'pyproject.toml']
