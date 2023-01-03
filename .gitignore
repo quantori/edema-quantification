@@ -131,9 +131,6 @@ dmypy.json
 # Dataset
 dataset/
 
-# Dataset on DVC
-!dvc/dataset/
-
 # Models
 *.pth
 
