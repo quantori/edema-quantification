@@ -17,16 +17,13 @@ if __name__ == '__main__':
     edema_net = edema_net_st.cuda()
 
     # pull the dataset and dataloader
-    train_dataset = TensorDataset(
-        torch.rand(128, 10, 300, 300), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    )
-    train_dataloader = DataLoader(train_dataset, batch_size=32, num_workers=4)
+    from tools.data_classes import EdemaDataModule
 
-    val_dataset = TensorDataset(
-        torch.rand(128, 10, 300, 300), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    )
-    val_dataloader = DataLoader(val_dataset, batch_size=32, num_workers=4)
+    datamaodlule = EdemaDataModule(data_dir='C:/Users/makov/Desktop/data_edema')
+    datamaodlule.setup('fit')
+    dataloader = datamaodlule.train_dataloader()
+    print(dataloader)
 
     # create the trainer and start training
-    trainer = pl.Trainer(max_epochs=9, logger=True, enable_checkpointing=False, gpus=1)
-    trainer.fit(edema_net, train_dataloader, val_dataloaders=val_dataloader)
+    # trainer = pl.Trainer(max_epochs=9, logger=True, enable_checkpointing=False, gpus=1)
+    # trainer.fit(edema_net, train_dataloader, val_dataloaders=val_dataloader)
