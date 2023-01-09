@@ -33,17 +33,18 @@ def extract_annotations(group_df: pd.DataFrame) -> Dict[str, defaultdict]:
     for _, data in group_df[['Figure', 'x1', 'y1', 'Mask', 'Points']].iterrows():
 
         if pd.notna(data['Mask']):
-            annotations[data['Figure']]['bitmaps'].append(data.loc['x1': 'Mask'].to_dict())
+            annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())
         else:
             annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
 
     return annotations
 
 
-def make_masks(image: Image.Image,
-               annotations: Dict,
-               linelike_finding_width: int = 15,
-               ) -> Tuple[List[np.ndarray], List[int], int]:
+def make_masks(
+    image: Image.Image,
+    annotations: Dict,
+    linelike_finding_width: int = 15,
+) -> Tuple[List[np.ndarray], List[int], int]:
     """
 
     Args:
@@ -77,8 +78,9 @@ def make_masks(image: Image.Image,
                 for point_array in annotations[finding]['polygons']:
                     # for line-like findings we draw lines with default width of 15px
                     if finding in ('Kerley', 'Cephalization'):
-                        draw.line(point_array.flatten().tolist(), fill=0,
-                                  width=linelike_finding_width)
+                        draw.line(
+                            point_array.flatten().tolist(), fill=0, width=linelike_finding_width
+                        )
                     else:
                         draw.polygon(point_array.flatten().tolist(), fill=0, outline=0)
 
@@ -105,11 +107,12 @@ def make_masks(image: Image.Image,
     return masks, findings, default_mask_value
 
 
-def resize_and_create_masks(image: Image.Image,
-                            annotations: Dict,
-                            target_size: Tuple[int, int],
-                            linelike_finding_width: int = 15,
-                            ) -> Tuple[np.ndarray, List[np.ndarray], List[int]]:
+def resize_and_create_masks(
+    image: Image.Image,
+    annotations: Dict,
+    target_size: Tuple[int, int],
+    linelike_finding_width: int = 15,
+) -> Tuple[np.ndarray, List[np.ndarray], List[int]]:
 
     """
 
@@ -154,12 +157,18 @@ def resize_and_create_masks(image: Image.Image,
 
     # make image and masks resize operations
     # image is padded with 0 and masks with default_mask_value (0/1)
-    transform = A.Compose([
-        resize_transform,
-        A.augmentations.geometric.PadIfNeeded(height_new, width_new,
-                                              border_mode=cv2.BORDER_CONSTANT,
-                                              value=0, mask_value=default_mask_value)
-    ])
+    transform = A.Compose(
+        [
+            resize_transform,
+            A.augmentations.geometric.PadIfNeeded(
+                height_new,
+                width_new,
+                border_mode=cv2.BORDER_CONSTANT,
+                value=0,
+                mask_value=default_mask_value,
+            ),
+        ]
+    )
 
     transformed = transform(image=image_arr, masks=masks)
     image_resized = transformed['image']
@@ -168,9 +177,10 @@ def resize_and_create_masks(image: Image.Image,
     return image_resized, masks_resized, findings
 
 
-def combine_image_and_masks(transformed_image: torch.Tensor,
-                            transformed_masks: List[torch.Tensor],
-                            ) -> torch.Tensor:
+def combine_image_and_masks(
+    transformed_image: torch.Tensor,
+    transformed_masks: List[torch.Tensor],
+) -> torch.Tensor:
     transformed_image = [transformed_image]
     expanded_masks = [m.expand(1, -1, -1) for m in transformed_masks]
     tensor = torch.cat(transformed_image + expanded_masks, dim=0)
@@ -178,12 +188,13 @@ def combine_image_and_masks(transformed_image: torch.Tensor,
     return tensor
 
 
-def split_dataset(dataset: Dataset,
-                  train_share: float,
-                  metadata_df: pd.DataFrame,
-                  show_class_distributions: bool = False,
-                  verbose: bool = False,
-                  ) -> Tuple[Subset, Subset]:
+def split_dataset(
+    dataset: Dataset,
+    train_share: float,
+    metadata_df: pd.DataFrame,
+    show_class_distributions: bool = False,
+    verbose: bool = False,
+) -> Tuple[Subset, Subset]:
 
     # split dataset using: stratification, groups on subject ID, default ratio is 80:20
     test_share = 1 - train_share
@@ -202,9 +213,9 @@ def split_dataset(dataset: Dataset,
         dfc.loc[dfc.index.isin(train_index), 'train_test_set'] = 'train'
         dfc.loc[dfc.index.isin(test_index), 'train_test_set'] = 'test'
 
-        df_percentages = dfc.groupby('train_test_set')['Class ID']\
-                            .value_counts(normalize=True)\
-                            .unstack()
+        df_percentages = (
+            dfc.groupby('train_test_set')['Class ID'].value_counts(normalize=True).unstack()
+        )
 
         rmsd_classes = np.sum((df_percentages.loc['train'] - df_percentages.loc['test']) ** 2)
         if rmsd_classes < rmsd_min:
@@ -225,3 +236,20 @@ def split_dataset(dataset: Dataset,
     test_subset = Subset(dataset, best_test_indices)
 
     return train_subset, test_subset
+
+
+if __name__ == '__main__':
+
+    import os
+
+    metadata_df = pd.read_excel(
+        os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
+    ).fillna({'Class ID': -1})
+    for img_idx, (img_path, img_objects) in enumerate(metadata_df.groupby('Image path')):
+        annotations = {k: defaultdict(list) for k in img_objects['Figure'].unique()}
+        # print(annotations)
+
+        for _, data in img_objects[['Figure', 'x1', 'y1', 'Mask', 'Points']].iterrows():
+            print(data['Points'])
+            # print(annotations[data['Figure']]['polygons'])
+            # annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
