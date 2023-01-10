@@ -247,9 +247,13 @@ if __name__ == '__main__':
     ).fillna({'Class ID': -1})
     for img_idx, (img_path, img_objects) in enumerate(metadata_df.groupby('Image path')):
         annotations = {k: defaultdict(list) for k in img_objects['Figure'].unique()}
-        # print(annotations)
+        print(annotations)
 
         for _, data in img_objects[['Figure', 'x1', 'y1', 'Mask', 'Points']].iterrows():
-            print(data['Points'])
+            if pd.notna(data['Mask']):
+                annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())
+            else:
+                annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
+            # print(type(data['Points']))
             # print(annotations[data['Figure']]['polygons'])
             # annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
