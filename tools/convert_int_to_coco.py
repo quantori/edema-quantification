@@ -51,9 +51,6 @@ def get_metadata_info(
             'Annotation path',
             'Subject ID',
             'Study ID',
-            'Image width',
-            'Image height',
-            'Figure ID',
             'Class ID',
         ]
     ].drop_duplicates()
