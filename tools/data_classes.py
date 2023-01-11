@@ -4,7 +4,6 @@ from typing import Dict, Tuple
 import pandas as pd
 import torch
 from PIL import Image
-
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import LightningDataModule
 import albumentations as A
@@ -37,7 +36,7 @@ class EdemaDataset(Dataset):
                 extracted from image metadata
         """
         img_data = dict()
-        for img_idx, (img_path, img_objects) in enumerate(metadata_df.groupby('Image path')):
+        for img_idx, (img_path, img_objects) in enumerate(metadata_df.groupby('Image path', sort=False)):
             img_data[img_idx] = dict()
             img_data[img_idx]['path'] = img_path
             img_data[img_idx]['label'] = int(img_objects['Class ID'].iloc[0])
@@ -106,15 +105,14 @@ class EdemaDataModule(LightningDataModule):
         self.train_share = train_share
 
     def setup(self, stage):
-        metadata_df = pd.read_excel(os.path.join(self.data_dir, 'metadata.xlsx'))\
-                        .fillna({'Class ID': -1})
+        metadata_df = pd.read_excel(os.path.join(self.data_dir, 'metadata.xlsx'))
         edema_full = EdemaDataset(metadata_df,
                                   make_augmentation=self.make_augmentation,
                                   normalize_tensors=self.normalize_tensors,
                                   resize=self.resize)
         if stage == 'fit':
             self.edema_train, self.edema_test = data_classes_utils.split_dataset(
-                edema_full, self.train_share, metadata_df
+                edema_full, self.train_share, metadata_df, verbose=True
             )
 
     def train_dataloader(self):
