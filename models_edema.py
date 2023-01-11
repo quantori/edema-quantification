@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import cv2
 import matplotlib.pyplot as plt
 from tqdm import trange, tqdm
-from torchmetrics.functional.classification import multilabel_f1_score 
+from torchmetrics.functional.classification import multilabel_f1_score
 
 
 class SqueezeNet(nn.Module):
@@ -32,7 +32,7 @@ class SqueezeNet(nn.Module):
 
     def __init__(
         self,
-        preprocessed: bool = True,
+        preprocessed: bool = False,
         pretrained: bool = True,
     ):
         """SqueezeNet encoder.
@@ -330,11 +330,12 @@ class EdemaNet(pl.LightningModule):
         # images - (batch, 10, H, W)
         # images have to have the shape (batch, 10, H, W). 7 extra channel implies fine annotations,
         # in case of 7 classes
-        if images.shape[1] != 10:
+        if images.shape[1] != 12:
             raise Exception("The channel dimension of the input-image batch has to be 10")
 
-        fine_annotations = images[:, 3:10, :, :]  # 7 classes of fine annotations
+        fine_annotations = images[:, 3:12, :, :]  # 9 classes of fine annotations
         images = images[:, 0:3, :, :]  # (no view, create slice)
+        print(images)
 
         # images = images.cuda()
         # labels = labels.cuda()

@@ -1,15 +1,12 @@
 import re
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.model_selection import StratifiedGroupKFold
 
 import torch
 from torch.utils.data import Dataset, Subset
-
 import cv2
 import albumentations as A
 from PIL import Image, ImageDraw, ImageOps
@@ -18,7 +15,7 @@ from tools.utils_sly import FIGURE_MAP, convert_base64_to_image
 
 
 # all relevant edema findings for which masks will be prepared subsequently
-EDEMA_FINDINGS = ['no_findings'] + [k for k in FIGURE_MAP.keys() if k != 'Heart']
+EDEMA_FINDINGS = ['No_findings'] + [k for k in FIGURE_MAP.keys() if k != 'Heart']
 
 
 def parse_coord_string(coord_string: str) -> np.ndarray:
@@ -26,11 +23,21 @@ def parse_coord_string(coord_string: str) -> np.ndarray:
     return np.array(coordinates).reshape(-1, 2)
 
 
-def extract_annotations(group_df: pd.DataFrame) -> Dict[str, defaultdict]:
+def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[defaultdict, None]]:
 
+    # for "No edema" class there are no findings
+    if group_df['Figure'].isna().all():
+        return {'No edema': None}
+
+    # for other classes we create dict with finding_name as a key
+    # and values are the lists containing
+    # coordinates of points for polygon annotations and mask data for mask annotations
     annotations = {k: defaultdict(list) for k in group_df['Figure'].unique()}
 
-    for _, data in group_df[['Figure', 'x1', 'y1', 'Mask', 'Points']].iterrows():
+    # change 'x1', 'y1' columns type from float (due to NANs presence) to int
+    group_df = group_df[['Figure', 'x1', 'y1', 'Mask', 'Points']].astype(int, errors='ignore')
+
+    for _, data in group_df.iterrows():
 
         if pd.notna(data['Mask']):
             annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())
@@ -56,7 +63,7 @@ def make_masks(
         masks: list of masks represented as numpy arrays for each edema finding
         findings: list of 0/1 values showing the absence/presence of a given finding in a given image
         default_mask_value: value with which mask is padded depending on the
-                            presence of at least one of the edema findings in the image
+            presence of at least one of the edema findings in the image
     """
 
     masks = []
@@ -192,68 +199,115 @@ def split_dataset(
     dataset: Dataset,
     train_share: float,
     metadata_df: pd.DataFrame,
-    show_class_distributions: bool = False,
+    n_split_trials: int = 500,
+    ensure_all_classes_in_splits: bool = True,
     verbose: bool = False,
 ) -> Tuple[Subset, Subset]:
 
-    # split dataset using: stratification, groups on subject ID, default ratio is 80:20
-    test_share = 1 - train_share
-    n_splits = int(train_share / test_share) + 1
-    sgkf = StratifiedGroupKFold(n_splits=n_splits)
-    X = metadata_df['Image path'].values
-    y = metadata_df['Class ID'].astype(int).values
-    groups = metadata_df['Subject ID'].values
-
     rmsd_min = np.inf
-    best_train_indices, best_test_indices = None, None
+    best_train_subjects_set = None
+    best_test_subjects_set = None
+    best_class_distribution = None
 
-    for i, (train_index, test_index) in enumerate(sgkf.split(X, y, groups)):
+    for i in range(n_split_trials):
+        # shuffle df and split into two subsets based on Subject IDs
+        grouped = (
+            metadata_df.sample(frac=1.0, random_state=i)
+            .reset_index(drop=True)
+            .groupby('Subject ID', sort=False)['Image path']
+            .nunique()
+            .cumsum()
+            .transform(lambda s: s / s.max())
+        )
+
+        train_subjects = grouped[grouped < train_share].index
+        test_subjects = grouped[grouped >= train_share].index
 
         dfc = metadata_df.copy()
-        dfc.loc[dfc.index.isin(train_index), 'train_test_set'] = 'train'
-        dfc.loc[dfc.index.isin(test_index), 'train_test_set'] = 'test'
+        dfc.loc[dfc['Subject ID'].isin(train_subjects), 'train_test_set'] = 'train'
+        dfc.loc[dfc['Subject ID'].isin(test_subjects), 'train_test_set'] = 'test'
 
-        df_percentages = (
+        dfc_percentages = (
             dfc.groupby('train_test_set')['Class ID'].value_counts(normalize=True).unstack()
         )
 
-        rmsd_classes = np.sum((df_percentages.loc['train'] - df_percentages.loc['test']) ** 2)
+        if ensure_all_classes_in_splits:
+            # if there is any NAN, it means that the splits do not contain all classes
+            if dfc_percentages.isna().any().any():
+                continue
+
+        # RMSD between class shares in train/test splits
+        rmsd_classes = np.sum((dfc_percentages.loc['train'] - dfc_percentages.loc['test']) ** 2)
+
         if rmsd_classes < rmsd_min:
             rmsd_min = rmsd_classes
-            best_train_indices, best_test_indices = train_index, test_index
+            best_train_subjects_set, best_test_subjects_set = train_subjects, test_subjects
+            best_class_distribution = dfc_percentages
 
-        if verbose:
-            print(f'Fold {i}:')
-            print(f'  Train size: {train_index.size}')
-            print(f'  Test  size: {test_index.size}')
-            print(f'  rmsd for classes distribution in train/test split: {rmsd_classes:.5f}')
+    if best_class_distribution is None:
+        raise RuntimeError(
+            (
+                f'{n_split_trials} split trials were not enough to split dataset. '
+                'Consider increasing n_split_trials parameter '
+                'or set ensure_all_classes_in_splits to False'
+            )
+        )
 
-        if show_class_distributions:
-            df_percentages.plot.barh(figsize=(6, 3))
-            plt.show()
+    unique_image_paths = metadata_df['Image path'].unique()
+    image_path2index_dict = dict(zip(unique_image_paths, range(unique_image_paths.size)))
+    train_indices = (
+        metadata_df.loc[metadata_df['Subject ID'].isin(best_train_subjects_set), 'Image path']
+        .map(image_path2index_dict)
+        .unique()
+    )
+    test_indices = (
+        metadata_df.loc[metadata_df['Subject ID'].isin(best_test_subjects_set), 'Image path']
+        .map(image_path2index_dict)
+        .unique()
+    )
 
-    train_subset = Subset(dataset, best_train_indices)
-    test_subset = Subset(dataset, best_test_indices)
+    if verbose:
+        print('#' * 80)
+        print('Best train/test split class distributions:')
+        print('#' * 80)
+        print(best_class_distribution)
+        print('#' * 80)
+        print(
+            (
+                f'{best_train_subjects_set.size} patients in train set, '
+                f'{best_test_subjects_set.size} patients in test set'
+            )
+        )
+        print(
+            (
+                f'{train_indices.size} images in train set, '
+                f'{test_indices.size} images in test set'
+            )
+        )
+        print('#' * 80)
+
+    train_subset = Subset(dataset, train_indices)
+    test_subset = Subset(dataset, test_indices)
 
     return train_subset, test_subset
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-    import os
+#     import os
 
-    metadata_df = pd.read_excel(
-        os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
-    ).fillna({'Class ID': -1})
-    for img_idx, (img_path, img_objects) in enumerate(metadata_df.groupby('Image path')):
-        annotations = {k: defaultdict(list) for k in img_objects['Figure'].unique()}
-        print(annotations)
+#     metadata_df = pd.read_excel(
+#         os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
+#     ).fillna({'Class ID': -1})
+#     for img_idx, (img_path, img_objects) in enumerate(metadata_df.groupby('Image path')):
+#         annotations = {k: defaultdict(list) for k in img_objects['Figure'].unique()}
+#         print(annotations)
 
-        for _, data in img_objects[['Figure', 'x1', 'y1', 'Mask', 'Points']].iterrows():
-            if pd.notna(data['Mask']):
-                annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())
-            else:
-                annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
-            # print(type(data['Points']))
-            # print(annotations[data['Figure']]['polygons'])
-            # annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
+#         for _, data in img_objects[['Figure', 'x1', 'y1', 'Mask', 'Points']].iterrows():
+#             if pd.notna(data['Mask']):
+#                 annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())
+#             else:
+#                 annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
+# print(type(data['Points']))
+# print(annotations[data['Figure']]['polygons'])
+# annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
