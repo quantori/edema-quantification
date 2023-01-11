@@ -189,6 +189,7 @@ def split_dataset(dataset: Dataset,
                   train_share: float,
                   metadata_df: pd.DataFrame,
                   n_split_trials: int = 500,
+                  ensure_all_classes_in_splits: bool = True,
                   verbose: bool = False,
                   ) -> Tuple[Subset, Subset]:
 
@@ -217,6 +218,11 @@ def split_dataset(dataset: Dataset,
                              .value_counts(normalize=True) \
                              .unstack()
 
+        if ensure_all_classes_in_splits:
+            # if there is any NAN, it means that the splits do not contain all classes
+            if dfc_percentages.isna().any().any():
+                continue
+
         # RMSD between class shares in train/test splits
         rmsd_classes = np.sum((dfc_percentages.loc['train'] - dfc_percentages.loc['test']) ** 2)
 
@@ -225,14 +231,10 @@ def split_dataset(dataset: Dataset,
             best_train_subjects_set, best_test_subjects_set = train_subjects, test_subjects
             best_class_distribution = dfc_percentages
 
-    if verbose:
-        print('#' * 80)
-        print('Best train/test split class distributions:')
-        print(best_class_distribution)
-        print('#' * 80)
-        print(f'{best_train_subjects_set.size} patients in train set,\
-        {best_test_subjects_set.size} patients in test set')
-        print('#' * 80)
+    if best_class_distribution is None:
+        raise RuntimeError((f'{n_split_trials} split trials were not enough to split dataset. '
+                            'Consider increasing n_split_trials parameter '
+                            'or set ensure_all_classes_in_splits to False'))
 
     unique_image_paths = metadata_df['Image path'].unique()
     image_path2index_dict = dict(zip(unique_image_paths, range(unique_image_paths.size)))
@@ -240,6 +242,18 @@ def split_dataset(dataset: Dataset,
                                     'Image path'].map(image_path2index_dict).unique()
     test_indices = metadata_df.loc[metadata_df['Subject ID'].isin(best_test_subjects_set),
                                    'Image path'].map(image_path2index_dict).unique()
+
+    if verbose:
+        print('#' * 80)
+        print('Best train/test split class distributions:')
+        print('#' * 80)
+        print(best_class_distribution)
+        print('#' * 80)
+        print((f'{best_train_subjects_set.size} patients in train set, '
+               f'{best_test_subjects_set.size} patients in test set'))
+        print((f'{train_indices.size} images in train set, '
+               f'{test_indices.size} images in test set'))
+        print('#' * 80)
 
     train_subset = Subset(dataset, train_indices)
     test_subset = Subset(dataset, test_indices)
