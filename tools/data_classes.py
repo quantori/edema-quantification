@@ -2,7 +2,6 @@ import os
 from typing import Dict, Tuple
 
 import pandas as pd
-import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import LightningDataModule
@@ -85,7 +84,6 @@ class EdemaDataset(Dataset):
 
         transformed = transform(image=image_arr, masks=masks)
 
-        findings = torch.tensor(findings, dtype=torch.uint8)
         tensor = data_classes_utils.combine_image_and_masks(
             transformed['image'], transformed['masks']
         )
@@ -123,8 +121,18 @@ class EdemaDataModule(LightningDataModule):
                 edema_full, self.train_share, metadata_df, verbose=True
             )
 
-    def train_dataloader(self):
-        return DataLoader(self.edema_train, batch_size=self.batch_size)
+    def train_dataloader(self, num_workers=1):
+        return DataLoader(self.edema_train, batch_size=self.batch_size, num_workers=num_workers)
 
-    def test_dataloader(self):
-        return DataLoader(self.edema_test, batch_size=self.batch_size)
+    def test_dataloader(self, num_workers=1):
+        return DataLoader(self.edema_test, batch_size=self.batch_size, num_workers=num_workers)
+
+
+# if __name__ == '__main__':
+
+#     metadata_df = pd.read_excel(
+#         os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
+#     ).fillna({'Class ID': -1})
+#     dataset = EdemaDataset(metadata_df)
+#     images, labels = dataset.__getitem__(1)
+#     print(images.dtype)

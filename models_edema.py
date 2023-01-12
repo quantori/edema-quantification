@@ -324,6 +324,9 @@ class EdemaNet(pl.LightningModule):
 
     def train_val_test(self, batch):
         images, labels = batch
+        print(images.dtype)
+        print(labels.dtype)
+        # images = images.float()
         images = images.cuda()
         labels = labels.cuda()
         # labels - (batch, 7), dtype: float32
@@ -335,7 +338,6 @@ class EdemaNet(pl.LightningModule):
 
         fine_annotations = images[:, 3:12, :, :]  # 9 classes of fine annotations
         images = images[:, 0:3, :, :]  # (no view, create slice)
-        print(images)
 
         # images = images.cuda()
         # labels = labels.cuda()

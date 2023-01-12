@@ -14,6 +14,10 @@ from PIL import Image, ImageDraw, ImageOps
 from tools.utils_sly import FIGURE_MAP, convert_base64_to_image
 
 
+FINDINGS_DTYPE = torch.float
+IMAGE_DTYPE = torch.float
+MASK_DTYPE = np.float
+TENSOR_DTYPE = torch.float32
 # all relevant edema findings for which masks will be prepared subsequently
 EDEMA_FINDINGS = ['No_findings'] + [k for k in FIGURE_MAP.keys() if k != 'Heart']
 
@@ -104,11 +108,11 @@ def make_masks(
             else:
                 raise RuntimeError('neither polygon nor mask data is present in the metadata')
 
-            masks.append(np.array(finding_mask, dtype=np.uint8))
+            masks.append(np.array(finding_mask, dtype=MASK_DTYPE))
             findings.append(1)
 
         else:
-            masks.append(np.array(finding_mask, dtype=np.uint8))
+            masks.append(np.array(finding_mask, dtype=MASK_DTYPE))
             findings.append(0)
 
     return masks, findings, default_mask_value
@@ -119,7 +123,7 @@ def resize_and_create_masks(
     annotations: Dict,
     target_size: Tuple[int, int],
     linelike_finding_width: int = 15,
-) -> Tuple[np.ndarray, List[np.ndarray], List[int]]:
+) -> Tuple[np.ndarray, List[np.ndarray], torch.Tensor]:
 
     """
 
@@ -181,6 +185,8 @@ def resize_and_create_masks(
     image_resized = transformed['image']
     masks_resized = transformed['masks']
 
+    findings = torch.tensor(findings, dtype=FINDINGS_DTYPE)
+
     return image_resized, masks_resized, findings
 
 
@@ -188,9 +194,10 @@ def combine_image_and_masks(
     transformed_image: torch.Tensor,
     transformed_masks: List[torch.Tensor],
 ) -> torch.Tensor:
-    transformed_image = [transformed_image]
+    transformed_image = [transformed_image.to(dtype=IMAGE_DTYPE)]
     expanded_masks = [m.expand(1, -1, -1) for m in transformed_masks]
     tensor = torch.cat(transformed_image + expanded_masks, dim=0)
+    tensor = tensor.to(dtype=TENSOR_DTYPE)
 
     return tensor
 

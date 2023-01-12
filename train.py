@@ -25,11 +25,11 @@ if __name__ == '__main__':
     # metadata_df = pd.read_excel(os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx'))
     # edema_dataset = EdemaDataset(metadata_df)
     # images, labels = edema_dataset.__getitem__(10)
-    # print(images.shape)
+    # print(images.shape)s
     # print(labels)
-    datamaodlule = EdemaDataModule(data_dir='C:/Users/makov/Desktop/data_edema')
+    datamaodlule = EdemaDataModule(data_dir='C:/Users/makov/Desktop/data_edema', resize=(224, 224))
     datamaodlule.setup('fit')
-    dataloader = datamaodlule.train_dataloader()
+    dataloader = datamaodlule.train_dataloader(num_workers=4)
     # for i in range(10):
     #     train_features, train_labels = next(iter(dataloader))
     # print(train_features.shape)
