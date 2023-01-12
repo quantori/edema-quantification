@@ -2,7 +2,6 @@ import os
 from typing import Dict, Tuple
 
 import pandas as pd
-import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import LightningDataModule
@@ -80,7 +79,6 @@ class EdemaDataset(Dataset):
 
         transformed = transform(image=image_arr, masks=masks)
 
-        findings = torch.tensor(findings, dtype=torch.uint8)
         tensor = data_classes_utils.combine_image_and_masks(transformed['image'],
                                                             transformed['masks'])
         return tensor, findings
