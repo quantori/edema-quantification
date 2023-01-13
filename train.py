@@ -27,9 +27,12 @@ if __name__ == '__main__':
     # images, labels = edema_dataset.__getitem__(10)
     # print(images.shape)s
     # print(labels)
-    datamaodlule = EdemaDataModule(data_dir='C:/Users/makov/Desktop/data_edema', resize=(224, 224))
+    datamaodlule = EdemaDataModule(
+        data_dir='C:/Users/makov/Desktop/data_edema', resize=(224, 224), normalize_tensors=False
+    )
     datamaodlule.setup('fit')
-    dataloader = datamaodlule.train_dataloader(num_workers=4)
+    train_dataloader = datamaodlule.train_dataloader(num_workers=4)
+    test_dataloader = datamaodlule.test_dataloader(num_workers=4)
     # for i in range(10):
     #     train_features, train_labels = next(iter(dataloader))
     # print(train_features.shape)
@@ -43,4 +46,4 @@ if __name__ == '__main__':
 
     # create the trainer and start training
     trainer = pl.Trainer(max_epochs=9, logger=True, enable_checkpointing=False, gpus=1)
-    trainer.fit(edema_net, dataloader, val_dataloaders=dataloader)
+    trainer.fit(edema_net, train_dataloaders=train_dataloader, val_dataloaders=test_dataloader)

@@ -133,6 +133,6 @@ class EdemaDataModule(LightningDataModule):
 #     metadata_df = pd.read_excel(
 #         os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
 #     ).fillna({'Class ID': -1})
-#     dataset = EdemaDataset(metadata_df)
-#     images, labels = dataset.__getitem__(1)
+#     dataset = EdemaDataset(metadata_df, normalize_tensors=True)
+#     images, labels = dataset[1]
 #     print(images.dtype)

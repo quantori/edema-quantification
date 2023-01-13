@@ -14,9 +14,9 @@ from PIL import Image, ImageDraw, ImageOps
 from tools.utils_sly import FIGURE_MAP, convert_base64_to_image
 
 
-FINDINGS_DTYPE = torch.float
-IMAGE_DTYPE = torch.float
-MASK_DTYPE = np.float
+FINDINGS_DTYPE = torch.float32
+IMAGE_DTYPE = torch.float32
+MASK_DTYPE = np.float32
 TENSOR_DTYPE = torch.float32
 # all relevant edema findings for which masks will be prepared subsequently
 EDEMA_FINDINGS = ['No_findings'] + [k for k in FIGURE_MAP.keys() if k != 'Heart']

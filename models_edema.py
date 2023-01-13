@@ -130,9 +130,9 @@ class EdemaNet(pl.LightningModule):
         transient_layers_type: str = "bottleneck",
         top_k: int = 1,
         fine_loader: torch.utils.data.DataLoader = None,
-        num_warm_epochs: int = 10,
-        push_start: int = 3,
-        push_epochs: list = [3, 6, 9],
+        num_warm_epochs: int = 2,
+        push_start: int = 2,
+        push_epochs: list = [2, 4, 6],
         img_size=224,
     ):
         """PyTorch Lightning model class.
@@ -324,9 +324,6 @@ class EdemaNet(pl.LightningModule):
 
     def train_val_test(self, batch):
         images, labels = batch
-        print(images.dtype)
-        print(labels.dtype)
-        # images = images.float()
         images = images.cuda()
         labels = labels.cuda()
         # labels - (batch, 7), dtype: float32
@@ -1030,6 +1027,8 @@ class EdemaNet(pl.LightningModule):
 
                     if prototype_img_filename_prefix is not None:
                         # save the whole image containing the prototype as png
+                        # TODO: normalize the original_img_j. Now it's a numpy array in the range
+                        # (0-255)
                         plt.imsave(
                             os.path.join(
                                 dir_for_saving_prototypes,
