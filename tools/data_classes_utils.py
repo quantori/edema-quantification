@@ -140,7 +140,8 @@ def resize_and_create_masks(
     """
 
     # image and created image masks with initial size
-    image_arr = np.array(image)
+    # images have to be unnormalized in [0, 1] to perform drawing in the model class
+    image_arr = np.array(image) / 255
     masks, findings, default_mask_value = make_masks(
         image, annotations, linelike_finding_width=linelike_finding_width
     )

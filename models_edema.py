@@ -784,22 +784,8 @@ class EdemaNet(pl.LightningModule):
         # 5: class identities
         # proto_rf_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
         # proto_bound_boxes = np.full(shape=[n_prototypes, 6], fill_value=-1)
-        proto_rf_boxes = {
-            # 'image_index': 0,
-            # 'height_start_index': 0,
-            # 'height_end_index': 0,
-            # 'width_start_index': 0,
-            # 'width_end_index': 0,
-            # 'class_indentities': 0,
-        }
-        proto_bound_boxes = {
-            # 'image_index': 0,
-            # 'height_start_index': 0,
-            # 'height_end_index': 0,
-            # 'width_start_index': 0,
-            # 'width_end_index': 0,
-            # 'class_indentities': 0,
-        }
+        proto_rf_boxes = {}
+        proto_bound_boxes = {}
 
         # making a directory for saving prototypes
         if root_dir_for_saving_prototypes != None:
@@ -1027,8 +1013,6 @@ class EdemaNet(pl.LightningModule):
 
                     if prototype_img_filename_prefix is not None:
                         # save the whole image containing the prototype as png
-                        # TODO: normalize the original_img_j. Now it's a numpy array in the range
-                        # (0-255)
                         plt.imsave(
                             os.path.join(
                                 dir_for_saving_prototypes,
