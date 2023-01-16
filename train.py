@@ -11,13 +11,16 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
 
     # create a model
+    img_size = 300
     sq_net = SqueezeNet()
-    edema_net_st = EdemaNet(sq_net, 9, prototype_shape=(18, 512, 1, 1))
+    edema_net_st = EdemaNet(
+        encoder=sq_net, num_classes=9, prototype_shape=(9, 512, 1, 1), img_size=img_size
+    )
     edema_net = edema_net_st.cuda()
 
     # pull the dataset and dataloader
     datamaodlule = EdemaDataModule(
-        data_dir='C:/Users/makov/Desktop/data_edema', resize=(300, 300), normalize_tensors=False
+        data_dir='C:/Users/makov/Desktop/data_edema', resize=(img_size, img_size), normalize_tensors=False
     )
     datamaodlule.setup('fit')
     train_dataloader = datamaodlule.train_dataloader(num_workers=4)

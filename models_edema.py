@@ -140,7 +140,7 @@ class EdemaNet(pl.LightningModule):
         Args:
             encoder (nn.Module): encoder layers implemented as a distinct class.
             num_classes (int): the number of feature classes.
-            prototype_shape (Tuple): the shape of the prototypes (batch, channels, H, W).
+            prototype_shape (Tuple): the shape of the prototypes (num_prototypes, channels, H, W).
             transient_layers_type (str, optional): the architecture of the transient layers. If ==
                                                    'bottleneck', the number of channels is adjusted
                                                    automatically.
