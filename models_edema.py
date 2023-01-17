@@ -978,16 +978,18 @@ class EdemaNet(pl.LightningModule):
                     dsize=(original_img_size, original_img_size),
                     interpolation=cv2.INTER_CUBIC,
                 )
-                # find a high activation patch (default treshold = 95 %)
+                # find a high activation ROI (default treshold = 95 %)
                 proto_bound_j = self.find_high_activation_crop(upsampled_act_img_j)
-                # crop out the image patch with high activation as prototype image
+                # crop out the ROI with high activation from the image where the distnce for j
+                # protoype turned out to be the smallest 
                 # the dimensions' order of original_img_j, e.g., (224, 224, 3)
                 proto_img_j = original_img_j[
                     proto_bound_j[0] : proto_bound_j[1], proto_bound_j[2] : proto_bound_j[3], :
                 ]
 
-                # save the prototype boundary (rectangular boundary of highly activated region)
-                # the activated region can be larger than the receptive field of the prototype
+                # save the ROI (rectangular boundary of highly activated region)
+                # the activated region can be larger than the receptive field of the patch with the
+                # smallest distance
                 proto_bound_boxes[j] = {}
                 proto_bound_boxes[j]['image_index'] = proto_rf_boxes[j]['image_index']
                 proto_bound_boxes[j]['height_start_index'] = proto_bound_j[0]
@@ -1080,7 +1082,7 @@ class EdemaNet(pl.LightningModule):
                                 vmax=1.0,
                             )
 
-                        # save the prototype image (highly activated region of the whole image)
+                        # save the highly activated ROI (highly activated region of the whole image)
                         plt.imsave(
                             os.path.join(
                                 dir_for_saving_prototypes,
