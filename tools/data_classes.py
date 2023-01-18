@@ -130,9 +130,30 @@ class EdemaDataModule(LightningDataModule):
 
 # if __name__ == '__main__':
 
-#     metadata_df = pd.read_excel(
-#         os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
-#     ).fillna({'Class ID': -1})
-#     dataset = EdemaDataset(metadata_df, normalize_tensors=True)
-#     images, labels = dataset[1]
-#     print(images.dtype)
+    # metadata_df = pd.read_excel(
+    #     os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
+    # ).fillna({'Class ID': -1})
+    # dataset = EdemaDataset(metadata_df, normalize_tensors=False)
+    # images, labels = dataset[1]
+    # print(images.shape)
+
+    # datamodule = EdemaDataModule(data_dir='C:/Users/makov/Desktop/data_edema')
+    # datamodule.setup('fit')
+    # train_dataloader = datamodule.train_dataloader()
+    # images, labels = next(iter(train_dataloader))
+    # print(images.dtype, labels.dtype)
+
+    # img_num = 31
+    # masks = images[img_num, 4:5, :, :]
+    # images = images[img_num, 0:3, :, :]
+    # import torch
+
+    # print(images.shape, torch.max(images), torch.min(images))
+    # print(labels[img_num].dtype)
+    # import matplotlib.pyplot as plt
+
+    # plt.figure()
+    # plt.imshow(images.permute(1, 2, 0))
+    # plt.figure()
+    # plt.imshow(masks.permute(1, 2, 0))
+    # plt.show()

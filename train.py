@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch
 import pytorch_lightning as pl
 
-from tools.data_classes import EdemaDataModule, EdemaDataset
+from tools.data_classes import EdemaDataModule 
 from models_edema import SqueezeNet, EdemaNet
 
 
