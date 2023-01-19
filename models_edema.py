@@ -981,7 +981,7 @@ class EdemaNet(pl.LightningModule):
                 # find a high activation ROI (default treshold = 95 %)
                 proto_bound_j = self.find_high_activation_crop(upsampled_act_img_j)
                 # crop out the ROI with high activation from the image where the distnce for j
-                # protoype turned out to be the smallest 
+                # protoype turned out to be the smallest
                 # the dimensions' order of original_img_j, e.g., (224, 224, 3)
                 proto_img_j = original_img_j[
                     proto_bound_j[0] : proto_bound_j[1], proto_bound_j[2] : proto_bound_j[3], :
@@ -1102,16 +1102,13 @@ if __name__ == "__main__":
 
     sq_net = SqueezeNet()
 
-    edema_net_st = EdemaNet(sq_net, 7, prototype_shape=(35, 512, 1, 1))
+    edema_net_st = EdemaNet(sq_net, 9, prototype_shape=(9, 512, 1, 1), img_size=300)
     edema_net = edema_net_st.cuda()
 
-    images = torch.rand(32, 3, 224, 224)
+    images = torch.rand(32, 3, 300, 300)
     images = images.cuda()
-    print(images[0])
     logits, _, _ = edema_net.forward(images)
-    print(logits)
     prop = torch.nn.functional.softmax(logits, dim=1)
-    print(prop)
 
     # test_dataset = TensorDataset(
     #     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
