@@ -18,7 +18,7 @@ FINDINGS_DTYPE = torch.float32
 IMAGE_DTYPE = torch.float
 MASK_DTYPE = np.float
 # all relevant edema findings for which masks will be prepared subsequently
-EDEMA_FINDINGS = ['No_findings'] + [k for k in FIGURE_MAP.keys() if k != 'Heart']
+EDEMA_FINDINGS = [k for k in FIGURE_MAP.keys() if k != 'Heart']
 
 
 def parse_coord_string(coord_string: str) -> np.ndarray:
@@ -30,7 +30,7 @@ def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[defaultdict, 
 
     # for "No edema" class there are no findings
     if group_df['Figure'].isna().all():
-        return {'No edema': None}
+        return {'No_findings': None}
 
     # for other classes we create dict with finding_name as a key
     # and values are the lists containing
@@ -73,14 +73,19 @@ def make_masks(image: Image.Image,
     width, height = image.size
     default_mask_value = 1 if any(f in EDEMA_FINDINGS for f in annotations.keys()) else 0
 
-    for finding in EDEMA_FINDINGS:
+    # adding default 'No_findings' finding to the list and preparing masks for each of the finding
+    for finding in ['No_findings'] + EDEMA_FINDINGS:
         # binary mask template
         finding_mask = Image.new(mode='1', size=(width, height), color=default_mask_value)
 
         if finding in annotations.keys():
 
+            # for "No edema" class without findings we do nothing and proceed with default mask
+            if annotations[finding] is None:
+                pass
+
             # draw finding mask represented by polygons
-            if annotations[finding]['polygons']:
+            elif annotations[finding]['polygons']:
 
                 draw = ImageDraw.Draw(finding_mask)
 
