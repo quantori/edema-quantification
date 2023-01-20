@@ -128,29 +128,29 @@ class EdemaDataModule(LightningDataModule):
         return DataLoader(self.edema_test, batch_size=self.batch_size, num_workers=num_workers)
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
 
-#     metadata_df = pd.read_excel(
-#         os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
-#     ).fillna({'Class ID': -1})
-#     dataset = EdemaDataset(metadata_df, normalize_tensors=False)
-#     images, labels = dataset[1]
-#     print(images.shape)
+    metadata_df = pd.read_excel(
+        os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
+    ).fillna({'Class ID': -1})
+    dataset = EdemaDataset(metadata_df, normalize_tensors=False)
+    images, labels = dataset[1]
+    print(images.shape)
 
-#     datamodule = EdemaDataModule(data_dir='C:/Users/makov/Desktop/data_edema')
-#     datamodule.setup('fit')
-#     train_dataloader = datamodule.train_dataloader()
-#     test_dataloader = datamodule.test_dataloader()
-#     print('train dataloader')
-#     for idx, batch in enumerate(train_dataloader):
-#         images, labels = batch
-#         print('batch_' + str(idx))
-#         print(labels)
-#     print('test dataloader')
-#     for idx, batch in enumerate(test_dataloader):
-#         images, labels = batch
-#         print('batch_' + str(idx))
-#         print(labels)
+    datamodule = EdemaDataModule(data_dir='C:/Users/makov/Desktop/data_edema')
+    datamodule.setup('fit')
+    train_dataloader = datamodule.train_dataloader()
+    test_dataloader = datamodule.test_dataloader()
+    print('train dataloader')
+    for idx, batch in enumerate(train_dataloader):
+        images, labels = batch
+        print('batch_' + str(idx))
+        print(labels)
+    print('test dataloader')
+    for idx, batch in enumerate(test_dataloader):
+        images, labels = batch
+        print('batch_' + str(idx))
+        print(labels)
 
     # images, labels = next(iter(train_dataloader))
     # print(images.dtype, labels.dtype)

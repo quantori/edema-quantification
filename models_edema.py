@@ -1107,8 +1107,14 @@ if __name__ == "__main__":
 
     images = torch.rand(32, 3, 300, 300)
     images = images.cuda()
-    logits, _, _ = edema_net.forward(images)
-    prop = torch.nn.functional.softmax(logits, dim=1)
+    x = edema_net.encoder(images)
+    print(x.shape)
+    x = edema_net.transient_layers(x)
+    print(x.shape)
+
+    print(edema_net.proto_layer_rf_info)
+    # logits, _, _ = edema_net.forward(images)
+    # prop = torch.nn.functional.softmax(logits, dim=1)
 
     # test_dataset = TensorDataset(
     #     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
