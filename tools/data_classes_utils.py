@@ -14,6 +14,14 @@ from PIL import Image, ImageDraw, ImageOps
 from tools.utils_sly import FIGURE_MAP, convert_base64_to_image
 
 
+__all__ = [
+    'resize_and_create_masks',
+    'split_dataset',
+    'combine_image_and_masks',
+    'parse_coord_string',
+]
+
+
 FINDINGS_DTYPE = torch.float32
 IMAGE_DTYPE = torch.float32
 MASK_DTYPE = np.float32
@@ -28,7 +36,15 @@ def parse_coord_string(coord_string: str) -> np.ndarray:
 
 
 def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[defaultdict, None]]:
+    """
 
+    Args:
+        group_df: chunk of DataFrame with annotations for a given image
+
+    Returns:
+        annotations: dict with processed annotation data for a given image
+
+    """
     # for "No edema" class there are no findings
     if group_df['Figure'].isna().all():
         return {'No_findings': None}
@@ -75,7 +91,7 @@ def make_masks(
     width, height = image.size
     default_mask_value = 1 if any(f in EDEMA_FINDINGS for f in annotations.keys()) else 0
 
-    # adding default 'No_findings' finding to the list and preparing masks for each of the finding
+    # adding default 'No_findings' finding to the list and preparing masks for each of them
     for finding in ['No_findings'] + EDEMA_FINDINGS:
         # binary mask template
         finding_mask = Image.new(mode='1', size=(width, height), color=default_mask_value)
@@ -141,7 +157,7 @@ def resize_and_create_masks(
     Returns:
         image_resized: numpy array of the resized image
         masks_resized: list of numpy arrays of the resized masks
-        findings: list of 0/1 values showing the presence/absence of a given finding in a given image
+        findings: list of 0/1 values showing the presence/absence of a given finding in the image
     """
 
     # image and created image masks with initial size
@@ -152,8 +168,8 @@ def resize_and_create_masks(
     )
 
     # further we resize image and masks by padding them while keeping initial aspect ratio
-    # this transform mimics PIL.ImageOps.pad function
-    # therefore we define resize_transform depending on several factors
+    # this sequence of transformations mimics PIL.ImageOps.pad function
+    # therefore we define 'resize_transform' depending on several factors
     width_new, height_new = target_size
     width_0, height_0 = image.size
     aspect_0 = width_0 / height_0
@@ -173,7 +189,7 @@ def resize_and_create_masks(
         resize_transform = A.augmentations.geometric.Resize(height_new, width_new)
 
     # make image and masks resize operations
-    # image is padded with 0 and masks with default_mask_value (0/1)
+    # image is padded with 0 and masks with default_mask_value (0 or 1)
     transform = A.Compose(
         [
             resize_transform,
@@ -216,7 +232,21 @@ def split_dataset(
     ensure_all_classes_in_splits: bool = True,
     verbose: bool = False,
 ) -> Tuple[Subset, Subset]:
+    """
 
+    Args:
+        dataset: complete Dataset
+        train_share: share of the train part
+        metadata_df: dataframe with image data used for proper split
+        n_split_trials: number of dataset split trials, basically number of data shuffles
+        ensure_all_classes_in_splits: check whether objects of all classes are present in both test and train part
+        verbose: show info about the best obtained train/test split
+
+    Returns:
+        train_subset: train subset
+        test_subset: test subset
+
+    """
     rmsd_min = np.inf
     best_train_subjects_set = None
     best_test_subjects_set = None
@@ -224,6 +254,7 @@ def split_dataset(
 
     for i in range(n_split_trials):
         # shuffle df and split into two subsets based on Subject IDs
+        # since we avoid putting images from the same patient both in train and test sets
         grouped = (
             metadata_df.sample(frac=1.0, random_state=i)
             .reset_index(drop=True)
@@ -245,7 +276,7 @@ def split_dataset(
         )
 
         if ensure_all_classes_in_splits:
-            # if there is any NAN, it means that the splits do not contain all classes
+            # if there is any NAN, it means that the two splits do not contain all classes
             if dfc_percentages.isna().any().any():
                 continue
 
@@ -266,6 +297,8 @@ def split_dataset(
             )
         )
 
+    # we need image indices but we have split the dataset using patients (through Subject IDs)
+    # so here we obtain indices of images belonging to patients in train/test splits
     unique_image_paths = metadata_df['Image path'].unique()
     image_path2index_dict = dict(zip(unique_image_paths, range(unique_image_paths.size)))
     train_indices = (

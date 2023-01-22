@@ -19,19 +19,21 @@ class EdemaDataset(Dataset):
         normalize_tensors: bool = False,
         resize: Tuple[int, int] = (500, 500),
     ) -> None:
-        self.img_data = self._process_metadata_df(metadata_df)
+        self.img_data = self.process_metadata_df(metadata_df)
         self.make_augmentation = make_augmentation
         self.normalize_tensors = normalize_tensors
         self.resize = resize
 
-    def _process_metadata_df(self, metadata_df: pd.DataFrame) -> Dict[int, Dict]:
+    @staticmethod
+    def process_metadata_df(metadata_df: pd.DataFrame) -> Dict[int, Dict]:
         """
 
         Args:
-            metadata_df: 'metadata.xlsx' spreadsheet table in the folder with converted images
+            metadata_df: DataFrame obtained from 'metadata.xlsx' spreadsheet table
+                in the folder with converted images
 
         Returns:
-            Dict[int, Dict[str, Union[str, int, Dict[str, List[np.array]]]]] dict of dicts with data
+            Dict[int, Dict[str, Union[str, int, Dict]]] dict of dicts with data
                 extracted from image metadata
         """
         img_data = dict()
@@ -55,7 +57,7 @@ class EdemaDataset(Dataset):
         label = self.img_data[idx]['label']
         annotations = self.img_data[idx]['annotations']
 
-        # resize image to target size and create list with masks
+        # resize image to target size and create list with masks, as well as labels array
         image_arr, masks, findings = data_classes_utils.resize_and_create_masks(
             image, annotations, self.resize
         )
@@ -70,6 +72,7 @@ class EdemaDataset(Dataset):
             augmentation_functions = [A.NoOp(p=1.0)]
 
         if self.normalize_tensors:
+            # these are mean/std values for RGB channels in a set of 110 annotated images (DS1, DS2 folders)
             normalization = A.Normalize(mean=[0.4675, 0.4675, 0.4675], std=[0.3039, 0.3039, 0.3039])
         else:
             normalization = A.NoOp(p=1.0)
@@ -100,6 +103,17 @@ class EdemaDataModule(LightningDataModule):
         normalize_tensors: bool = False,
         train_share: float = 0.8,
     ) -> None:
+        """
+        DataModule for preparing batches of processed images.
+
+        Args:
+            data_dir: directory where converted supervisely dataset reside
+            batch_size: batch size
+            resize: tuple with desired input size (width, height) of the processed images
+            make_augmentation: whether to apply a set of augmentation operations
+            normalize_tensors: whether to normalize output tensors
+            train_share: share of the train part
+        """
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
@@ -131,13 +145,18 @@ class EdemaDataModule(LightningDataModule):
 if __name__ == '__main__':
 
     metadata_df = pd.read_excel(
-        os.path.join('C:/Users/makov/Desktop/data_edema', 'metadata.xlsx')
+        os.path.join(
+            'C:/Users/makov/Desktop/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
+            'metadata.xlsx',
+        )
     ).fillna({'Class ID': -1})
     dataset = EdemaDataset(metadata_df, normalize_tensors=False)
     images, labels = dataset[1]
     print(images.shape)
 
-    datamodule = EdemaDataModule(data_dir='C:/Users/makov/Desktop/data_edema')
+    datamodule = EdemaDataModule(
+        data_dir='C:/Users/makov/Desktop/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate'
+    )
     datamodule.setup('fit')
     train_dataloader = datamodule.train_dataloader()
     test_dataloader = datamodule.test_dataloader()
