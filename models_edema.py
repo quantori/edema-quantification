@@ -648,7 +648,10 @@ class EdemaNet(pl.LightningModule):
         else:
             # layer_padding is an int that is the amount of padding on one side
             pad = layer_padding * 2
-            n_out = math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+            # with math.floor n_out of the protoype layers has (1x1) pixels less then the
+            # convulution transformations from the encoder
+            # n_out = math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+            n_out = round((n_in - layer_filter_size + pad) / layer_stride) + 1
 
         pL = math.floor(pad / 2)
 
@@ -699,8 +702,8 @@ class EdemaNet(pl.LightningModule):
         j = protoL_rf_info[1]
         r = protoL_rf_info[2]
         start = protoL_rf_info[3]
-        assert height_index < n
-        assert width_index < n
+        assert height_index <= n
+        assert width_index <= n
 
         center_h = start + (height_index * j)
         center_w = start + (width_index * j)

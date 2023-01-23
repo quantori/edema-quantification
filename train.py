@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch
 import pytorch_lightning as pl
 
-from tools.data_classes import EdemaDataModule 
+from tools.data_classes import EdemaDataModule
 from models_edema import SqueezeNet, EdemaNet
 
 
@@ -11,7 +11,7 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
 
     # create a model
-    img_size = 300
+    img_size = 1200
     sq_net = SqueezeNet()
     edema_net_st = EdemaNet(
         encoder=sq_net, num_classes=9, prototype_shape=(9, 512, 1, 1), img_size=img_size
@@ -20,7 +20,10 @@ if __name__ == '__main__':
 
     # pull the dataset and dataloader
     datamaodlule = EdemaDataModule(
-        data_dir='C:/Users/makov/Desktop/data_edema', resize=(img_size, img_size), normalize_tensors=False
+        data_dir='C:/Users/makov/Desktop/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
+        batch_size=1,
+        resize=(img_size, img_size),
+        normalize_tensors=False,
     )
     datamaodlule.setup('fit')
     train_dataloader = datamaodlule.train_dataloader(num_workers=4)
