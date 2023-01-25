@@ -11,7 +11,7 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
 
     # create a model
-    img_size = 1200
+    img_size = 400
     sq_net = SqueezeNet()
     edema_net_st = EdemaNet(
         encoder=sq_net, num_classes=9, prototype_shape=(9, 512, 1, 1), img_size=img_size
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # pull the dataset and dataloader
     datamaodlule = EdemaDataModule(
         data_dir='C:/Users/makov/Desktop/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
-        batch_size=1,
+        batch_size=16,
         resize=(img_size, img_size),
         normalize_tensors=False,
     )
@@ -30,5 +30,7 @@ if __name__ == '__main__':
     test_dataloader = datamaodlule.test_dataloader(num_workers=4)
 
     # create the trainer and start training
-    trainer = pl.Trainer(max_epochs=9, logger=True, enable_checkpointing=False, gpus=1)
+    trainer = pl.Trainer(
+        max_epochs=20, logger=True, enable_checkpointing=False, gpus=1, log_every_n_steps=5
+    )
     trainer.fit(edema_net, train_dataloaders=train_dataloader, val_dataloaders=test_dataloader)

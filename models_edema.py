@@ -258,34 +258,34 @@ class EdemaNet(pl.LightningModule):
         else:
             self.joint()
 
-    def training_epoch_end(self, outputs):
-        # here, we have to put push_prototypes function
-        # logs costs after a training epoch
-        if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
+    # def training_epoch_end(self, outputs):
+    #     # here, we have to put push_prototypes function
+    #     # logs costs after a training epoch
+    #     if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
 
-            self.update_prototypes(self.trainer.train_dataloader.loaders)
+    #         self.update_prototypes(self.trainer.train_dataloader.loaders)
 
-            val_cost = self.custom_validation_epoch()
-            # TODO: save the model if the performance metric is better
+    #         val_cost = self.custom_validation_epoch()
+    #         # TODO: save the model if the performance metric is better
 
-            self.last_only()
-            with tqdm(
-                total=10,
-                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_cost={postfix[0][train_cost]}'
-                ' val_cost={postfix[1][val_cost]}]',
-                desc='Training last only',
-                postfix=[dict(train_cost=0), dict(val_cost=0)],
-            ) as t:
-                for i in range(10):
-                    train_cost = self.custom_train_epoch(t)
-                    val_cost = self.custom_validation_epoch(t)
-                    t.update()
+    #         self.last_only()
+    #         with tqdm(
+    #             total=10,
+    #             bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_cost={postfix[0][train_cost]}'
+    #             ' val_cost={postfix[1][val_cost]}]',
+    #             desc='Training last only',
+    #             postfix=[dict(train_cost=0), dict(val_cost=0)],
+    #         ) as t:
+    #             for i in range(10):
+    #                 train_cost = self.custom_train_epoch(t)
+    #                 val_cost = self.custom_validation_epoch(t)
+    #                 t.update()
 
-                # save model performance
-                # TODO: calculate performance and update the global performance criterium, if it is
-                # worse
+    #             # save model performance
+    #             # TODO: calculate performance and update the global performance criterium, if it is
+    #             # worse
 
-                # optionally (plot something)
+    #             # optionally (plot something)
 
     def validation_step(self, batch, batch_idx):
         cost, f1_score = self.train_val_test(batch)
