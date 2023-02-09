@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     # create the trainer and start training
     trainer = pl.Trainer(
-        max_epochs=20,
+        max_epochs=10,
         logger=True,
         enable_checkpointing=False,
         gpus=1,

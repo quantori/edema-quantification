@@ -17,7 +17,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 import cv2
 import matplotlib.pyplot as plt
-from tqdm import trange, tqdm
+from tqdm.auto import tqdm, trange
 from torchmetrics.functional.classification import multilabel_f1_score
 
 
@@ -130,9 +130,9 @@ class EdemaNet(pl.LightningModule):
         transient_layers_type: str = "bottleneck",
         top_k: int = 1,
         fine_loader: torch.utils.data.DataLoader = None,
-        num_warm_epochs: int = 2,
-        push_start: int = 2,
-        push_epochs: list = [2, 4, 6],
+        num_warm_epochs: int = 1,
+        push_start: int = 1,
+        push_epochs: list = [1, 3, 5],
         img_size=224,
     ):
         """PyTorch Lightning model class.
@@ -270,10 +270,9 @@ class EdemaNet(pl.LightningModule):
             #     desc='Validation',
             #     postfix=dict(f1_val=0),
             # ) as t:
-            # val_cost = self.custom_validation_epoch()
+            self.val_epoch(self.trainer.val_dataloaders[0])
             # TODO: save the model if the performance metric is better
 
-            self.last_only()
             # with tqdm(
             #     total=10,
             #     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_cost={postfix[0][f1_train]}'
@@ -281,18 +280,24 @@ class EdemaNet(pl.LightningModule):
             #     desc='Training last only',
             #     postfix=[dict(f1_train=0), dict(f1_val=0)],
             # ) as t:
-            for i in range(10):
-                for idx, batch in enumerate(self.trainer.train_dataloader.loaders):
-                    cost = self.training_step(batch, idx)
-                # train_cost = self.custom_train_epoch()
-                # val_cost = self.custom_validation_epoch()
-                # t.update()
+            self.train_last_only(
+                self.trainer.train_dataloader.loaders, self.trainer.val_dataloaders[0]
+            )
+            # self.train_last_only(epochs=10)
+            # for i in range(10):
+            #     # for idx, batch in enumerate(self.trainer.train_dataloader.loaders):
+            #     #     cost = self.training_step(batch, idx)
+            #     self.train_epoch(self.trainer.train_dataloader.loaders)
+            #     self.val_epoch(self.trainer.val_dataloaders[0])
+            # train_cost = self.custom_train_epoch()
+            # val_cost = self.custom_validation_epoch()
+            # t.update()
 
-                # save model performance
-                # TODO: calculate performance and update the global performance criterium, if it is
-                # worse
+            # save model performance
+            # TODO: calculate performance and update the global performance criterium, if it is
+            # worse
 
-                # optionally (plot something)
+            # optionally (plot something)
 
     def validation_step(self, batch, batch_idx):
         cost, f1_score = self.train_val_test(batch)
@@ -303,6 +308,26 @@ class EdemaNet(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         cost, f1_score = self.train_val_test(batch)
         return cost
+
+    def val_epoch(self, dataloader: DataLoader):
+        with tqdm(total=len(dataloader), desc='Validating', leave=False) as t:
+            for idx, batch in enumerate(dataloader):
+                cost = self.validation_step(batch, idx)
+                t.update()
+
+    def train_epoch(self, dataloader: DataLoader, epoch: int = 1):
+        with tqdm(total=len(dataloader), desc=f'Training last, Epoch {epoch}', leave=False) as t:
+            for idx, batch in enumerate(dataloader):
+                cost = self.training_step(batch, idx)
+                t.update()
+
+    def train_last_only(
+        self, train_dataloader: DataLoader, val_dataloader: DataLoader, epochs: int = 10
+    ):
+        self.last_only()
+        for epoch in range(epochs):
+            self.train_epoch(train_dataloader, epoch)
+            self.val_epoch(val_dataloader)
 
     # def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
     #     if self.training:
@@ -826,27 +851,29 @@ class EdemaNet(pl.LightningModule):
 
         search_batch_size = dataloader.batch_size
 
-        for push_iter, batch in enumerate(dataloader):
-            search_batch_images, search_labels = batch
-            if search_batch_images.shape[1] > 3:
-                # only imagees (the extra channels in this dimension belong to fine annot masks)
-                search_batch_images = search_batch_images[:, 0:3, :, :]
+        with tqdm(total=len(dataloader), desc='Updating prototypes', leave=False) as t:
+            for push_iter, batch in enumerate(dataloader):
+                search_batch_images, search_labels = batch
+                if search_batch_images.shape[1] > 3:
+                    # only imagees (the extra channels in this dimension belong to fine annot masks)
+                    search_batch_images = search_batch_images[:, 0:3, :, :]
 
-            start_index_of_search_batch = push_iter * search_batch_size
+                start_index_of_search_batch = push_iter * search_batch_size
 
-            self.update_prototypes_on_batch(
-                search_batch_images,
-                start_index_of_search_batch,
-                search_labels,
-                global_min_proto_dist,
-                global_min_fmap_patches,
-                proto_rf_boxes,
-                proto_bound_boxes,
-                prototype_layer_stride=prototype_layer_stride,
-                dir_for_saving_prototypes=proto_epoch_dir,
-                prototype_img_filename_prefix=prototype_img_filename_prefix,
-                prototype_self_act_filename_prefix=prototype_self_act_filename_prefix,
-            )
+                self.update_prototypes_on_batch(
+                    search_batch_images,
+                    start_index_of_search_batch,
+                    search_labels,
+                    global_min_proto_dist,
+                    global_min_fmap_patches,
+                    proto_rf_boxes,
+                    proto_bound_boxes,
+                    prototype_layer_stride=prototype_layer_stride,
+                    dir_for_saving_prototypes=proto_epoch_dir,
+                    prototype_img_filename_prefix=prototype_img_filename_prefix,
+                    prototype_self_act_filename_prefix=prototype_self_act_filename_prefix,
+                )
+                t.update()
 
         if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
             proto_rf_boxes_json = json.dumps(proto_rf_boxes)
