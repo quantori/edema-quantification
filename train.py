@@ -4,7 +4,6 @@ import pytorch_lightning as pl
 
 from tools.data_classes import EdemaDataModule
 from models_edema import SqueezeNet, EdemaNet
-from prototype_model_utils import LitProgressBar
 
 
 if __name__ == '__main__':
@@ -21,7 +20,7 @@ if __name__ == '__main__':
 
     # pull the dataset and dataloader
     datamaodlule = EdemaDataModule(
-        data_dir='C:/Users/makov/Desktop/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
+        data_dir='C:/temp/edema/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
         batch_size=16,
         resize=(img_size, img_size),
         normalize_tensors=False,
@@ -37,6 +36,5 @@ if __name__ == '__main__':
         enable_checkpointing=False,
         gpus=1,
         log_every_n_steps=5,
-        callbacks=[LitProgressBar()],
     )
     trainer.fit(edema_net, train_dataloaders=train_dataloader, val_dataloaders=test_dataloader)

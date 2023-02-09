@@ -248,8 +248,8 @@ class EdemaNet(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         # based on universal train_val_test(). Logs costs after each train step
         cost, f1_score = self.train_val_test(batch)
-        self.log('f1_score_train', f1_score, prog_bar=True)
-        self.log('train_cost', cost, prog_bar=True)
+        self.log('f1_train', f1_score, prog_bar=True)
+        self.log('train_cost', cost)
         return cost
 
     def on_train_epoch_start(self):
@@ -258,69 +258,90 @@ class EdemaNet(pl.LightningModule):
         else:
             self.joint()
 
-    # def training_epoch_end(self, outputs):
-    #     # here, we have to put push_prototypes function
-    #     # logs costs after a training epoch
-    #     if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
+    def training_epoch_end(self, outputs):
+        # here, we have to put push_prototypes function
+        # logs costs after a training epoch
+        if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
 
-    #         self.update_prototypes(self.trainer.train_dataloader.loaders)
+            self.update_prototypes(self.trainer.train_dataloader.loaders)
+            # with tqdm(
+            #     total=1,
+            #     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{postfix[f1_val]}]}',
+            #     desc='Validation',
+            #     postfix=dict(f1_val=0),
+            # ) as t:
+            # val_cost = self.custom_validation_epoch()
+            # TODO: save the model if the performance metric is better
 
-    #         val_cost = self.custom_validation_epoch()
-    #         # TODO: save the model if the performance metric is better
+            self.last_only()
+            # with tqdm(
+            #     total=10,
+            #     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_cost={postfix[0][f1_train]}'
+            #     ' val_cost={postfix[1][f1_val]}]',
+            #     desc='Training last only',
+            #     postfix=[dict(f1_train=0), dict(f1_val=0)],
+            # ) as t:
+            for i in range(10):
+                for idx, batch in enumerate(self.trainer.train_dataloader.loaders):
+                    cost = self.training_step(batch, idx)
+                # train_cost = self.custom_train_epoch()
+                # val_cost = self.custom_validation_epoch()
+                # t.update()
 
-    #         self.last_only()
-    #         with tqdm(
-    #             total=10,
-    #             bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_cost={postfix[0][train_cost]}'
-    #             ' val_cost={postfix[1][val_cost]}]',
-    #             desc='Training last only',
-    #             postfix=[dict(train_cost=0), dict(val_cost=0)],
-    #         ) as t:
-    #             for i in range(10):
-    #                 train_cost = self.custom_train_epoch(t)
-    #                 val_cost = self.custom_validation_epoch(t)
-    #                 t.update()
+                # save model performance
+                # TODO: calculate performance and update the global performance criterium, if it is
+                # worse
 
-    #             # save model performance
-    #             # TODO: calculate performance and update the global performance criterium, if it is
-    #             # worse
-
-    #             # optionally (plot something)
+                # optionally (plot something)
 
     def validation_step(self, batch, batch_idx):
         cost, f1_score = self.train_val_test(batch)
-        self.log('val_cost', cost, prog_bar=True)
-        self.log('f1_score_val', f1_score, prog_bar=True)
+        self.log('val_cost', cost)
+        self.log('f1_val', f1_score, prog_bar=True)
         return cost
 
     def test_step(self, batch, batch_idx):
         cost, f1_score = self.train_val_test(batch)
         return cost
 
-    def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
-        if self.training:
-            self.eval()
-        for batch in self.trainer.val_dataloaders[0]:
-            with torch.no_grad():
-                val_cost, f1_score = self.train_val_test(batch)
-            if t:
-                # this implementation implies that only the last cost will be saved and shown
-                t.postfix[1]['val_cost'] = round(val_cost.item(), 2)
-        return val_cost
+    # def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
+    #     if self.training:
+    #         self.eval()
+    #     with tqdm(
+    #         total=len(self.trainer.val_dataloaders[0]),
+    #         bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{postfix[f1_val]}]}',
+    #         desc='Validation',
+    #         postfix=dict(f1_val=0),
+    #     ) as t:
+    #         for batch in self.trainer.val_dataloaders[0]:
+    #             with torch.no_grad():
+    #                 val_cost, f1_val = self.train_val_test(batch)
+    #             if t:
+    #                 t.postfix['f1_val'] = round(f1_val.item(), 2)
+    #             t.update()
 
-    def custom_train_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
-        if not self.training:
-            self.train()
-        for batch in self.trainer.train_dataloader.loaders:
-            with torch.enable_grad():
-                train_cost, f1_score = self.train_val_test(batch)
-            if t:
-                # this implementation implies that only the last cost will be saved and shown
-                t.postfix[0]['train_cost'] = round(train_cost.item(), 2)
-            train_cost.backward()
-            self.trainer.optimizers[0].step()
-            self.trainer.optimizers[0].zero_grad()
-        return train_cost
+    #     return val_cost
+
+    # def custom_train_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
+    #     if not self.training:
+    #         self.train()
+    #     with tqdm(
+    #         total=len(self.trainer.train_dataloader.loaders),
+    #         bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{postfix[f1_train]}]}',
+    #         desc='Training last only',
+    #         postfix=dict(f1_train=0),
+    #     ) as t:
+    #         for batch in self.trainer.train_dataloader.loaders:
+    #             with torch.enable_grad():
+    #                 train_cost, f1_train = self.train_val_test(batch)
+    #             if t:
+    #                 # this implementation implies that only the last cost will be saved and shown
+    #                 t.postfix['f1_train'] = round(f1_train.item(), 2)
+    #             train_cost.backward()
+    #             self.trainer.optimizers[0].step()
+    #             self.trainer.optimizers[0].zero_grad()
+    #             t.update()
+    #     return train_cost
 
     def train_val_test(self, batch):
         images, labels = batch
