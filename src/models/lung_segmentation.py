@@ -1,32 +1,38 @@
-import os
 import json
 import logging
+import os
 from typing import Any
 
 import cv2
-import smp
-import torch
 import numpy as np
+import torch
 import torchvision.transforms as transforms
+
+from src import smp
 
 
 class LungSegmentation:
-    def __init__(
-            self,
-            model_dir: str,
-            threshold: float = 0.5,
-            device: str = 'auto',
-            raw_output: bool = False,
-    ) -> None:
+    """Class used to predict lungs on X-ray images."""
 
-        assert 0 <= threshold <= 1, f'Threshold should be in the range [0,1], while it is {threshold}'
+    def __init__(
+        self,
+        model_dir: str,
+        threshold: float = 0.5,
+        device: str = 'auto',
+        raw_output: bool = False,
+    ) -> None:
+        assert (
+            0 <= threshold <= 1
+        ), f'Threshold should be in the range [0,1], while it is {threshold}'
 
         # Model settings
         f = open(os.path.join(model_dir, 'config.json'))
         _model_params = json.load(f)
         model_params = _model_params['parameters']
         _input_size = model_params['input_size']
-        self.input_size = (_input_size, _input_size) if isinstance(_input_size, int) else tuple(_input_size)
+        self.input_size = (
+            (_input_size, _input_size) if isinstance(_input_size, int) else tuple(_input_size)
+        )
         self.model_name = model_params['model_name']
         self.encoder_name = model_params['encoder_name']
         self.encoder_weights = model_params['encoder_weights']
@@ -50,7 +56,7 @@ class LungSegmentation:
                     mean=self.preprocessing['mean'],
                     std=self.preprocessing['std'],
                 ),
-            ]
+            ],
         )
 
         # Build model
@@ -70,7 +76,7 @@ class LungSegmentation:
             torch.load(
                 f=os.path.join(model_dir, 'weights.pth'),
                 map_location=self.device,
-            )
+            ),
         )
         self.model.eval()
 
@@ -162,10 +168,9 @@ class LungSegmentation:
         return model
 
     def __call__(
-            self,
-            img_path: str,
+        self,
+        img_path: str,
     ) -> np.ndarray:
-
         img = cv2.imread(img_path)
         img_tensor = torch.unsqueeze(self.preprocess_image(img), dim=0).to(self.device)
         mask = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
@@ -178,9 +183,8 @@ class LungSegmentation:
 
 
 if __name__ == '__main__':
-
     model_name = 'DeepLabV3+'
-    img_path = "dataset/img/image.png"
+    img_path = 'data/demo/image.png'
     model = LungSegmentation(
         model_dir=f'models/lung_segmentation/{model_name}',
         threshold=0.50,
@@ -189,4 +193,4 @@ if __name__ == '__main__':
     )
     mask = model(img_path)
     mask = cv2.resize(mask, (1024, 1024))
-    cv2.imwrite(f'dataset/mask_{model_name}.png', mask)
+    cv2.imwrite(f'data/demo/mask_{model_name}.png', mask)
