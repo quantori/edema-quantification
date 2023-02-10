@@ -1,10 +1,10 @@
-import os
+import base64
 import logging
+import os
+import zlib
 from typing import List, Optional
 
 import cv2
-import zlib
-import base64
 import numpy as np
 import pandas as pd
 import supervisely_lib as sly
@@ -70,19 +70,18 @@ def read_sly_project(
     include_dirs: Optional[List[str]] = None,
     exclude_dirs: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    """
+    """Read the Supervisely project as a dataframe.
 
     Args:
         dataset_dir: a path to Supervisely dataset directory
         include_dirs: a list of subsets to include in the dataset
         exclude_dirs: a list of subsets to exclude from the dataset
-
     Returns:
         df: dataframe representing the dataset
     """
     logging.info(f'Dataset dir..........: {dataset_dir}')
     assert os.path.exists(dataset_dir) and os.path.isdir(
-        dataset_dir
+        dataset_dir,
     ), 'Wrong project dir: {}'.format(dataset_dir)
     project = sly.Project(
         directory=dataset_dir,
@@ -116,7 +115,7 @@ def read_sly_project(
             'img_path': img_paths,
             'ann_path': ann_paths,
             'subset': subset_list,
-        }
+        },
     )
     df.sort_values(['subset'], inplace=True)
     df.reset_index(drop=True, inplace=True)
@@ -127,17 +126,13 @@ def read_sly_project(
 def convert_base64_to_image(
     encoded_mask: str,
 ) -> np.ndarray:
-    """
-    The function convert_base64_to_image converts a base64 encoded string to a numpy array
+    """The convert_base64_to_image function converts a base64 encoded string to a numpy array.
 
     Args:
         encoded_mask: bitmap represented as a string
-
     Returns:
         mask: bitmap represented as a numpy array
-
     """
-
     z = zlib.decompress(base64.b64decode(encoded_mask))
     n = np.frombuffer(z, np.uint8)
 
@@ -154,11 +149,10 @@ def convert_base64_to_image(
 def get_class_name(
     ann: dict,
 ) -> str:
-    """
+    """Extract a class name from an annotation.
 
     Args:
         ann: a dictionary with Supervisely annotations
-
     Returns:
         class_name: name of the class for a given image
     """
@@ -174,12 +168,11 @@ def get_tag_value(
     obj: dict,
     tag_name: str,
 ) -> str:
-    """
+    """Extract a tag value from an annotation.
 
     Args:
         tag_name: tag name for searching
         obj: dictionary with information about one object from supervisely annotations
-
     Returns:
         tag_value: string with value of tag name
     """
@@ -199,11 +192,10 @@ def get_tag_value(
 def get_mask_points(
     obj: dict,
 ) -> dict:
-    """
+    """Extract a mask and a list of points from a Supervisely annotation.
 
     Args:
-        obj: dictionary with information about one object from supervisely annotations
-
+        obj: dictionary with information about one object from Supervisely annotations
     Returns:
 
     """
@@ -216,11 +208,10 @@ def get_mask_points(
 def get_object_box(
     obj: dict,
 ) -> dict:
-    """
+    """Extract box coordinates from a Supervisely annotation.
 
     Args:
         obj: dictionary with information about one object from supervisely annotations
-
     Returns:
         dictionary which contains coordinates for a rectangle (left, top, right, bottom)
     """
@@ -248,14 +239,13 @@ def get_box_sizes(
     x2: int,
     y2: int,
 ) -> dict:
-    """
+    """Extract box sizes by its coordinates.
 
     Args:
         x1: left x
         y1: top y
         x2: right x
         y2: bottom y
-
     Returns:
         dictionary which contains coordinates for rectangle (a center point and a width/height)
     """
