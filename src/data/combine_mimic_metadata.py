@@ -1,10 +1,9 @@
-import os
-import logging
 import argparse
+import logging
+import os
 from pathlib import Path
 
 import pandas as pd
-
 from utils import get_file_list
 
 os.makedirs('logs', exist_ok=True)
@@ -19,13 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 def combine_metadata(
-        metadata_csv: str,
-        findings_csv: str,
-        split_csv: str,
-        save_dir: str,
-        dataset_dir: str = None,
+    metadata_csv: str,
+    findings_csv: str,
+    split_csv: str,
+    save_dir: str,
+    dataset_dir: str = None,
 ) -> None:
-
     df_findings = pd.read_csv(findings_csv, compression='gzip')
     df_metadata = pd.read_csv(metadata_csv, compression='gzip')
     df_split = pd.read_csv(split_csv, compression='gzip')
@@ -48,7 +46,7 @@ def combine_metadata(
                 '.jpg',
                 '.jpeg',
                 '.bmp',
-            ]
+            ],
         )
         num_images = len(img_paths)
 
@@ -96,13 +94,12 @@ def combine_metadata(
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Combine metadata')
-    parser.add_argument('--metadata_csv', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-metadata.csv.gz', type=str)
-    parser.add_argument('--findings_csv', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-chexpert.csv.gz', type=str)
-    parser.add_argument('--split_csv', default='dataset/MIMIC-CXR/mimic-cxr-2.0.0-split.csv.gz', type=str)
+    parser.add_argument('--metadata_csv', default='data/raw/mimic-cxr-2.0.0-metadata.csv.gz', type=str)
+    parser.add_argument('--findings_csv', default='data/raw/mimic-cxr-2.0.0-chexpert.csv.gz', type=str)
+    parser.add_argument('--split_csv', default='data/raw/mimic-cxr-2.0.0-split.csv.gz', type=str)
     parser.add_argument('--dataset_dir', default=None, type=str)
-    parser.add_argument('--save_dir', default='dataset/MIMIC-CXR', type=str)
+    parser.add_argument('--save_dir', default='data/raw', type=str)
     args = parser.parse_args()
 
     combine_metadata(
