@@ -1,16 +1,16 @@
 {
     "parameters": {
-        "model_name": "Unet",
-        "encoder_name": "se_resnext101_32x4d",
+        "model_name": "PAN",
+        "encoder_name": "efficientnet-b0",
         "encoder_weights": "imagenet",
         "input_size": [
-            384,
-            384
+            512,
+            512
         ],
         "input_channels": 3,
         "num_classes": 1,
         "activation": "sigmoid",
-        "num_params": 55.9e6,
-        "macs": 35.6e9
+        "num_params": 4.1e6,
+        "macs": 0.3e9
     }
 }

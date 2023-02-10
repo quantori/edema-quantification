@@ -1,16 +1,16 @@
 {
     "parameters": {
-        "model_name": "DeepLabV3",
+        "model_name": "FPN",
         "encoder_name": "efficientnet-b0",
         "encoder_weights": "imagenet",
         "input_size": [
-            512,
-            512
+            544,
+            544
         ],
         "input_channels": 3,
         "num_classes": 1,
         "activation": "sigmoid",
-        "num_params": 7.3e6,
-        "macs": 13.4e9
+        "num_params": 5.8e6,
+        "macs": 9.1e9
     }
 }
