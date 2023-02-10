@@ -1,22 +1,22 @@
+import argparse
 import json
 import logging
-import argparse
 from pathlib import Path
 
-from tqdm import tqdm
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
-from tools.utils_coco import *
-from tools.utils import copy_files
-from tools.utils_sly import FIGURE_MAP
 from settings import (
-    INTERMEDIATE_DATASET_DIR,
-    EXCLUDE_CLASSES,
-    TRAIN_SIZE,
     BOX_EXTENSION,
-    SEED,
     COCO_SAVE_DIR,
+    EXCLUDE_CLASSES,
+    INTERMEDIATE_DATASET_DIR,
+    SEED,
+    TRAIN_SIZE,
 )
+from src.data.utils import copy_files
+from src.data.utils_coco import *
+from src.data.utils_sly import FIGURE_MAP
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -33,16 +33,14 @@ def get_metadata_info(
     dataset_dir: str,
     exclude_classes: List[str] = None,
 ) -> pd.DataFrame:
-    """
+    """Extract additional metadata.
 
     Args:
         dataset_dir: path to directory containing series with images and labels inside
         exclude_classes: a list of classes to exclude from the COCO dataset
-
     Returns:
         metadata_short: data frame derived from a metadata file
     """
-
     metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
     metadata = metadata[~metadata['Class'].isin(exclude_classes)]
     metadata_short = metadata[
@@ -64,17 +62,16 @@ def prepare_subsets(
     train_size: float,
     seed: int,
 ) -> dict:
-    """
+    """Split dataset with stratification into training and test subsets.
 
     Args:
         metadata_short: data frame derived from a metadata file
         train_size: a fraction used to split dataset into train and test subsets
         seed: random value for splitting train and test subsets
-
     Returns:
         subsets: dictionary which contains image/annotation paths for train and test subsets
     """
-    subsets = {
+    subsets: Dict[str, Dict[str, List[str]]] = {
         'train': {'images': [], 'labels': []},
         'test': {'images': [], 'labels': []},
     }
@@ -107,18 +104,18 @@ def prepare_subsets(
     logger.info('')
     logger.info('Overall train/test split')
     logger.info(
-        f'Subjects..................: {df_train["Subject ID"].nunique()}/{df_test["Subject ID"].nunique()}'
+        f'Subjects..................: {df_train["Subject ID"].nunique()}/{df_test["Subject ID"].nunique()}',
     )
     logger.info(
-        f'Studies...................: {df_train["Study ID"].nunique()}/{df_test["Study ID"].nunique()}'
+        f'Studies...................: {df_train["Study ID"].nunique()}/{df_test["Study ID"].nunique()}',
     )
     logger.info(f'Images....................: {len(df_train)}/{len(df_test)}')
 
     assert len(subsets['train']['images']) == len(
-        subsets['train']['labels']
+        subsets['train']['labels'],
     ), 'Mismatch length of the training subset'
     assert len(subsets['test']['images']) == len(
-        subsets['test']['labels']
+        subsets['test']['labels'],
     ), 'Mismatch length of the testing subset'
 
     return subsets
@@ -129,13 +126,12 @@ def prepare_coco(
     save_dir: str,
     box_extension: dict,
 ) -> None:
-    """
+    """Prepare and save training and test subsets in COCO format.
 
     Args:
         subsets: dictionary which contains image/annotation paths for train and test subsets
         save_dir: directory where split datasets are saved to
         box_extension: a value used to extend or contract object box sizes
-
     Returns:
         None
     """
@@ -189,7 +185,7 @@ def main(
     train_size: float = 0.8,
     seed: int = 11,
 ) -> None:
-    """
+    """Convert intermediate dataset to COCO.
 
     Args:
         dataset_dir: path to directory containing series with images and labels inside
@@ -198,11 +194,9 @@ def main(
         train_size: a fraction used to split dataset into train and test subsets
         box_extension: a value used to extend or contract object box sizes
         seed: random value for splitting train and test subsets
-
     Returns:
         None
     """
-
     logger.info(f'Input directory...........: {dataset_dir}')
     logger.info(f'Excluded classes...........: {exclude_classes}')
     logger.info(f'Train/Test split..........: {train_size:.2f} / {(1 - train_size):.2f}')
@@ -220,7 +214,6 @@ def main(
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Intermediate-to-COCO dataset conversion')
     parser.add_argument('--dataset_dir', default=INTERMEDIATE_DATASET_DIR, type=str)
     parser.add_argument('--exclude_classes', default=EXCLUDE_CLASSES, type=str)
