@@ -1,15 +1,15 @@
-import os
-import logging
 import argparse
+import logging
+import os
+from functools import partial
 from pathlib import Path
 from typing import Tuple
-from functools import partial
-from joblib import Parallel, delayed
 
 import cv2
 import imutils
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from tqdm import tqdm
 
 os.makedirs('logs', exist_ok=True)
@@ -24,11 +24,10 @@ logger = logging.getLogger(__name__)
 
 
 def stack_single_study(
-        group: Tuple[int, pd.DataFrame],
-        img_height: int,
-        save_dir: str,
+    group: Tuple[int, pd.DataFrame],
+    img_height: int,
+    save_dir: str,
 ) -> pd.DataFrame:
-
     _, df_study = group
     df_study.reset_index(drop=True, inplace=True)
 
@@ -64,7 +63,7 @@ def stack_single_study(
     dicom_id_frontal = df_frontal.iloc[0]['DICOM ID']
     dicom_id_lateral = df_lateral.iloc[0]['DICOM ID']
     dicom_id_idx = df_out.columns.get_loc('DICOM ID')
-    df_out.insert(dicom_id_idx+1, 'DICOM ID LL', dicom_id_lateral)
+    df_out.insert(dicom_id_idx + 1, 'DICOM ID LL', dicom_id_lateral)
     df_out.at[0, 'DICOM ID'] = dicom_id_frontal
     df_out.rename(columns={'DICOM ID': 'DICOM ID FR'}, inplace=True)
 
@@ -84,25 +83,21 @@ def stack_single_study(
 
 
 def stack_images(
-        dataset_dir: str,
-        exclude_devices: bool,
-        img_height: int,
-        save_dir: str,
+    dataset_dir: str,
+    exclude_devices: bool,
+    img_height: int,
+    save_dir: str,
 ) -> None:
-
-    """
-    Stack frontal and lateral images and save them
+    """Stack frontal and lateral images and save them.
 
     Args:
-        dataset_dir: a path to the dataset directory with filtered images
+        dataset_dir: a path to the data directory with filtered images
         exclude_devices: exclude images with support devices
         img_height: the height of the output images
         save_dir: a path to directory where the output files will be saved
-
     Returns:
         None
     """
-
     # Read dataset metadata
     metadata_path = os.path.join(dataset_dir, 'metadata.csv')
     df = pd.read_csv(metadata_path)
@@ -123,7 +118,8 @@ def stack_images(
         save_dir=save_dir,
     )
     result = Parallel(n_jobs=-1)(
-        delayed(processing_func)(group) for group in tqdm(groups, desc='Stacking images', unit=' study')
+        delayed(processing_func)(group)
+        for group in tqdm(groups, desc='Stacking images', unit=' study')
     )
     df_out = pd.concat(result)
     df_out.reset_index(drop=True, inplace=True)
@@ -136,12 +132,11 @@ def stack_images(
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Stack frontal and lateral images')
-    parser.add_argument('--dataset_dir', default='dataset/MIMIC-CXR-Edema', type=str)
+    parser.add_argument('--dataset_dir', default='data/edema', type=str)
     parser.add_argument('--exclude_devices', action='store_true')
     parser.add_argument('--img_height', default=2000, type=int)
-    parser.add_argument('--save_dir', default='dataset/MIMIC-CXR-Edema-Stacked', type=str)
+    parser.add_argument('--save_dir', default='data/edema_stacked', type=str)
     args = parser.parse_args()
 
     stack_images(
