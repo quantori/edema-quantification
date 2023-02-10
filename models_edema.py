@@ -247,10 +247,10 @@ class EdemaNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # based on universal train_val_test(). Logs costs after each train step
-        cost, f1_score = self.train_val_test(batch)
-        self.log('f1_train', f1_score, prog_bar=True)
-        self.log('train_cost', cost)
-        return cost
+        loss, f1_train = self.train_val_test(batch)
+        self.log('f1_train', f1_train, prog_bar=True)
+        self.log('train_cost', loss)
+        return {'loss': loss, 'f1_train': f1_train}
 
     def on_train_epoch_start(self):
         if self.current_epoch < self.num_warm_epochs:
@@ -316,9 +316,19 @@ class EdemaNet(pl.LightningModule):
                 t.update()
 
     def train_epoch(self, dataloader: DataLoader, epoch: int = 1):
-        with tqdm(total=len(dataloader), desc=f'Training last, Epoch {epoch}', leave=False) as t:
+        with tqdm(
+            total=len(dataloader),
+            desc=f'Training last, Epoch {epoch}',
+            leave=False,
+            dynamic_ncols=True,
+            bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [loss={postfix[0][loss]}'
+            ' f1_train={postfix[1][f1_train]}]',
+            postfix=[dict(loss=0), dict(f1_train=0)],
+        ) as t:
             for idx, batch in enumerate(dataloader):
-                cost = self.training_step(batch, idx)
+                preds = self.training_step(batch, idx)
+                t.postfix[0]['loss'] = preds['loss']
+                t.postfix[1]['f1_train'] = preds['f1_train']
                 t.update()
 
     def train_last_only(
