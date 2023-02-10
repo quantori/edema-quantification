@@ -1,33 +1,28 @@
-import os
-import logging
 import argparse
-from pathlib import Path
+import logging
+import os
 from functools import partial
-from joblib import Parallel, delayed
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 import cv2
 import pandas as pd
-from tqdm import tqdm
 import supervisely_lib as sly
-from typing import List, Optional, Tuple
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
-from settings import (
-    SUPERVISELY_DATASET_DIR,
-    INCLUDE_DIRS,
-    EXCLUDE_DIRS,
-    INTERMEDIATE_SAVE_DIR,
-)
-from tools.utils_sly import (
+from settings import EXCLUDE_DIRS, INCLUDE_DIRS, INTERMEDIATE_SAVE_DIR, SUPERVISELY_DATASET_DIR
+from src.data.utils_sly import (
+    ANNOTATION_COLUMNS,
     CLASS_MAP,
     FIGURE_MAP,
     METADATA_COLUMNS,
-    ANNOTATION_COLUMNS,
-    read_sly_project,
-    get_class_name,
-    get_tag_value,
-    get_object_box,
     get_box_sizes,
+    get_class_name,
     get_mask_points,
+    get_object_box,
+    get_tag_value,
+    read_sly_project,
 )
 
 os.makedirs('logs', exist_ok=True)
@@ -45,12 +40,11 @@ def process_image(
     row: pd.Series,
     save_dir_img: str,
 ) -> dict:
-    """
+    """Process a single image.
 
     Args:
         row: series with information about one image
         save_dir_img: directory where the output frontal images will be saved
-
     Returns:
         dictionary with information about one image
     """
@@ -80,13 +74,12 @@ def process_annotation(
     save_dir_ann: str,
     img_info: dict,
 ) -> pd.DataFrame:
-    """
+    """Process a single annotation.
 
     Args:
         row: series with information about one image
         save_dir_ann: directory where the output annotations will be saved
         img_info: dictionary with information about one image
-
     Returns:
         dataframe with metadata for one image
     """
@@ -98,10 +91,11 @@ def process_annotation(
     ann = sly.io.json.load_json_file(ann_path)
     class_name = get_class_name(ann)
 
-    if (
-            len(ann['objects']) > 0
-            and class_name in ['Vascular congestion', 'Interstitial edema', 'Alveolar edema']
-    ):
+    if len(ann['objects']) > 0 and class_name in [
+        'Vascular congestion',
+        'Interstitial edema',
+        'Alveolar edema',
+    ]:
         for obj in ann['objects']:
             logger.debug(f'Processing object {obj}')
 
@@ -150,10 +144,7 @@ def process_annotation(
             column=col.name,
             value=col,
         )
-    elif (
-            len(ann['objects']) == 0
-            and class_name == 'No edema'
-    ):
+    elif len(ann['objects']) == 0 and class_name == 'No edema':
         ann_info = {
             'Class ID': CLASS_MAP[class_name],
         }
@@ -191,13 +182,12 @@ def process_sample(
     save_dir_ann: str,
     save_dir_img: str,
 ) -> pd.DataFrame:
-    """
+    """Process a single sample.
 
     Args:
         row: series with information about one image
         save_dir_ann: directory where the output annotation will be saved
         save_dir_img: directory where the output frontal images will be saved
-
     Returns:
         dataframe with metadata for one image
     """
@@ -210,7 +200,7 @@ def process_sample(
 def create_save_dirs(
     save_dir: str,
 ) -> Tuple[str, str]:
-    """
+    """Create directories for images and annotations.
 
     Args:
         save_dir: directory where the output files will be saved
@@ -233,12 +223,11 @@ def save_metadata(
     metadata: pd.DataFrame,
     save_dir: str,
 ) -> None:
-    """
+    """Save metadata for an intermediate dataset.
 
     Args:
         metadata: dataframe with metadata for all images
         save_dir: directory where the output files will be saved
-
     Returns:
         None
     """
@@ -261,18 +250,16 @@ def main(
     include_dirs: Optional[List[str]] = None,
     exclude_dirs: Optional[List[str]] = None,
 ) -> None:
-    """
+    """Convert Supervisely dataset into Intermediate.
 
     Args:
         dataset_dir: a path to Supervisely dataset directory
         include_dirs: a list of subsets to include in the dataset
         exclude_dirs: a list of subsets to exclude from the dataset
         save_dir: directory where the output files will be saved
-
     Returns:
         None
     """
-
     df = read_sly_project(
         dataset_dir=dataset_dir,
         include_dirs=include_dirs,
@@ -302,7 +289,6 @@ def main(
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Supervisely-to-Intermediate dataset conversion')
     parser.add_argument('--dataset_dir', default=SUPERVISELY_DATASET_DIR, type=str)
     parser.add_argument('--include_dirs', nargs='+', default=INCLUDE_DIRS, type=str)
