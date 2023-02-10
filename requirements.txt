@@ -19,6 +19,7 @@ scipy==1.9.3
 supervisely==6.68.10
 timm==0.6.12                     # Linknet and PSPNet are not tested with timm > 0.3.2
 toml==0.10.2
+tomli==2.0.1
 torch==1.13.0                    # Linknet and PSPNet are not working with torch > 1.8.1
 torchvision==0.14.0
 tqdm==4.64.0
