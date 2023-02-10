@@ -1,14 +1,15 @@
-import os
-import logging
 import argparse
+import logging
+import os
 from pathlib import Path
 from typing import Tuple
 
 import cv2
 from tqdm import tqdm
 
-from tools.models import LungSegmentation
-from tools.utils import BorderExtractor, get_file_list
+from src.data.utils import get_file_list
+from src.models.border_extractor import BorderExtractor
+from src.models.lung_segmentation import LungSegmentation
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
@@ -29,7 +30,6 @@ def lung_segmentation(
     thresh_method: str = 'otsu',
     thresh_val: int = None,
 ) -> None:
-
     map_dir = os.path.join(save_dir, 'map')
     mask_dir = os.path.join(save_dir, 'mask')
     border_dir = os.path.join(save_dir, 'delineation')
@@ -96,14 +96,13 @@ def lung_segmentation(
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='Boundary extraction')
-    parser.add_argument('--img_dir', default='dataset/lung_segmentation/input', type=str)
-    parser.add_argument('--model_dir', default='models/lung_segmentation_models/DeepLabV3+', type=str)
+    parser.add_argument('--img_dir', default='data/lung_segmentation/input', type=str)
+    parser.add_argument('--model_dir', default='models/lung_segmentation/DeepLabV3+', type=str)
     parser.add_argument('--output_size', default=(1024, 1024), type=int, nargs='+')
     parser.add_argument('--threshold_method', default='otsu', type=str, choices=['otsu', 'triangle', 'manual'])
     parser.add_argument('--threshold_value', type=int, default=None)
-    parser.add_argument('--save_dir', default='dataset/output', type=str)
+    parser.add_argument('--save_dir', default='data/output', type=str)
     args = parser.parse_args()
 
     if args.save_dir is None:
