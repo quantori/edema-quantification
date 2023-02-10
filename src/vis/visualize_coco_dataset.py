@@ -14,20 +14,18 @@ def main(
     shuffle: bool = False,
     seed: int = 11,
 ) -> None:
+    """Visualize a COCO dataset to verify its correctness.
 
-    """
     Args:
-        dataset_dir: a directory with COCO dataset including train and test subsets
+        dataset_dir: a directory with COCO data, including training and test subsets
         subset: a name of subset i.e. train or test
         dataset_name: a name for the dataset
         max_samples: a maximum number of samples to import. By default, all samples are imported
         shuffle: whether to randomly shuffle the order in which the samples are imported
         seed: a random seed to use when shuffling
-
     Returns:
         None
     """
-
     subset_dir = os.path.join(dataset_dir, subset)
     try:
         dataset = fo.Dataset.from_dir(
@@ -47,7 +45,6 @@ def main(
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(description='COCO dataset visualization')
     parser.add_argument('--dataset_dir', default=COCO_SAVE_DIR, type=str)
     parser.add_argument('--subset', default='train', type=str)
