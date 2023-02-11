@@ -4,10 +4,10 @@ from typing import List
 SUPERVISELY_DATASET_DIR = 'data/sly'
 INCLUDE_DIRS: List[str] = []
 EXCLUDE_DIRS: List[str] = []
-INTERMEDIATE_SAVE_DIR = 'data/intermediate'
+INTERMEDIATE_SAVE_DIR = 'data/interim'
 
 # Intermediate to COCO
-INTERMEDIATE_DATASET_DIR = 'data/intermediate'
+INTERMEDIATE_DATASET_DIR = 'data/interim'
 COCO_SAVE_DIR = 'data/coco'
 EXCLUDE_CLASSES: List[str] = []
 TRAIN_SIZE = 0.8
