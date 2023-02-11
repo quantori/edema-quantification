@@ -1,5 +1,0 @@
-wdir: ../../dataset
-outs:
-- md5: 6072ae105e3275395564315368b400d5
-  size: 13757118918
-  path: MIMIC-CXR-Healthy.zip
