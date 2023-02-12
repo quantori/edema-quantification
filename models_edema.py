@@ -5,7 +5,7 @@ The description to be filled...
 import os
 import math
 import json
-from typing import Optional
+from typing import Optional, Dict
 
 from typing import Tuple
 import torch
@@ -249,7 +249,7 @@ class EdemaNet(pl.LightningModule):
         # based on universal train_val_test(). Logs costs after each train step
         loss, f1_train = self.train_val_test(batch)
         self.log('f1_train', f1_train, prog_bar=True)
-        self.log('train_cost', loss)
+        self.log('train_loss', loss)
         return {'loss': loss, 'f1_train': f1_train}
 
     def on_train_epoch_start(self):
@@ -300,44 +300,74 @@ class EdemaNet(pl.LightningModule):
             # optionally (plot something)
 
     def validation_step(self, batch, batch_idx):
-        cost, f1_score = self.train_val_test(batch)
-        self.log('val_cost', cost)
-        self.log('f1_val', f1_score, prog_bar=True)
-        return cost
+        loss, f1_val = self.train_val_test(batch)
+        self.log('f1_val', f1_val, prog_bar=True)
+        self.log('val_loss', loss)
+        return {'loss': loss, 'f1_val': f1_val}
 
     def test_step(self, batch, batch_idx):
         cost, f1_score = self.train_val_test(batch)
         return cost
 
-    def val_epoch(self, dataloader: DataLoader):
-        with tqdm(total=len(dataloader), desc='Validating', leave=False) as t:
+    def val_epoch(self, dataloader: DataLoader, t: Optional[tqdm] = None):
+        with tqdm(total=len(dataloader), desc='Validating', leave=False) as t1:
             for idx, batch in enumerate(dataloader):
-                cost = self.validation_step(batch, idx)
-                t.update()
+                preds = self.validation_step(batch, idx)
+                t1.update()
+            if t:
+                t.set_postfix(preds)
+                t.n += idx + 1
+                t.refresh()
 
-    def train_epoch(self, dataloader: DataLoader, epoch: int = 1):
-        with tqdm(
-            total=len(dataloader),
-            desc=f'Training last, Epoch {epoch}',
-            leave=False,
-            dynamic_ncols=True,
-            bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [loss={postfix[0][loss]}'
-            ' f1_train={postfix[1][f1_train]}]',
-            postfix=[dict(loss=0), dict(f1_train=0)],
-        ) as t:
-            for idx, batch in enumerate(dataloader):
-                preds = self.training_step(batch, idx)
-                t.postfix[0]['loss'] = preds['loss']
-                t.postfix[1]['f1_train'] = preds['f1_train']
-                t.update()
+    def train_epoch(self, dataloader: DataLoader, t: tqdm):
+        # with tqdm(
+        #     total=len(dataloader),
+        #     desc=f'Training last, Epoch {epoch}',
+        #     leave=False,
+        #     dynamic_ncols=True,
+        #     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [loss={postfix[0][loss]}'
+        #     ' f1_train={postfix[1][f1_train]}]',
+        #     postfix=[dict(loss=0), dict(f1_train=0)],
+        # ) as t:
+        for idx, batch in enumerate(dataloader):
+            preds = self.training_step(batch, idx)
+            preds = self.refactor_train_dict(preds)
+            t.set_postfix(preds)
+            t.n = idx + 1
+            t.refresh()
 
     def train_last_only(
         self, train_dataloader: DataLoader, val_dataloader: DataLoader, epochs: int = 10
     ):
         self.last_only()
-        for epoch in range(epochs):
-            self.train_epoch(train_dataloader, epoch)
-            self.val_epoch(val_dataloader)
+        with tqdm(
+            # total=len(train_dataloader) + len(val_dataloader),
+            leave=True,
+            dynamic_ncols=True,
+            position=1
+            # # bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [loss={postfix[0][loss]}'
+            # # ' f1_train={postfix[1][f1_train]}]',
+            # postfix=[dict(loss=0), dict(f1_train=0)],
+        ) as t:
+            total = len(train_dataloader) + len(val_dataloader)
+            for epoch in range(epochs):
+                t.reset(total=total)
+                t.initial = 0
+                t.set_description(f'Training last, Epoch {epoch}')
+                self.train_epoch(train_dataloader, t)
+                self.val_epoch(val_dataloader, t)
+
+    def refactor_train_dict(self, d: Dict) -> Dict:
+        d['loss_train'] = d['loss'].item()
+        d['f1_train'] = d['f1_train'].item()
+        del d['loss']
+        return d
+
+    def refactor_val_dict(self, d: Dict) -> Dict:
+        d['loss_val'] = d['loss'].item()
+        d['f1_val'] = d['f1_val'].item()
+        del d['loss']
+        return d
 
     # def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
     #     if self.training:
