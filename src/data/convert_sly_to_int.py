@@ -11,7 +11,14 @@ import supervisely_lib as sly
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from settings import EXCLUDE_DIRS, INCLUDE_DIRS, INTERMEDIATE_SAVE_DIR, SUPERVISELY_DATASET_DIR
+from settings import (
+    EXCLUDE_DIRS,
+    INCLUDE_DIRS,
+    INTERMEDIATE_SAVE_DIR,
+    SUPERVISELY_DATASET_DIR,
+    FIGURE_TYPE,
+)
+
 from src.data.utils_sly import (
     ANNOTATION_COLUMNS,
     CLASS_MAP,
@@ -128,6 +135,9 @@ def process_annotation(
                 'Annotation path': ann_path,
                 'Figure ID': FIGURE_MAP[figure_name],
                 'Figure': figure_name,
+                'Figure type': obj['geometryType'],
+                'Reference Figure type': FIGURE_TYPE[figure_name],
+                'Figure type Match': obj['geometryType'] == FIGURE_TYPE[figure_name],
                 'RP': rp,
                 'Class ID': CLASS_MAP[class_name],
                 'Class': class_name,
