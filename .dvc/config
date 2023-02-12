@@ -2,4 +2,4 @@
     remote = storage
     autostage = true
 ['remote "storage"']
-    url = s3://qtr-ml-projects/edema_quantification/dvc
+    url = s3://qtr-ml-projects/edema-quantification/dvc
