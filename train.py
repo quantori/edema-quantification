@@ -4,13 +4,14 @@ import pytorch_lightning as pl
 
 from tools.data_classes import EdemaDataModule
 from models_edema import SqueezeNet, EdemaNet
+from prototype_model_utils import PNetProgressBar
 
 
 if __name__ == '__main__':
     # clean the gpu cache
     torch.cuda.empty_cache()
 
-    # create a model
+    # create the model
     img_size = 400
     sq_net = SqueezeNet()
     edema_net_st = EdemaNet(
@@ -29,12 +30,13 @@ if __name__ == '__main__':
     train_dataloader = datamaodlule.train_dataloader(num_workers=4)
     test_dataloader = datamaodlule.test_dataloader(num_workers=4)
 
-    # create the trainer and start training
+    # create trainer and start training
     trainer = pl.Trainer(
         max_epochs=10,
         logger=True,
         enable_checkpointing=False,
         gpus=1,
         log_every_n_steps=5,
+        callbacks=[PNetProgressBar()],
     )
     trainer.fit(edema_net, train_dataloaders=train_dataloader, val_dataloaders=test_dataloader)

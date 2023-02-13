@@ -5,7 +5,8 @@ The description to be filled...
 import os
 import math
 import json
-from typing import Optional, Dict
+from typing import Optional, Dict, List
+from collections import OrderedDict
 
 from typing import Tuple
 import torch
@@ -130,9 +131,9 @@ class EdemaNet(pl.LightningModule):
         transient_layers_type: str = "bottleneck",
         top_k: int = 1,
         fine_loader: torch.utils.data.DataLoader = None,
-        num_warm_epochs: int = 1,
-        push_start: int = 1,
-        push_epochs: list = [1, 3, 5],
+        num_warm_epochs: int = 0,
+        push_start: int = 0,
+        push_epochs: list = [0, 2, 4],
         img_size=224,
     ):
         """PyTorch Lightning model class.
@@ -255,8 +256,10 @@ class EdemaNet(pl.LightningModule):
     def on_train_epoch_start(self):
         if self.current_epoch < self.num_warm_epochs:
             self.warm_only()
+            print('warm up', end='\r')
         else:
             self.joint()
+            print('joint', end='\r')
 
     def training_epoch_end(self, outputs):
         # here, we have to put push_prototypes function
@@ -309,13 +312,16 @@ class EdemaNet(pl.LightningModule):
         cost, f1_score = self.train_val_test(batch)
         return cost
 
-    def val_epoch(self, dataloader: DataLoader, t: Optional[tqdm] = None):
+    def val_epoch(self, dataloader: DataLoader, t: Optional[tqdm] = None) -> Dict:
         with tqdm(total=len(dataloader), desc='Validating', leave=False) as t1:
             for idx, batch in enumerate(dataloader):
                 preds = self.validation_step(batch, idx)
                 t1.update()
             if t:
-                t.set_postfix(preds)
+                preds = self.refactor_val_dict(preds)
+                to_postfix = self.str_to_dict(t.postfix)
+                to_postfix.update({'f1_val': round(preds['f1_val'], 3)})
+                t.set_postfix(to_postfix)
                 t.n += idx + 1
                 t.refresh()
 
@@ -332,19 +338,24 @@ class EdemaNet(pl.LightningModule):
         for idx, batch in enumerate(dataloader):
             preds = self.training_step(batch, idx)
             preds = self.refactor_train_dict(preds)
-            t.set_postfix(preds)
+            if t.postfix is not None:
+                to_postfix = self.str_to_dict(t.postfix)
+                to_postfix.update(preds)
+                t.set_postfix(to_postfix)
+            else:
+                t.set_postfix(preds)
             t.n = idx + 1
             t.refresh()
 
     def train_last_only(
-        self, train_dataloader: DataLoader, val_dataloader: DataLoader, epochs: int = 10
+        self, train_dataloader: DataLoader, val_dataloader: DataLoader, epochs: int = 2
     ):
         self.last_only()
         with tqdm(
             # total=len(train_dataloader) + len(val_dataloader),
-            leave=True,
+            leave=False,
             dynamic_ncols=True,
-            position=1
+            position=2
             # # bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [loss={postfix[0][loss]}'
             # # ' f1_train={postfix[1][f1_train]}]',
             # postfix=[dict(loss=0), dict(f1_train=0)],
@@ -356,17 +367,30 @@ class EdemaNet(pl.LightningModule):
                 t.set_description(f'Training last, Epoch {epoch}')
                 self.train_epoch(train_dataloader, t)
                 self.val_epoch(val_dataloader, t)
+            t.close()
 
-    def refactor_train_dict(self, d: Dict) -> Dict:
-        d['loss_train'] = d['loss'].item()
-        d['f1_train'] = d['f1_train'].item()
-        del d['loss']
-        return d
+    def refactor_train_dict(self, d: Dict[str, torch.Tensor]) -> Dict[str, float]:
+        d_new = {}
+        d_new['loss_train'] = d['loss'].item()
+        d_new['f1_train'] = d['f1_train'].item()
+        del d
+        return d_new
 
-    def refactor_val_dict(self, d: Dict) -> Dict:
-        d['loss_val'] = d['loss'].item()
-        d['f1_val'] = d['f1_val'].item()
-        del d['loss']
+    def refactor_val_dict(self, d: Dict[str, torch.Tensor]) -> Dict[str, float]:
+        d_new = {}
+        d_new['loss_val'] = d['loss'].item()
+        d_new['f1_val'] = d['f1_val'].item()
+        del d
+        return d_new
+
+    def str_to_dict(self, string: str) -> Dict[str, float]:
+        # pattern for string -- 'f1_train=0.001, loss_train=0.001, ...'
+        d = {}
+        splitted_str = string.split(',')
+        for sub in splitted_str:
+            sub = sub.strip()
+            sub = sub.split('=')
+            d.update({sub[0]: sub[1]})
         return d
 
     # def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
@@ -1184,26 +1208,12 @@ class EdemaNet(pl.LightningModule):
                             vmax=1.0,
                         )
 
-        del class_to_img_index_dict
 
-
-if __name__ == "__main__":
-
-    torch.cuda.empty_cache()
-
+if __name__ == '__main__':
     sq_net = SqueezeNet()
-
-    edema_net_st = EdemaNet(sq_net, 9, prototype_shape=(9, 512, 1, 1), img_size=300)
-    edema_net = edema_net_st.cuda()
-
-    images = torch.rand(32, 3, 300, 300)
-    images = images.cuda()
-    x = edema_net.encoder(images)
-    print(x.shape)
-    x = edema_net.transient_layers(x)
-    print(x.shape)
-
-    print(edema_net.proto_layer_rf_info)
+    ed_net = EdemaNet(sq_net, 9, (9, 512, 1, 1))
+    string = 'f1_train=0.001, f1_val=0.001'
+    print(ed_net.str_to_dict(string=string))
     # logits, _, _ = edema_net.forward(images)
     # prop = torch.nn.functional.softmax(logits, dim=1)
 
