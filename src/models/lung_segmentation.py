@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 
-from src import smp
+from src.models import smp
 
 
 class LungSegmentation:
@@ -184,7 +184,7 @@ class LungSegmentation:
 
 if __name__ == '__main__':
     model_name = 'DeepLabV3+'
-    img_path = 'data/demo/image.png'
+    img_path = 'data/demo/input/10000032_50414267.png'
     model = LungSegmentation(
         model_dir=f'models/lung_segmentation/{model_name}',
         threshold=0.50,
