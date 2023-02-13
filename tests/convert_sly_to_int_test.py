@@ -3,11 +3,11 @@ import os
 from src.data.convert_sly_to_int import create_save_dirs
 from src.data.utils_sly import get_box_sizes, get_class_name, get_object_box, get_tag_value
 
-dataset_dir_test = './../data/sly/DS1'
+dataset_dir_test = 'data/sly/DS1'
 dataset_ann_dir_test = os.path.join(dataset_dir_test, 'ann')
 dataset_img_dir_test = os.path.join(dataset_dir_test, 'img')
 
-save_dir_test = './../data/intermediate_test'
+save_dir_test = 'data/interim_test'
 save_ann_dir_test = os.path.join(save_dir_test, 'ann')
 save_img_dir_test = os.path.join(save_dir_test, 'img')
 
