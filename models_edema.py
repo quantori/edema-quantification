@@ -3,6 +3,7 @@
 The description to be filled...
 """
 import os
+import sys
 import math
 import json
 from typing import Optional, Dict, List
@@ -256,10 +257,8 @@ class EdemaNet(pl.LightningModule):
     def on_train_epoch_start(self):
         if self.current_epoch < self.num_warm_epochs:
             self.warm_only()
-            print('warm up', end='\r')
         else:
             self.joint()
-            print('joint', end='\r')
 
     def training_epoch_end(self, outputs):
         # here, we have to put push_prototypes function
@@ -313,7 +312,7 @@ class EdemaNet(pl.LightningModule):
         return cost
 
     def val_epoch(self, dataloader: DataLoader, t: Optional[tqdm] = None) -> Dict:
-        with tqdm(total=len(dataloader), desc='Validating', leave=False) as t1:
+        with tqdm(total=len(dataloader), desc='Validating', position=3, leave=False) as t1:
             for idx, batch in enumerate(dataloader):
                 preds = self.validation_step(batch, idx)
                 t1.update()
@@ -351,11 +350,18 @@ class EdemaNet(pl.LightningModule):
         self, train_dataloader: DataLoader, val_dataloader: DataLoader, epochs: int = 2
     ):
         self.last_only()
+        self.trainer.progress_bar_callback.status_bar.set_description_str(
+            f'JOINT, REQUIRES GRAD: Encoder ({self.encoder.requires_grad}), \
+                Transient layers {self.transient_layers.requires_grad}(), \
+                Protorype layer ({self.prototype_layer.requires_grad}), \
+                Last layer ({self.last_layer.requires_grad})'
+        )
         with tqdm(
             # total=len(train_dataloader) + len(val_dataloader),
             leave=False,
             dynamic_ncols=True,
-            position=2
+            position=3,
+            file=sys.stdout,
             # # bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [loss={postfix[0][loss]}'
             # # ' f1_train={postfix[1][f1_train]}]',
             # postfix=[dict(loss=0), dict(f1_train=0)],
@@ -915,7 +921,7 @@ class EdemaNet(pl.LightningModule):
 
         search_batch_size = dataloader.batch_size
 
-        with tqdm(total=len(dataloader), desc='Updating prototypes', leave=False) as t:
+        with tqdm(total=len(dataloader), desc='Updating prototypes', position=3, leave=False) as t:
             for push_iter, batch in enumerate(dataloader):
                 search_batch_images, search_labels = batch
                 if search_batch_images.shape[1] > 3:
