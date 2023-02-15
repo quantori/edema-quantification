@@ -153,7 +153,7 @@ def get_class_name(
     if ann['tags']:
         class_name = ann['tags'][0]['value']
     else:
-        logging.warning(f'No class tags available {ann}')
+        # logging.warning(f'No class tags available {ann}')
         class_name = ''
     return class_name
 
@@ -175,10 +175,10 @@ def get_tag_value(
         if tag_value_list:
             tag_value = tag_value_list[0]
         else:
-            logging.warning(f'No {tag_name} value in {obj}')
+            # logging.warning(f'No {tag_name} value in {obj}')
             tag_value = ''
     else:
-        logging.warning(f'No {tag_name} value in {obj}')
+        # logging.warning(f'No {tag_name} value in {obj}')
         tag_value = ''
     return tag_value
 

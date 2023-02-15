@@ -135,8 +135,8 @@ def process_annotation(
         obj_info.update(img_info)
         meta = meta.append(obj_info, ignore_index=True)
 
-    else:
-        logger.warning(f'No objects or classes available for image {Path(img_path).name}')
+    # else:
+    #     logger.warning(f'No objects or classes available for image {Path(img_path).name}')
 
     return meta
 
