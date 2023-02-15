@@ -33,12 +33,16 @@ FIGURE_MAP_REVERSED = dict((v, k) for k, v in FIGURE_MAP.items())
 
 METADATA_COLUMNS = [
     'Image path',
+    'Image name',
     'Subject ID',
     'Study ID',
     'Image width',
     'Image height',
     'Figure ID',
     'Figure',
+    'Source type',
+    'Reference type',
+    'Match',
     'x1',
     'y1',
     'x2',
@@ -52,16 +56,6 @@ METADATA_COLUMNS = [
     'Points',
     'Class ID',
     'Class',
-]
-
-ANNOTATION_COLUMNS = [
-    'Class ID',
-    'Figure ID',
-    'RP',
-    'x1',
-    'y1',
-    'x2',
-    'y2',
 ]
 
 
