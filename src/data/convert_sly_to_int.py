@@ -3,7 +3,7 @@ import logging
 import os
 from functools import partial
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import cv2
 import pandas as pd
@@ -19,7 +19,6 @@ from settings import (
     SUPERVISELY_DATASET_DIR,
 )
 from src.data.utils_sly import (
-    ANNOTATION_COLUMNS,
     CLASS_MAP,
     FIGURE_MAP,
     METADATA_COLUMNS,
@@ -44,13 +43,13 @@ logger = logging.getLogger(__name__)
 
 def process_image(
     row: pd.Series,
-    save_dir_img: str,
+    save_dir: str,
 ) -> dict:
     """Process a single image.
 
     Args:
         row: series with information about one image
-        save_dir_img: directory where the output frontal images will be saved
+        save_dir: directory where the output frontal images and metadata will be stored
     Returns:
         dictionary with information about one image
     """
@@ -63,11 +62,15 @@ def process_image(
     height = img.shape[0]
     width = int(width_frontal)
     img = img[0:height, 0:width]
+
+    save_dir_img = os.path.join(save_dir, 'img')
+    os.makedirs(save_dir_img, exist_ok=True)
     img_path = os.path.join(save_dir_img, f'{subject_id}_{study_id}.png')
     cv2.imwrite(img_path, img)
 
     return {
         'Image path': img_path,
+        'Image name': Path(img_path).name,
         'Subject ID': subject_id,
         'Study ID': study_id,
         'Image width': width,
@@ -77,22 +80,19 @@ def process_image(
 
 def process_annotation(
     row: pd.Series,
-    save_dir_ann: str,
     img_info: dict,
 ) -> pd.DataFrame:
     """Process a single annotation.
 
     Args:
         row: series with information about one image
-        save_dir_ann: directory where the output annotations will be saved
         img_info: dictionary with information about one image
     Returns:
-        dataframe with metadata for one image
+        meta: dataframe with metadata for one image
     """
-    logger.info('Preparing metadata and annotation')
+    logger.info('Preparing metadata')
     (img_path, ann_path), row = row
-    img_metadata = pd.DataFrame(columns=METADATA_COLUMNS)
-    ann_metadata = pd.DataFrame(columns=ANNOTATION_COLUMNS)
+    meta = pd.DataFrame(columns=METADATA_COLUMNS)
 
     ann = sly.io.json.load_json_file(ann_path)
     class_name = get_class_name(ann)
@@ -111,32 +111,12 @@ def process_annotation(
             box = get_box_sizes(*xy.values())
             figure_name = obj['classTitle']
 
-            ann_info = {
-                'Class ID': CLASS_MAP[class_name],
-                'Figure ID': FIGURE_MAP[figure_name],
-                'RP': rp,
-            }
-            if xy['x1'] >= img_info['Image width']:
-                continue
-            ann_info.update(xy)
-            ann_metadata = ann_metadata.append(ann_info, ignore_index=True)
-            ann_name = f'{img_info["Subject ID"]}_{img_info["Study ID"]}.txt'
-            ann_path = os.path.join(save_dir_ann, ann_name)
-            logging.debug(f'Saving annotation {ann_name}')
-            ann_metadata.to_csv(
-                ann_path,
-                header=False,
-                index=False,
-                sep='\t',
-            )
-
             obj_info = {
-                'Annotation path': ann_path,
                 'Figure ID': FIGURE_MAP[figure_name],
                 'Figure': figure_name,
                 'Source type': obj['geometryType'],
                 'Reference type': FIGURE_TYPE[figure_name],
-                'Match': obj['geometryType'] == FIGURE_TYPE[figure_name],
+                'Match': int(obj['geometryType'] == FIGURE_TYPE[figure_name]),
                 'RP': rp,
                 'Class ID': CLASS_MAP[class_name],
                 'Class': class_name,
@@ -145,86 +125,38 @@ def process_annotation(
             obj_info.update(xy)
             obj_info.update(box)
             obj_info.update(mask_points)
-            img_metadata = img_metadata.append(obj_info, ignore_index=True)
+            meta = meta.append(obj_info, ignore_index=True)
 
-        col = img_metadata.pop('Annotation path')
-        img_metadata.insert(
-            loc=1,
-            column=col.name,
-            value=col,
-        )
     elif len(ann['objects']) == 0 and class_name == 'No edema':
-        ann_info = {
-            'Class ID': CLASS_MAP[class_name],
-        }
-        ann_metadata = ann_metadata.append(ann_info, ignore_index=True)
-        ann_name = f'{img_info["Subject ID"]}_{img_info["Study ID"]}.txt'
-        ann_path = os.path.join(save_dir_ann, ann_name)
-        logging.debug(f'Saving annotation {ann_name}')
-        ann_metadata.to_csv(
-            ann_path,
-            header=False,
-            index=False,
-            sep='\t',
-        )
         obj_info = {
-            'Annotation path': ann_path,
             'Class ID': CLASS_MAP[class_name],
             'Class': class_name,
         }
         obj_info.update(img_info)
-        img_metadata = img_metadata.append(obj_info, ignore_index=True)
-        col = img_metadata.pop('Annotation path')
-        img_metadata.insert(
-            loc=1,
-            column=col.name,
-            value=col,
-        )
+        meta = meta.append(obj_info, ignore_index=True)
+
     else:
         logger.warning(f'No objects or classes available for image {Path(img_path).name}')
 
-    return img_metadata
+    return meta
 
 
 def process_sample(
     row: pd.Series,
-    save_dir_ann: str,
-    save_dir_img: str,
+    save_dir: str,
 ) -> pd.DataFrame:
     """Process a single sample.
 
     Args:
         row: series with information about one image
-        save_dir_ann: directory where the output annotation will be saved
-        save_dir_img: directory where the output frontal images will be saved
+        save_dir: directory where the output frontal images and metadata will be stored
     Returns:
-        dataframe with metadata for one image
+        ann_info: dataframe with metadata for one image
     """
-    img_info = process_image(row, save_dir_img)
-    ann_info = process_annotation(row, save_dir_ann, img_info)
+    img_info = process_image(row, save_dir)
+    ann_info = process_annotation(row, img_info)
 
     return ann_info
-
-
-def create_save_dirs(
-    save_dir: str,
-) -> Tuple[str, str]:
-    """Create directories for images and annotations.
-
-    Args:
-        save_dir: directory where the output files will be saved
-    Returns:
-        tuple with directories where the output frontal images and annotations will be saved
-    """
-    logger.info(f'Creating img and ann directories in {save_dir}')
-
-    save_dir_img = os.path.join(save_dir, 'img')
-    os.makedirs(save_dir_img, exist_ok=True)
-
-    save_dir_ann = os.path.join(save_dir, 'ann')
-    os.makedirs(save_dir_ann, exist_ok=True)
-
-    return save_dir_img, save_dir_ann
 
 
 def save_metadata(
@@ -264,7 +196,7 @@ def main(
         dataset_dir: a path to Supervisely dataset directory
         include_dirs: a list of subsets to include in the dataset
         exclude_dirs: a list of subsets to exclude from the dataset
-        save_dir: directory where the output files will be saved
+        save_dir: directory where the output frontal images and metadata will be stored
     Returns:
         None
     """
@@ -274,14 +206,11 @@ def main(
         exclude_dirs=exclude_dirs,
     )
 
-    save_dir_img, save_dir_ann = create_save_dirs(save_dir=save_dir)
-
     logger.info('Processing annotations')
     groups = df.groupby(['img_path', 'ann_path'])
     processing_func = partial(
         process_sample,
-        save_dir_ann=save_dir_ann,
-        save_dir_img=save_dir_img,
+        save_dir=save_dir,
     )
     result = Parallel(n_jobs=-1)(
         delayed(processing_func)(group)
