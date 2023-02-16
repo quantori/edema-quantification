@@ -1,9 +1,10 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, List, NamedTuple
 import sys
 
 from pytorch_lightning.callbacks import TQDMProgressBar
 import pytorch_lightning as pl
 from tqdm import tqdm
+from torch import nn
 
 
 class PNetProgressBar(TQDMProgressBar):
@@ -47,3 +48,23 @@ class PNetProgressBar(TQDMProgressBar):
                     Protorype layer ({pl_module.prototype_layer.requires_grad}), \
                     Last layer ({pl_module.last_layer.requires_grad})'
             )
+
+
+class EdemaNetBlock(NamedTuple):
+    body: Union[nn.Module, nn.Sequential, nn.Parameter, nn.Linear]
+    requires_grad: bool
+
+
+def set_requires_grad(
+    blocks: List[NamedTuple[Union[nn.Module, nn.Sequential, nn.Parameter, nn.Linear], bool]]
+) -> None:
+    for block in blocks:
+        if isinstance(block.body, nn.Module):
+            set_requires_grad_module(block.body, block.requires_grad)
+        else:
+            block.body.requires_grad_(block.requires_grad)
+
+
+def set_requires_grad_module(module: nn.Module, requires_grad: bool) -> None:
+    for param in module.parameters():
+        param.requires_grad_(requires_grad)
