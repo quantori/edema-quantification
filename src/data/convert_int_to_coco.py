@@ -1,8 +1,11 @@
 import argparse
 import json
 import logging
+import os
 from pathlib import Path
+from typing import List
 
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
@@ -15,7 +18,7 @@ from settings import (
     TRAIN_SIZE,
 )
 from src.data.utils import copy_files
-from src.data.utils_coco import *
+from src.data.utils_coco import get_ann_info, get_img_info
 from src.data.utils_sly import FIGURE_MAP
 
 os.makedirs('logs', exist_ok=True)
@@ -29,66 +32,58 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_metadata_info(
+def process_metadata(
     dataset_dir: str,
     exclude_classes: List[str] = None,
 ) -> pd.DataFrame:
-    """Extract additional metadata.
+    """Extract additional meta.
 
     Args:
         dataset_dir: path to directory containing series with images and labels inside
         exclude_classes: a list of classes to exclude from the COCO dataset
     Returns:
-        metadata_short: data frame derived from a metadata file
+        meta: data frame derived from a meta file
     """
     metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
     metadata = metadata[~metadata['Class'].isin(exclude_classes)]
-    metadata_short = metadata[
-        [
-            'Image path',
-            'Annotation path',
-            'Subject ID',
-            'Study ID',
-            'Class ID',
-        ]
-    ].drop_duplicates()
-    metadata_short = metadata_short.dropna(subset=['Class ID'])
+    metadata = metadata.dropna(subset=['Class ID'])
 
-    return metadata_short
+    return metadata
 
 
-def prepare_subsets(
-    metadata_short: pd.DataFrame,
+def split_dataset(
+    metadata: pd.DataFrame,
     train_size: float,
     seed: int,
-) -> dict:
+) -> pd.DataFrame:
     """Split dataset with stratification into training and test subsets.
 
     Args:
-        metadata_short: data frame derived from a metadata file
+        metadata: data frame derived from a source metadata file
         train_size: a fraction used to split dataset into train and test subsets
         seed: random value for splitting train and test subsets
     Returns:
         subsets: dictionary which contains image/annotation paths for train and test subsets
     """
-    subsets: Dict[str, Dict[str, List[str]]] = {
-        'train': {'images': [], 'labels': []},
-        'test': {'images': [], 'labels': []},
-    }
-    metadata_unique_subject_id = (
-        metadata_short.groupby(by='Subject ID', as_index=False)['Class ID'].max().astype(int)
+    # Extract a subset of unique subject IDs with stratification
+    metadata_unique_subjects = (
+        metadata.groupby(by='Subject ID', as_index=False)['Class ID'].max().astype(int)
     )
+
+    # Split dataset into train and test subsets with
     train_ids, test_ids = train_test_split(
-        metadata_unique_subject_id,
+        metadata_unique_subjects,
         train_size=train_size,
         shuffle=True,
         random_state=seed,
-        stratify=metadata_unique_subject_id['Class ID'],
+        stratify=metadata_unique_subjects['Class ID'],
     )
 
-    df_train = metadata_short[metadata_short['Subject ID'].isin(train_ids['Subject ID'])]
-    df_test = metadata_short[metadata_short['Subject ID'].isin(test_ids['Subject ID'])]
+    # Extract train and test subsets by indices
+    df_train = metadata[metadata['Subject ID'].isin(train_ids['Subject ID'])]
+    df_test = metadata[metadata['Subject ID'].isin(test_ids['Subject ID'])]
 
+    # Move cases without edema from test to train
     mask_empty = df_test['Class ID'] == 0
     df_empty = df_test[mask_empty]
     df_test = df_test.drop(df_test.index[mask_empty])
@@ -96,10 +91,15 @@ def prepare_subsets(
     df_train.reset_index(inplace=True, drop=True)
     df_test.reset_index(inplace=True, drop=True)
 
-    subsets['test']['images'].extend(df_test['Image path'])
-    subsets['test']['labels'].extend(df_test['Annotation path'])
-    subsets['train']['images'].extend(df_train['Image path'])
-    subsets['train']['labels'].extend(df_train['Annotation path'])
+    # Add split column
+    df_train = df_train.assign(Split='train')
+    df_test = df_test.assign(Split='test')
+
+    # Combine subsets into a single dataframe
+    df_out = pd.concat([df_train, df_test])
+    df_out.drop('ID', axis=1, inplace=True)
+    df_out.sort_values(by=['Image path'], inplace=True)
+    df_out.reset_index(drop=True, inplace=True)
 
     logger.info('')
     logger.info('Overall train/test split')
@@ -111,27 +111,20 @@ def prepare_subsets(
     )
     logger.info(f'Images....................: {len(df_train)}/{len(df_test)}')
 
-    assert len(subsets['train']['images']) == len(
-        subsets['train']['labels'],
-    ), 'Mismatch length of the training subset'
-    assert len(subsets['test']['images']) == len(
-        subsets['test']['labels'],
-    ), 'Mismatch length of the testing subset'
-
-    return subsets
+    return df_out
 
 
 def prepare_coco(
-    subsets: dict,
-    save_dir: str,
+    df: pd.DataFrame,
     box_extension: dict,
+    save_dir: str,
 ) -> None:
     """Prepare and save training and test subsets in COCO format.
 
     Args:
-        subsets: dictionary which contains image/annotation paths for train and test subsets
-        save_dir: directory where split datasets are saved to
+        df: dataframe containing information about the training and test subsets
         box_extension: a value used to extend or contract object box sizes
+        save_dir: directory where split datasets are stored
     Returns:
         None
     """
@@ -139,13 +132,19 @@ def prepare_coco(
     for idx, (key, value) in enumerate(FIGURE_MAP.items()):
         categories_coco.append({'id': value, 'name': key})
 
-    for subset_name, subset in subsets.items():
+    # Iterate over subsets
+    subset_list = list(df['Split'].unique())
+    for subset in subset_list:
+        df_subset = df[df['Split'] == subset]
         imgs_coco = []
         anns_coco = []
         ann_id = 0
-        for img_id, (img_path, ann_path) in tqdm(
-            enumerate(zip(subset['images'], subset['labels'])),
-            desc=f'{subset_name.capitalize()} subset processing',
+        save_img_dir = os.path.join(save_dir, subset, 'data')
+        os.makedirs(save_img_dir, exist_ok=True)
+        img_groups = df_subset.groupby('Image path')
+        for img_id, (img_path, sample) in tqdm(
+            enumerate(img_groups),
+            desc=f'{subset.capitalize()} subset processing',
             unit=' sample',
         ):
             img_data = get_img_info(
@@ -155,7 +154,7 @@ def prepare_coco(
             imgs_coco.append(img_data)
 
             ann_data, ann_id = get_ann_info(
-                label_path=ann_path,
+                df=sample,
                 img_id=img_id,
                 ann_id=ann_id,
                 box_extension=box_extension,
@@ -170,11 +169,22 @@ def prepare_coco(
             'categories': categories_coco,
         }
 
-        save_img_dir = os.path.join(save_dir, subset_name, 'data')
-        copy_files(file_list=subset['images'], save_dir=save_img_dir)
-        save_ann_path = os.path.join(save_dir, subset_name, 'labels.json')
+        # Save JSONs with annotations
+        save_img_dir = os.path.join(save_dir, subset, 'data')
+        copy_files(file_list=list(df_subset['Image path']), save_dir=save_img_dir)
+        save_ann_path = os.path.join(save_dir, subset, 'labels.json')
         with open(save_ann_path, 'w') as file:
             json.dump(dataset, file)
+
+    # Save COCO metadata
+    save_path = os.path.join(save_dir, 'metadata.xlsx')
+    df.index += 1
+    df.to_excel(
+        save_path,
+        sheet_name='Metadata',
+        index=True,
+        index_label='ID',
+    )
 
 
 def main(
@@ -204,11 +214,11 @@ def main(
     logger.info(f'Seed......................: {seed}')
     logger.info(f'Output directory..........: {save_dir}')
 
-    metadata_short = get_metadata_info(dataset_dir, exclude_classes)
+    metadata = process_metadata(dataset_dir, exclude_classes)
 
-    subsets = prepare_subsets(metadata_short, train_size, seed)
+    metadata_split = split_dataset(metadata, train_size, seed)
 
-    prepare_coco(subsets, save_dir, box_extension)
+    prepare_coco(metadata_split, box_extension, save_dir)
 
     logger.info('Complete')
 
