@@ -1,0 +1,16 @@
+{
+    "parameters": {
+        "model_name": "Linknet",
+        "encoder_name": "timm-regnetx_064",
+        "encoder_weights": "imagenet",
+        "input_size": [
+            480,
+            480
+        ],
+        "input_channels": 3,
+        "num_classes": 1,
+        "activation": "sigmoid",
+        "num_params": 29.3e6,
+        "macs": 39.9e9
+    }
+}

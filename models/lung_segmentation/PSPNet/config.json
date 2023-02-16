@@ -1,0 +1,16 @@
+{
+    "parameters": {
+        "model_name": "PSPNet",
+        "encoder_name": "timm-regnety_064",
+        "encoder_weights": "imagenet",
+        "input_size": [
+            480,
+            480
+        ],
+        "input_channels": 3,
+        "num_classes": 1,
+        "activation": "sigmoid",
+        "num_params": 29.7e6,
+        "macs": 14.4e9
+    }
+}
