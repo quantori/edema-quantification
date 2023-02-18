@@ -5,6 +5,7 @@ import os
 import os.path as osp
 import time
 import warnings
+from datetime import datetime
 
 import mmcv
 import torch
@@ -21,10 +22,21 @@ from mmdet.utils import (collect_env, get_device, get_root_logger,
                          replace_cfg_vals, rfnext_init_model,
                          setup_multi_processes, update_data_root)
 
+from mmcv.cnn import get_model_complexity_info
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
-    parser.add_argument('config', help='train config file path')
+    parser.add_argument('--config', type=str, default='configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
+                        help='path to a train config file')
+    parser.add_argument('--data-dir', type=str, default='data/MIMIC-CXR-Edema-COCO',
+                        help='directory to the COCO dataset')
+    parser.add_argument('--dataset-type', type=str, default='CocoDataset', help='type of the dataset')
+    parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
+    parser.add_argument('--batch-size', type=int, default=None, help='batch size')
+    parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
+    parser.add_argument('--epochs', default=10, type=int, help='number of training epochs')
+    parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
     parser.add_argument(
         '--resume-from', help='the checkpoint file to resume from')
@@ -41,20 +53,19 @@ def parse_args():
         '--gpus',
         type=int,
         help='(Deprecated, please use --gpu-id) number of gpus to use '
-        '(only applicable to non-distributed training)')
+             '(only applicable to non-distributed training)')
     group_gpus.add_argument(
         '--gpu-ids',
         type=int,
         nargs='+',
         help='(Deprecated, please use --gpu-id) ids of gpus to use '
-        '(only applicable to non-distributed training)')
+             '(only applicable to non-distributed training)')
     group_gpus.add_argument(
         '--gpu-id',
         type=int,
         default=0,
         help='id of gpu to use '
-        '(only applicable to non-distributed training)')
-    parser.add_argument('--seed', type=int, default=None, help='random seed')
+             '(only applicable to non-distributed training)')
     parser.add_argument(
         '--diff-seed',
         action='store_true',
@@ -68,18 +79,18 @@ def parse_args():
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file (deprecate), '
-        'change to --cfg-options instead.')
+             'in xxx=yyy format will be merged into config file (deprecate), '
+             'change to --cfg-options instead.')
     parser.add_argument(
         '--cfg-options',
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file. If the value to '
-        'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
-        'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
-        'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+             'in xxx=yyy format will be merged into config file. If the value to '
+             'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
+             'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
+             'Note that the quotation marks are necessary and that no white space '
+             'is allowed.')
     parser.add_argument(
         '--launcher',
         choices=['none', 'pytorch', 'slurm', 'mpi'],
@@ -118,6 +129,71 @@ def main():
 
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
+
+    # ------------------------------------------------- CUSTOM CONFIG --------------------------------------------------
+    CLASSES = (
+        'Cephalization',
+        'Heart',
+        'Artery',
+        'Bronchus',
+        'Kerley',
+        'Cuffing',
+        'Effusion',
+        'Bat',
+        'Infiltrate',
+    )
+    cfg.classes = CLASSES
+    cfg.dataset_type = args.dataset_type
+    cfg.data_root = args.data_dir
+
+    # Modify num classes of the model in box head
+    try:
+        cfg.model.bbox_head.num_classes = len(CLASSES)
+    except Exception:
+        cfg.model.roi_head.bbox_head.num_classes = len(CLASSES)
+
+    cfg.data.train.type = args.dataset_type
+    cfg.data.train.classes = cfg.classes
+    cfg.data.train.filter_empty_gt = args.filter_empty_gt
+    cfg.data.train.ann_file = os.path.join(args.data_dir, 'train', 'labels.json')
+    cfg.data.train.img_prefix = os.path.join(args.data_dir, 'train', 'data')
+
+    cfg.data.val.type = args.dataset_type
+    cfg.data.val.classes = cfg.classes
+    cfg.data.val.ann_file = os.path.join(args.data_dir, 'test', 'labels.json')
+    cfg.data.val.img_prefix = os.path.join(args.data_dir, 'test', 'data')
+
+    cfg.data.test.type = args.dataset_type
+    cfg.data.test.classes = cfg.classes
+    cfg.data.test.ann_file = os.path.join(args.data_dir, 'test', 'labels.json')
+    cfg.data.test.img_prefix = os.path.join(args.data_dir, 'test', 'data')
+
+    if args.batch_size is not None:
+        cfg.data.samples_per_gpu = args.batch_size
+
+    if args.num_workers is not None:
+        cfg.data.workers_per_gpu = args.num_workers
+
+    cfg.evaluation.metric = 'bbox'
+    cfg.optimizer.lr = 0.02 / 8  # The original learning rate is set for 8-GPU training.
+    cfg.lr_config.warmup = None
+
+    cfg.log_config.interval = 1  # Equal to batch_size
+
+    cfg.evaluation.interval = 1  # Set the evaluation interval to increase/reduce the evaluation times
+    cfg.checkpoint_config.interval = 1  # Set the checkpoint saving interval to increase/reduce the storage cost
+
+    # Set seed thus the results are more reproducible
+    if args.seed is not None:
+        cfg.seed = args.seed
+        set_random_seed(args.seed, deterministic=False)
+
+    cfg.runner.max_epochs = args.epochs
+    cfg.total_epochs = args.epochs
+
+    # Final config used for training
+    print(f'Config:\n{cfg.pretty_text}')
+    # ------------------------------------------------------------------------------------------------------------------
 
     if args.auto_scale_lr:
         if 'auto_scale_lr' in cfg and \
@@ -233,6 +309,24 @@ def main():
             CLASSES=datasets[0].CLASSES)
     # add an attribute for visualization convenience
     model.CLASSES = datasets[0].CLASSES
+
+    # MLFlow config
+    ml_flow_logger = [logger for logger in cfg.log_config.hooks if 'MlflowLoggerHook' in logger['type']]
+    if ml_flow_logger:
+        ml_flow_logger = ml_flow_logger[0]
+        ml_flow_logger['exp_name'] = 'Edema'
+        # ml_flow_logger['run_name'] = 'mmdetection'
+        # ml_flow_logger['version'] = datetime.now().strftime('%d%m%y_%H%M')
+        ml_flow_logger['params'] = dict(cfg=cfg.filename,
+                                        device=cfg.device,
+                                        seed=cfg.seed,
+                                        model=dict(epochs=args.epochs,
+                                                   model_type=cfg.model.type,
+                                                   model_backbone_type=cfg.model.backbone.type,
+                                                   data_pipeline_img_input_shape=cfg.data.train.pipeline[2].img_scale,
+                                                   data_pipeline_train_img_count=len(datasets[0].data_infos),
+                                                   base_batch_size=cfg.data.samples_per_gpu))
+
     train_detector(
         model,
         datasets,
@@ -241,6 +335,20 @@ def main():
         validate=(not args.no_validate),
         timestamp=timestamp,
         meta=meta)
+
+    # compute complexity
+    # if ml_flow_logger:
+    #     if hasattr(model, 'forward_dummy'):
+    #         model.forward = model.forward_dummy
+    #     else:
+    #         raise NotImplementedError(
+    #             'FLOPs counter is currently not currently supported with {}'.format(model.__class__.__name__))
+    #
+    #     input_shape = (3, 1333, 800)
+    #     model.eval()
+    #     flops, params = get_model_complexity_info(model, input_shape)
+    #     ml_flow_logger['params'] = dict(flops=flops,
+    #                                     params=params)
 
 
 if __name__ == '__main__':
