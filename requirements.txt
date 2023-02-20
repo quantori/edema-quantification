@@ -4,6 +4,7 @@ fiftyone==0.19.0
 imutils==0.5.4
 joblib==1.1.0
 matplotlib==3.5.3
+mlflow==2.1.1
 numpy==1.23.2
 opencv-python==4.5.5.64
 openpyxl==3.0.10
