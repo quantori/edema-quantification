@@ -6,7 +6,7 @@ import os
 import sys
 import math
 import json
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Type
 from collections import OrderedDict
 
 from typing import Tuple
@@ -22,98 +22,100 @@ import matplotlib.pyplot as plt
 from tqdm.auto import tqdm, trange
 from torchmetrics.functional.classification import multilabel_f1_score
 
+from pm_settings import EdemaNetSettings
 
-class SqueezeNet(nn.Module):
-    """SqueezeNet encoder.
 
-    The pre-trained model expects input images normalized in the same way, i.e. mini-batches of
-    3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The
-    images have to be loaded in to a range of [0, 1] and then normalized using
-    mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
-    """
+# class SqueezeNet(nn.Module):
+#     """SqueezeNet encoder.
 
-    def __init__(
-        self,
-        preprocessed: bool = False,
-        pretrained: bool = True,
-    ):
-        """SqueezeNet encoder.
+#     The pre-trained model expects input images normalized in the same way, i.e. mini-batches of
+#     3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The
+#     images have to be loaded in to a range of [0, 1] and then normalized using
+#     mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
+#     """
 
-        Args:
-            preprocessed (bool, optional): _description_. Defaults to True.
-            pretrained (bool, optional): _description_. Defaults to True.
-        """
+#     def __init__(
+#         self,
+#         preprocessed: bool = False,
+#         pretrained: bool = True,
+#     ):
+#         """SqueezeNet encoder.
 
-        super().__init__()
+#         Args:
+#             preprocessed (bool, optional): _description_. Defaults to True.
+#             pretrained (bool, optional): _description_. Defaults to True.
+#         """
 
-        self.model = torch.hub.load("pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True)
-        del self.model.classifier
+#         super().__init__()
 
-        self.preprocessed = preprocessed
+#         self.model = torch.hub.load("pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True)
+#         del self.model.classifier
 
-    def forward(self, x) -> torch.Tensor:
-        """Forward implementation.
+#         self.preprocessed = preprocessed
 
-        Uses only the model.features component of SqueezeNet without model.classifier.
+#     def forward(self, x) -> torch.Tensor:
+#         """Forward implementation.
 
-        Args:
-            x: raw input in format (batch, channels, spatial, spatial)
+#         Uses only the model.features component of SqueezeNet without model.classifier.
 
-        Returns:
-            torch.Tensor: convolution layers after passing the SqueezNet backbone
-        """
-        if self.preprocessed:
-            x = self.preprocess(x)
+#         Args:
+#             x: raw input in format (batch, channels, spatial, spatial)
 
-        return self.model.features(x)
+#         Returns:
+#             torch.Tensor: convolution layers after passing the SqueezNet backbone
+#         """
+#         if self.preprocessed:
+#             x = self.preprocess(x)
 
-    def preprocess(self, x):
-        """Image preprocessing function.
+#         return self.model.features(x)
 
-        To make image preprocessing model specific and modular.
+#     def preprocess(self, x):
+#         """Image preprocessing function.
 
-        Args:
-            x: input image.
+#         To make image preprocessing model specific and modular.
 
-        Returns:
-            preprocessed image.
-        """
+#         Args:
+#             x: input image.
 
-        preprocess = transforms.Compose(
-            [
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                # transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
+#         Returns:
+#             preprocessed image.
+#         """
 
-        return preprocess(x)
+#         preprocess = transforms.Compose(
+#             [
+#                 transforms.Resize(256),
+#                 transforms.CenterCrop(224),
+#                 # transforms.ToTensor(),
+#                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+#             ]
+#         )
 
-    def conv_info(self):
-        features = {}
-        features['kernel_sizes'] = []
-        features['strides'] = []
-        features['paddings'] = []
+#         return preprocess(x)
 
-        for module in self.modules():
-            if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
-                if isinstance(module.kernel_size, tuple):
-                    features['kernel_sizes'].append(module.kernel_size[0])
-                else:
-                    features['kernel_sizes'].append(module.kernel_size)
+#     def conv_info(self):
+#         features = {}
+#         features['kernel_sizes'] = []
+#         features['strides'] = []
+#         features['paddings'] = []
 
-                if isinstance(module.stride, tuple):
-                    features['strides'].append(module.stride[0])
-                else:
-                    features['strides'].append(module.stride)
+#         for module in self.modules():
+#             if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
+#                 if isinstance(module.kernel_size, tuple):
+#                     features['kernel_sizes'].append(module.kernel_size[0])
+#                 else:
+#                     features['kernel_sizes'].append(module.kernel_size)
 
-                if isinstance(module.padding, tuple):
-                    features['paddings'].append(module.padding[0])
-                else:
-                    features['paddings'].append(module.padding)
+#                 if isinstance(module.stride, tuple):
+#                     features['strides'].append(module.stride[0])
+#                 else:
+#                     features['strides'].append(module.stride)
 
-        return features
+#                 if isinstance(module.padding, tuple):
+#                     features['paddings'].append(module.padding[0])
+#                 else:
+#                     features['paddings'].append(module.padding)
+
+#         return features
 
 
 class EdemaNet(pl.LightningModule):
@@ -126,16 +128,17 @@ class EdemaNet(pl.LightningModule):
 
     def __init__(
         self,
-        encoder: nn.Module,
-        num_classes: int,
-        prototype_shape: Tuple,
-        transient_layers_type: str = "bottleneck",
-        top_k: int = 1,
-        fine_loader: torch.utils.data.DataLoader = None,
-        num_warm_epochs: int = 0,
-        push_start: int = 0,
-        push_epochs: list = [0, 2, 4],
-        img_size=224,
+        settings: Type[EdemaNetSettings] = EdemaNetSettings(),
+        # encoder: nn.Module,
+        # num_classes: int,
+        # prototype_shape: Tuple,
+        # transient_layers_type: str = "bottleneck",
+        # top_k: int = 1,
+        # fine_loader: torch.utils.data.DataLoader = None,
+        # num_warm_epochs: int = 0,
+        # push_start: int = 0,
+        # push_epochs: list = [0, 2, 4],
+        # img_size=224,
     ):
         """PyTorch Lightning model class.
 
@@ -152,32 +155,18 @@ class EdemaNet(pl.LightningModule):
 
         super().__init__()
 
-        self.transient_layers_type = transient_layers_type
-        self.num_prototypes = prototype_shape[0]
-        self.prototype_shape = prototype_shape
-        self.top_k = top_k  # for a 14x14: top_k=3 is 1.5%, top_k=9 is 4.5%
-        self.epsilon = 1e-4  # needed for the similarity calculation
-        self.fine_loader = fine_loader
-        self.num_classes = num_classes
+        self.num_prototypes = settings.prototype_shape[0]
+        self.prototype_shape = settings.prototype_shape
+        self.top_k = settings.top_k  # for a 14x14: top_k=3 is 1.5%, top_k=9 is 4.5%
+        self.epsilon = settings.epsilon  # needed for the similarity calculation
+        # self.fine_loader = fine_loader
+        self.num_classes = settings.num_classes
         self.num_prototypes_per_class = self.num_prototypes // self.num_classes
-        self.num_warm_epochs = num_warm_epochs
-        self.push_start = push_start
-        self.push_epochs = push_epochs
+        self.num_warm_epochs = settings.num_warm_epochs
+        self.push_start = settings.push_start
+        self.push_epochs = settings.push_epochs
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
-
-        # receptive-field information that is needed to cut out the chosen upsampled fmap patch
-        kernel_sizes = encoder.conv_info()['kernel_sizes']
-        layer_strides = encoder.conv_info()['strides']
-        layer_paddings = encoder.conv_info()['paddings']
-
-        self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
-            img_size=img_size,
-            layer_filter_sizes=kernel_sizes,
-            layer_strides=layer_strides,
-            layer_paddings=layer_paddings,
-            prototype_kernel_size=prototype_shape[2],
-        )
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
@@ -189,7 +178,20 @@ class EdemaNet(pl.LightningModule):
             self.prototype_class_identity[j, j // self.num_prototypes_per_class] = 1
 
         # encoder
-        self.encoder = encoder
+        self.encoder = settings.encoder
+
+        # receptive-field information that is needed to cut out the chosen upsampled fmap patch
+        kernel_sizes = self.encoder.conv_info()['kernel_sizes']
+        layer_strides = self.encoder.conv_info()['strides']
+        layer_paddings = self.encoder.conv_info()['paddings']
+
+        self.proto_layer_rf_info = self.compute_proto_layer_rf_info(
+            img_size=settings.img_size,
+            layer_filter_sizes=kernel_sizes,
+            layer_strides=layer_strides,
+            layer_paddings=layer_paddings,
+            prototype_kernel_size=self.prototype_shape[2],
+        )
 
         # transient layers
         self.transient_layers = self._make_transient_layers(self.encoder)
@@ -351,10 +353,10 @@ class EdemaNet(pl.LightningModule):
     ):
         self.last_only()
         self.trainer.progress_bar_callback.status_bar.set_description_str(
-            f'JOINT, REQUIRES GRAD: Encoder ({self.encoder.requires_grad}), \
-                Transient layers {self.transient_layers.requires_grad}(), \
-                Protorype layer ({self.prototype_layer.requires_grad}), \
-                Last layer ({self.last_layer.requires_grad})'
+            f'LAST, REQUIRES GRAD: Encoder (False),'
+            ' Transient layers (False),'
+            ' Protorype layer (False),'
+            ' Last layer (True)'
         )
         with tqdm(
             # total=len(train_dataloader) + len(val_dataloader),
@@ -681,59 +683,59 @@ class EdemaNet(pl.LightningModule):
         # automatic adjustment of the transient-layer channels for matching with the prototype
         # channels. The activation functions of the intermediate and last transient layers are ReLU
         # and sigmoid, respectively
-        if self.transient_layers_type == "bottleneck":
-            transient_layers = []
-            current_in_channels = first_transient_layer_in_channels
+        # if self.transient_layers_type == "bottleneck":
+        transient_layers = []
+        current_in_channels = first_transient_layer_in_channels
 
-            while (current_in_channels > self.prototype_shape[1]) or (len(transient_layers) == 0):
-                current_out_channels = max(self.prototype_shape[1], (current_in_channels // 2))
-                transient_layers.append(
-                    nn.Conv2d(
-                        in_channels=current_in_channels,
-                        out_channels=current_out_channels,
-                        kernel_size=1,
-                    )
-                )
-                transient_layers.append(nn.ReLU())
-                transient_layers.append(
-                    nn.Conv2d(
-                        in_channels=current_out_channels,
-                        out_channels=current_out_channels,
-                        kernel_size=1,
-                    )
-                )
-
-                if current_out_channels > self.prototype_shape[1]:
-                    transient_layers.append(nn.ReLU())
-
-                else:
-                    assert current_out_channels == self.prototype_shape[1]
-                    transient_layers.append(nn.Sigmoid())
-
-                current_in_channels = current_in_channels // 2
-
-            transient_layers = nn.Sequential(*transient_layers)
-
-            return transient_layers
-
-        # determined transient layers
-        else:
-            transient_layers = nn.Sequential(
+        while (current_in_channels > self.prototype_shape[1]) or (len(transient_layers) == 0):
+            current_out_channels = max(self.prototype_shape[1], (current_in_channels // 2))
+            transient_layers.append(
                 nn.Conv2d(
-                    in_channels=first_transient_layer_in_channels,
-                    out_channels=self.prototype_shape[1],
+                    in_channels=current_in_channels,
+                    out_channels=current_out_channels,
                     kernel_size=1,
-                ),
-                nn.ReLU(),
+                )
+            )
+            transient_layers.append(nn.ReLU())
+            transient_layers.append(
                 nn.Conv2d(
-                    in_channels=self.prototype_shape[1],
-                    out_channels=self.prototype_shape[1],
+                    in_channels=current_out_channels,
+                    out_channels=current_out_channels,
                     kernel_size=1,
-                ),
-                nn.Sigmoid(),
+                )
             )
 
-            return transient_layers
+            if current_out_channels > self.prototype_shape[1]:
+                transient_layers.append(nn.ReLU())
+
+            else:
+                assert current_out_channels == self.prototype_shape[1]
+                transient_layers.append(nn.Sigmoid())
+
+            current_in_channels = current_in_channels // 2
+
+        transient_layers = nn.Sequential(*transient_layers)
+
+        return transient_layers
+
+        # determined transient layers
+        # else:
+        #     transient_layers = nn.Sequential(
+        #         nn.Conv2d(
+        #             in_channels=first_transient_layer_in_channels,
+        #             out_channels=self.prototype_shape[1],
+        #             kernel_size=1,
+        #         ),
+        #         nn.ReLU(),
+        #         nn.Conv2d(
+        #             in_channels=self.prototype_shape[1],
+        #             out_channels=self.prototype_shape[1],
+        #             kernel_size=1,
+        #         ),
+        #         nn.Sigmoid(),
+        #     )
+
+        # return transient_layers
 
     def compute_layer_rf_info(
         self, layer_filter_size, layer_stride, layer_padding, previous_layer_rf_info
@@ -1215,18 +1217,18 @@ class EdemaNet(pl.LightningModule):
                         )
 
 
-if __name__ == '__main__':
-    sq_net = SqueezeNet()
-    ed_net = EdemaNet(sq_net, 9, (9, 512, 1, 1))
-    string = 'f1_train=0.001, f1_val=0.001'
-    print(ed_net.str_to_dict(string=string))
-    # logits, _, _ = edema_net.forward(images)
-    # prop = torch.nn.functional.softmax(logits, dim=1)
+# if __name__ == '__main__':
+#     sq_net = SqueezeNet()
+#     ed_net = EdemaNet(sq_net, 9, (9, 512, 1, 1))
+#     string = 'f1_train=0.001, f1_val=0.001'
+#     print(ed_net.str_to_dict(string=string))
+# logits, _, _ = edema_net.forward(images)
+# prop = torch.nn.functional.softmax(logits, dim=1)
 
-    # test_dataset = TensorDataset(
-    #     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-    # )
-    # test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
+# test_dataset = TensorDataset(
+#     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
+# )
+# test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
 
-    # trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
-    # trainer.fit(edema_net, test_dataloader)
+# trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
+# trainer.fit(edema_net, test_dataloader)

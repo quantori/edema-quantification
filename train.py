@@ -3,8 +3,9 @@ import torch
 import pytorch_lightning as pl
 
 from tools.data_classes import EdemaDataModule
-from models_edema import SqueezeNet, EdemaNet
+from models_edema import EdemaNet
 from prototype_model_utils import PNetProgressBar
+from pm_settings import EdemaNetSettings
 
 
 if __name__ == '__main__':
@@ -12,18 +13,14 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
 
     # create the model
-    img_size = 400
-    sq_net = SqueezeNet()
-    edema_net_st = EdemaNet(
-        encoder=sq_net, num_classes=9, prototype_shape=(9, 512, 1, 1), img_size=img_size
-    )
+    edema_net_st = EdemaNet(settings=EdemaNetSettings())
     edema_net = edema_net_st.cuda()
 
     # pull the dataset and dataloader
     datamaodlule = EdemaDataModule(
         data_dir='C:/temp/edema/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
         batch_size=16,
-        resize=(img_size, img_size),
+        resize=(400, 400),
         normalize_tensors=False,
     )
     datamaodlule.setup('fit')
