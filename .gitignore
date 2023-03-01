@@ -153,3 +153,6 @@ logs/
 
 # Directory with temporary files
 /temp/
+
+# MLFlow
+/mlruns/

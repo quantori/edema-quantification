@@ -1,6 +1,6 @@
 dvc[s3]==2.13.0
 efficientnet-pytorch==0.7.1
-fiftyone==0.19.0
+fiftyone~=0.19.1
 imutils==0.5.4
 joblib==1.1.0
 matplotlib==3.5.3
@@ -24,3 +24,10 @@ tomli==2.0.1
 torch==1.13.0                    # Linknet and PSPNet are not working with torch > 1.8.1
 torchvision==0.14.0
 tqdm==4.64.0
+
+imageio~=2.22.1
+six~=1.16.0
+terminaltables~=3.1.10
+requests~=2.28.1
+setuptools~=57.0.0
+PyYAML~=6.0

@@ -27,17 +27,17 @@ from mmcv.cnn import get_model_complexity_info
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
-    parser.add_argument('--config', type=str, default='configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
+    parser.add_argument('--config', type=str, default='src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
                         help='path to a train config file')
-    parser.add_argument('--data-dir', type=str, default='data/MIMIC-CXR-Edema-COCO',
+    parser.add_argument('--data-dir', type=str, default='data/coco',
                         help='directory to the COCO dataset')
     parser.add_argument('--dataset-type', type=str, default='CocoDataset', help='type of the dataset')
     parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
-    parser.add_argument('--epochs', default=10, type=int, help='number of training epochs')
+    parser.add_argument('--epochs', default=2, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
-    parser.add_argument('--work-dir', help='the dir to save logs and models')
+    parser.add_argument('--work-dir', default='models/sign_detection', help='the dir to save logs and models')
     parser.add_argument(
         '--resume-from', help='the checkpoint file to resume from')
     parser.add_argument(
@@ -217,7 +217,7 @@ def main():
     # work_dir is determined in this priority: CLI > segment in file > filename
     if args.work_dir is not None:
         # update configs according to CLI args if args.work_dir is not None
-        cfg.work_dir = args.work_dir
+        cfg.work_dir = osp.join(args.work_dir, osp.splitext(osp.basename(args.config))[0])
     elif cfg.get('work_dir', None) is None:
         # use config filename as default work_dir if cfg.work_dir is None
         cfg.work_dir = osp.join('./work_dirs',
