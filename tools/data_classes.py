@@ -135,11 +135,15 @@ class EdemaDataModule(LightningDataModule):
                 edema_full, self.train_share, metadata_df, verbose=True
             )
 
-    def train_dataloader(self, num_workers=1):
-        return DataLoader(self.edema_train, batch_size=self.batch_size, num_workers=num_workers)
+    def train_dataloader(self, num_workers=1, **kwargs):
+        return DataLoader(
+            self.edema_train, batch_size=self.batch_size, num_workers=num_workers, **kwargs
+        )
 
-    def test_dataloader(self, num_workers=1):
-        return DataLoader(self.edema_test, batch_size=self.batch_size, num_workers=num_workers)
+    def test_dataloader(self, num_workers=1, **kwargs):
+        return DataLoader(
+            self.edema_test, batch_size=self.batch_size, num_workers=num_workers, **kwargs
+        )
 
 
 if __name__ == '__main__':

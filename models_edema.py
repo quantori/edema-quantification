@@ -21,6 +21,8 @@ import cv2
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm, trange
 from torchmetrics.functional.classification import multilabel_f1_score
+import hydra
+# from omegaconf import DictConfig
 
 from pm_settings import EdemaNetSettings
 
@@ -128,7 +130,7 @@ class EdemaNet(pl.LightningModule):
 
     def __init__(
         self,
-        settings: Type[EdemaNetSettings] = EdemaNetSettings(),
+        settings
         # encoder: nn.Module,
         # num_classes: int,
         # prototype_shape: Tuple,
@@ -178,7 +180,7 @@ class EdemaNet(pl.LightningModule):
             self.prototype_class_identity[j, j // self.num_prototypes_per_class] = 1
 
         # encoder
-        self.encoder = settings.encoder
+        self.encoder = hydra.utils.instantiate(settings.encoder)
 
         # receptive-field information that is needed to cut out the chosen upsampled fmap patch
         kernel_sizes = self.encoder.conv_info()['kernel_sizes']
@@ -198,7 +200,7 @@ class EdemaNet(pl.LightningModule):
 
         # prototypes layer (do not make this just a tensor, since it will not be moved
         # automatically to gpu)
-        self.prototype_layer = nn.Parameter(torch.rand(self.prototype_shape), requires_grad=True)
+        self.prototype_layer = nn.Parameter(torch.rand(tuple(self.prototype_shape)), requires_grad=True)
 
         # last fully connected layer for the classification of edema features. The bias is not used
         # in the original paper
