@@ -3,7 +3,6 @@ from torch import nn
 from torchvision import transforms
 
 
-
 class SqueezeNet(nn.Module):
     """SqueezeNet encoder.
 
@@ -27,7 +26,9 @@ class SqueezeNet(nn.Module):
 
         super().__init__()
 
-        self.model = torch.hub.load("pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True)
+        self.model = torch.hub.load(
+            "pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True, verbose=False
+        )
         del self.model.classifier
 
         self.preprocessed = preprocessed
@@ -97,5 +98,5 @@ class SqueezeNet(nn.Module):
         return features
 
 
-class TransientLayers():
-    pass        
+class TransientLayers:
+    pass
