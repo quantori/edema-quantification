@@ -21,7 +21,10 @@ import cv2
 import matplotlib.pyplot as plt
 from tqdm.auto import tqdm, trange
 from torchmetrics.functional.classification import multilabel_f1_score
-import hydra
+from omegaconf import DictConfig
+
+from blocks import ENCODERS
+from prototype_model_utils import get_encoder
 
 # class SqueezeNet(nn.Module):
 #     """SqueezeNet encoder.
@@ -126,7 +129,7 @@ class EdemaNet(pl.LightningModule):
 
     def __init__(
         self,
-        settings
+        settings: DictConfig,
         # encoder: nn.Module,
         # num_classes: int,
         # prototype_shape: Tuple,
@@ -176,7 +179,7 @@ class EdemaNet(pl.LightningModule):
             self.prototype_class_identity[j, j // self.num_prototypes_per_class] = 1
 
         # encoder
-        self.encoder = hydra.utils.instantiate(settings)
+        self.encoder = get_encoder(encoders=ENCODERS, name=settings.encoder)
 
         # receptive-field information that is needed to cut out the chosen upsampled fmap patch
         kernel_sizes = self.encoder.conv_info()['kernel_sizes']

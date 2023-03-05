@@ -98,5 +98,8 @@ class SqueezeNet(nn.Module):
         return features
 
 
+ENCODERS = {'squezeenet': SqueezeNet()}
+
+
 class TransientLayers:
     pass

@@ -2,24 +2,19 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch
 import pytorch_lightning as pl
 import hydra
-from hydra.core.config_store import ConfigStore
+from omegaconf import DictConfig
 
 from tools.data_classes import EdemaDataModule
 from models_edema import EdemaNet
 from prototype_model_utils import PNetProgressBar
-from pm_settings import EdemaNetSettings
 
-cs = ConfigStore.instance()
-cs.store(name='config', node=EdemaNetSettings)
-
-
-@hydra.main(version_base=None, config_name="config")
-def main(cfg: EdemaNetSettings):
+@hydra.main(version_base=None, config_path='pm_configs', config_name="config")
+def main(cfg: DictConfig):
     # clean the gpu cache
     torch.cuda.empty_cache()
 
     # create the model
-    edema_net_st = EdemaNet(settings=cfg)
+    edema_net_st = EdemaNet(settings=cfg.model)
     edema_net = edema_net_st.cuda()
 
     # pull the dataset and dataloader
@@ -46,4 +41,4 @@ def main(cfg: EdemaNetSettings):
 
 
 if __name__ == '__main__':
-    main(EdemaNetSettings())
+    main()

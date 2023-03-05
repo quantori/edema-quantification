@@ -49,6 +49,11 @@ class PNetProgressBar(TQDMProgressBar):
                     ' Last layer (True)' 
             )
 
+def get_encoder(encoders: dict, name: str = 'squezeenet'):
+    try:
+        return encoders[name]
+    except:
+        print(f'{name} encoder is not implemented')
 
 # class EdemaNetBlock(NamedTuple):
 #     body: Union[nn.Module, nn.Sequential, nn.Parameter, nn.Linear]
