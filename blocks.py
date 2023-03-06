@@ -1,6 +1,10 @@
+from typing import List, Optional
+
 import torch
 from torch import nn
 from torchvision import transforms
+
+from prototype_model_utils import _make_layers
 
 
 class SqueezeNet(nn.Module):
@@ -97,9 +101,50 @@ class SqueezeNet(nn.Module):
 
         return features
 
+    def warm(self) -> None:
+        self.requires_grad_(False)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(False)
+
 
 ENCODERS = {'squezeenet': SqueezeNet()}
 
 
-class TransientLayers:
-    pass
+class TransientLayers(nn.Sequential):
+    def __init__(self, encoder: nn.Module, prototype_shape: List = [9, 512, 1, 1]):
+        super().__init__(*_make_layers(encoder, prototype_shape))
+
+    def warm(self) -> None:
+        self.requires_grad_(True)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(False)
+
+
+class PrototypeLayer(nn.Parameter):
+    def warm(self) -> None:
+        self.requires_grad_(True)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(False)
+
+
+class LastLayer(nn.Linear):
+    def warm(self) -> None:
+        self.requires_grad_(True)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(False)
