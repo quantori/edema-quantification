@@ -204,10 +204,34 @@ def last(**kwargs) -> None:
 
 def print_status_bar(trainer: pl.Trainer, blocks: Dict, status: str = '') -> None:
     trainer.progress_bar_callback.status_bar.set_description_str(
-        '{status}, REQUIRES GRAD: Encoder (), Transient layers ({trans}), Protorype layer ({prot}), Last layer ({last})'.format(
+        '{status}, REQUIRES GRAD: Encoder ({encoder}), Transient layers ({trans}),'
+        ' Protorype layer ({prot}), Last layer ({last})'.format(
             status=status,
-            trans=blocks['transient_layers'].requires_grad,
-            prot=blocks['protoype_layer'].requires_grad,
-            last=blocks['last_layer'].requries_grad,
+            encoder=get_grad_status(blocks['encoder']),
+            trans=get_grad_status(blocks['transient_layers']),
+            prot=blocks['prototype_layer'].requires_grad,
+            last=get_grad_status(blocks['last_layer']),
         )
     )
+
+
+def get_grad_status(block: nn.Module) -> bool:
+    parameters = block.parameters()
+    if all(param.requires_grad == parameters[0].requries_grad for param in parameters):
+        return parameters[0].requires_grad
+    else:
+        raise Exception(
+            f'Not all the parmaters in {block.__class__.__name__} have the same grad status'
+        )
+
+
+# if __name__ == '__main__':
+#     print(
+#         '{status}, REQUIRES GRAD: Encoder (), Transient layers ({trans}),'
+#         ' Protorype layer ({prot}), Last layer ({last})'.format(
+#             status=1,
+#             trans=2,
+#             prot=3,
+#             last=4,
+#         )
+#     )
