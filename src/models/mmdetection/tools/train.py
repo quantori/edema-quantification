@@ -311,21 +311,20 @@ def main():
     model.CLASSES = datasets[0].CLASSES
 
     # MLFlow config
-    ml_flow_logger = [logger for logger in cfg.log_config.hooks if 'MlflowLoggerHook' in logger['type']]
-    if ml_flow_logger:
-        ml_flow_logger = ml_flow_logger[0]
+    ml_flow_logger_item = [logger for logger in cfg.log_config.hooks if 'MlflowLoggerHook' in logger['type']]
+    ml_flow_logger = None
+    if ml_flow_logger_item:
+        ml_flow_logger = ml_flow_logger_item[0]
         ml_flow_logger['exp_name'] = 'Edema'
-        # ml_flow_logger['run_name'] = 'mmdetection'
-        # ml_flow_logger['version'] = datetime.now().strftime('%d%m%y_%H%M')
         ml_flow_logger['params'] = dict(cfg=cfg.filename,
                                         device=cfg.device,
                                         seed=cfg.seed,
-                                        model=dict(epochs=args.epochs,
-                                                   model_type=cfg.model.type,
-                                                   model_backbone_type=cfg.model.backbone.type,
-                                                   data_pipeline_img_input_shape=cfg.data.train.pipeline[2].img_scale,
-                                                   data_pipeline_train_img_count=len(datasets[0].data_infos),
-                                                   base_batch_size=cfg.data.samples_per_gpu))
+                                        epochs=args.epochs,
+                                        model_type=cfg.model.type,
+                                        model_backbone_type=cfg.model.backbone.type,
+                                        data_pipeline_img_input_shape=cfg.data.train.pipeline[2].img_scale,
+                                        data_pipeline_train_img_count=len(datasets[0].data_infos),
+                                        base_batch_size=cfg.data.samples_per_gpu)
 
     train_detector(
         model,
@@ -337,18 +336,20 @@ def main():
         meta=meta)
 
     # compute complexity
-    # if ml_flow_logger:
-    #     if hasattr(model, 'forward_dummy'):
-    #         model.forward = model.forward_dummy
-    #     else:
-    #         raise NotImplementedError(
-    #             'FLOPs counter is currently not currently supported with {}'.format(model.__class__.__name__))
-    #
-    #     input_shape = (3, 1333, 800)
-    #     model.eval()
-    #     flops, params = get_model_complexity_info(model, input_shape)
-    #     ml_flow_logger['params'] = dict(flops=flops,
-    #                                     params=params)
+    try:
+        if hasattr(model, 'forward_dummy'):
+            model.forward = model.forward_dummy
+        else:
+            raise NotImplementedError(
+                'FLOPs counter is currently not currently supported with {}'.format(model.__class__.__name__))
+
+        input_shape = (3, 1333, 800)
+        print('get_model_complexity_info!')
+        flops_count, params_count = get_model_complexity_info(model, input_shape)
+        ml_flow_logger['params']['flops_count'] = flops_count
+        ml_flow_logger['params']['params_count'] = flops_count
+    except Exception as err:
+        print(err)
 
 
 if __name__ == '__main__':
