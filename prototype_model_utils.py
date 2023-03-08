@@ -216,9 +216,9 @@ def print_status_bar(trainer: pl.Trainer, blocks: Dict, status: str = '') -> Non
 
 
 def get_grad_status(block: nn.Module) -> bool:
-    parameters = block.parameters()
-    if all(param.requires_grad == parameters[0].requries_grad for param in parameters):
-        return parameters[0].requires_grad
+    first_param = next(block.parameters())
+    if all(param.requires_grad == first_param.requires_grad for param in block.parameters()):
+        return first_param.requires_grad
     else:
         raise Exception(
             f'Not all the parmaters in {block.__class__.__name__} have the same grad status'

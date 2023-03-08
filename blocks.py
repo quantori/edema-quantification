@@ -147,4 +147,4 @@ class LastLayer(nn.Linear):
         self.requires_grad_(True)
 
     def last(self) -> None:
-        self.requires_grad_(False)
+        self.requires_grad_(True)
