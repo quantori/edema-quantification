@@ -1,106 +1,146 @@
-# Copyright (c) OpenMMLab. All rights reserved.
 import argparse
 import copy
 import os
 import os.path as osp
 import time
 import warnings
-from datetime import datetime
 
 import mmcv
 import torch
 import torch.distributed as dist
 from mmcv import Config, DictAction
+from mmcv.cnn import get_model_complexity_info
 from mmcv.runner import get_dist_info, init_dist
 from mmcv.utils import get_git_hash
-
 from mmdet import __version__
 from mmdet.apis import init_random_seed, set_random_seed, train_detector
 from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
-from mmdet.utils import (collect_env, get_device, get_root_logger,
-                         replace_cfg_vals, rfnext_init_model,
-                         setup_multi_processes, update_data_root)
-
-from mmcv.cnn import get_model_complexity_info
+from mmdet.utils import (
+    collect_env,
+    get_device,
+    get_root_logger,
+    replace_cfg_vals,
+    rfnext_init_model,
+    setup_multi_processes,
+    update_data_root,
+)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
-    parser.add_argument('--config', type=str, default='src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
-                        help='path to a train config file')
-    parser.add_argument('--data-dir', type=str, default='data/coco',
-                        help='directory to the COCO dataset')
-    parser.add_argument('--dataset-type', type=str, default='CocoDataset', help='type of the dataset')
-    parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
+        help='path to a train config file',
+    )
+    parser.add_argument(
+        '--data-dir',
+        type=str,
+        default='data/coco',
+        help='directory to the COCO dataset',
+    )
+    parser.add_argument(
+        '--dataset-type',
+        type=str,
+        default='CocoDataset',
+        help='type of the dataset',
+    )
+    parser.add_argument(
+        '--filter-empty-gt',
+        action='store_true',
+        help='whether to exclude the empty GT images',
+    )
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
-    parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
+    parser.add_argument(
+        '--num-workers',
+        type=int,
+        default=None,
+        help='workers to pre-fetch data for each single GPU',
+    )
     parser.add_argument('--epochs', default=2, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
-    parser.add_argument('--work-dir', default='models/sign_detection', help='the dir to save logs and models')
     parser.add_argument(
-        '--resume-from', help='the checkpoint file to resume from')
+        '--work-dir',
+        default='models/sign_detection',
+        help='the dir to save logs and models',
+    )
+    parser.add_argument(
+        '--resume-from',
+        help='the checkpoint file to resume from',
+    )
     parser.add_argument(
         '--auto-resume',
         action='store_true',
-        help='resume from the latest checkpoint automatically')
+        help='resume from the latest checkpoint automatically',
+    )
     parser.add_argument(
         '--no-validate',
         action='store_true',
-        help='whether not to evaluate the checkpoint during training')
+        help='whether not to evaluate the checkpoint during training',
+    )
     group_gpus = parser.add_mutually_exclusive_group()
     group_gpus.add_argument(
         '--gpus',
         type=int,
         help='(Deprecated, please use --gpu-id) number of gpus to use '
-             '(only applicable to non-distributed training)')
+        '(only applicable to non-distributed training)',
+    )
     group_gpus.add_argument(
         '--gpu-ids',
         type=int,
         nargs='+',
         help='(Deprecated, please use --gpu-id) ids of gpus to use '
-             '(only applicable to non-distributed training)')
+        '(only applicable to non-distributed training)',
+    )
     group_gpus.add_argument(
         '--gpu-id',
         type=int,
         default=0,
-        help='id of gpu to use '
-             '(only applicable to non-distributed training)')
+        help='id of gpu to use ' '(only applicable to non-distributed training)',
+    )
     parser.add_argument(
         '--diff-seed',
         action='store_true',
-        help='Whether or not set different seeds for different ranks')
+        help='Whether or not set different seeds for different ranks',
+    )
     parser.add_argument(
         '--deterministic',
         action='store_true',
-        help='whether to set deterministic options for CUDNN backend.')
+        help='whether to set deterministic options for CUDNN backend.',
+    )
     parser.add_argument(
         '--options',
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-             'in xxx=yyy format will be merged into config file (deprecate), '
-             'change to --cfg-options instead.')
+        'in xxx=yyy format will be merged into config file (deprecate), '
+        'change to --cfg-options instead.',
+    )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-             'in xxx=yyy format will be merged into config file. If the value to '
-             'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
-             'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
-             'Note that the quotation marks are necessary and that no white space '
-             'is allowed.')
+        'in xxx=yyy format will be merged into config file. If the value to '
+        'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
+        'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
+        'Note that the quotation marks are necessary and that no white space '
+        'is allowed.',
+    )
     parser.add_argument(
         '--launcher',
         choices=['none', 'pytorch', 'slurm', 'mpi'],
         default='none',
-        help='job launcher')
+        help='job launcher',
+    )
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument(
         '--auto-scale-lr',
         action='store_true',
-        help='enable automatically scaling LR.')
+        help='enable automatically scaling LR.',
+    )
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -108,7 +148,8 @@ def parse_args():
     if args.options and args.cfg_options:
         raise ValueError(
             '--options and --cfg-options cannot be both '
-            'specified, --options is deprecated in favor of --cfg-options')
+            'specified, --options is deprecated in favor of --cfg-options',
+        )
     if args.options:
         warnings.warn('--options is deprecated in favor of --cfg-options')
         args.cfg_options = args.options
@@ -175,12 +216,12 @@ def main():
         cfg.data.workers_per_gpu = args.num_workers
 
     cfg.evaluation.metric = 'bbox'
-    cfg.optimizer.lr = 0.02 / 8  # The original learning rate is set for 8-GPU training.
+    cfg.optimizer.lr = 0.02 / 8         # The original learning rate is set for 8-GPU training.
     cfg.lr_config.warmup = None
 
-    cfg.log_config.interval = 1  # Equal to batch_size
+    cfg.log_config.interval = 1         # Equal to batch_size
 
-    cfg.evaluation.interval = 1  # Set the evaluation interval to increase/reduce the evaluation times
+    cfg.evaluation.interval = 1         # Set the evaluation interval to increase/reduce the evaluation times
     cfg.checkpoint_config.interval = 1  # Set the checkpoint saving interval to increase/reduce the storage cost
 
     # Set seed thus the results are more reproducible
@@ -196,16 +237,20 @@ def main():
     # ------------------------------------------------------------------------------------------------------------------
 
     if args.auto_scale_lr:
-        if 'auto_scale_lr' in cfg and \
-                'enable' in cfg.auto_scale_lr and \
-                'base_batch_size' in cfg.auto_scale_lr:
+        if (
+            'auto_scale_lr' in cfg
+            and 'enable' in cfg.auto_scale_lr
+            and 'base_batch_size' in cfg.auto_scale_lr
+        ):
             cfg.auto_scale_lr.enable = True
         else:
-            warnings.warn('Can not find "auto_scale_lr" or '
-                          '"auto_scale_lr.enable" or '
-                          '"auto_scale_lr.base_batch_size" in your'
-                          ' configuration file. Please update all the '
-                          'configuration files to mmdet >= 2.24.1.')
+            warnings.warn(
+                'Can not find "auto_scale_lr" or '
+                '"auto_scale_lr.enable" or '
+                '"auto_scale_lr.base_batch_size" in your'
+                ' configuration file. Please update all the '
+                'configuration files to mmdet >= 2.24.1.',
+            )
 
     # set multi-process settings
     setup_multi_processes(cfg)
@@ -220,23 +265,29 @@ def main():
         cfg.work_dir = osp.join(args.work_dir, osp.splitext(osp.basename(args.config))[0])
     elif cfg.get('work_dir', None) is None:
         # use config filename as default work_dir if cfg.work_dir is None
-        cfg.work_dir = osp.join('./work_dirs',
-                                osp.splitext(osp.basename(args.config))[0])
+        cfg.work_dir = osp.join(
+            './work_dirs',
+            osp.splitext(osp.basename(args.config))[0],
+        )
 
     if args.resume_from is not None:
         cfg.resume_from = args.resume_from
     cfg.auto_resume = args.auto_resume
     if args.gpus is not None:
         cfg.gpu_ids = range(1)
-        warnings.warn('`--gpus` is deprecated because we only support '
-                      'single GPU mode in non-distributed training. '
-                      'Use `gpus=1` now.')
+        warnings.warn(
+            '`--gpus` is deprecated because we only support '
+            'single GPU mode in non-distributed training. '
+            'Use `gpus=1` now.',
+        )
     if args.gpu_ids is not None:
         cfg.gpu_ids = args.gpu_ids[0:1]
-        warnings.warn('`--gpu-ids` is deprecated, please use `--gpu-id`. '
-                      'Because we only support single GPU mode in '
-                      'non-distributed training. Use the first GPU '
-                      'in `gpu_ids` now.')
+        warnings.warn(
+            '`--gpu-ids` is deprecated, please use `--gpu-id`. '
+            'Because we only support single GPU mode in '
+            'non-distributed training. Use the first GPU '
+            'in `gpu_ids` now.',
+        )
     if args.gpus is None and args.gpu_ids is None:
         cfg.gpu_ids = [args.gpu_id]
 
@@ -266,8 +317,9 @@ def main():
     env_info_dict = collect_env()
     env_info = '\n'.join([(f'{k}: {v}') for k, v in env_info_dict.items()])
     dash_line = '-' * 60 + '\n'
-    logger.info('Environment info:\n' + dash_line + env_info + '\n' +
-                dash_line)
+    logger.info(
+        'Environment info:\n' + dash_line + env_info + '\n' + dash_line,
+    )
     meta['env_info'] = env_info
     meta['config'] = cfg.pretty_text
     # log some basic info
@@ -278,8 +330,9 @@ def main():
     # set random seeds
     seed = init_random_seed(args.seed, device=cfg.device)
     seed = seed + dist.get_rank() if args.diff_seed else seed
-    logger.info(f'Set random seed to {seed}, '
-                f'deterministic: {args.deterministic}')
+    logger.info(
+        f'Set random seed to {seed}, ' f'deterministic: {args.deterministic}',
+    )
     set_random_seed(seed, deterministic=args.deterministic)
     cfg.seed = seed
     meta['seed'] = seed
@@ -288,7 +341,8 @@ def main():
     model = build_detector(
         cfg.model,
         train_cfg=cfg.get('train_cfg'),
-        test_cfg=cfg.get('test_cfg'))
+        test_cfg=cfg.get('test_cfg'),
+    )
     model.init_weights()
 
     # init rfnext if 'RFSearchHook' is defined in cfg
@@ -299,32 +353,39 @@ def main():
         assert 'val' in [mode for (mode, _) in cfg.workflow]
         val_dataset = copy.deepcopy(cfg.data.val)
         val_dataset.pipeline = cfg.data.train.get(
-            'pipeline', cfg.data.train.dataset.get('pipeline'))
+            'pipeline',
+            cfg.data.train.dataset.get('pipeline'),
+        )
         datasets.append(build_dataset(val_dataset))
     if cfg.checkpoint_config is not None:
         # save mmdet version, config file content and class names in
         # checkpoints as meta data
         cfg.checkpoint_config.meta = dict(
             mmdet_version=__version__ + get_git_hash()[:7],
-            CLASSES=datasets[0].CLASSES)
+            CLASSES=datasets[0].CLASSES,
+        )
     # add an attribute for visualization convenience
     model.CLASSES = datasets[0].CLASSES
 
     # MLFlow config
-    ml_flow_logger_item = [logger for logger in cfg.log_config.hooks if 'MlflowLoggerHook' in logger['type']]
+    ml_flow_logger_item = [
+        logger for logger in cfg.log_config.hooks if 'MlflowLoggerHook' in logger['type']
+    ]
     ml_flow_logger = None
     if ml_flow_logger_item:
         ml_flow_logger = ml_flow_logger_item[0]
         ml_flow_logger['exp_name'] = 'Edema'
-        ml_flow_logger['params'] = dict(cfg=cfg.filename,
-                                        device=cfg.device,
-                                        seed=cfg.seed,
-                                        epochs=args.epochs,
-                                        model_type=cfg.model.type,
-                                        model_backbone_type=cfg.model.backbone.type,
-                                        data_pipeline_img_input_shape=cfg.data.train.pipeline[2].img_scale,
-                                        data_pipeline_train_img_count=len(datasets[0].data_infos),
-                                        base_batch_size=cfg.data.samples_per_gpu)
+        ml_flow_logger['params'] = dict(
+            cfg=cfg.filename,
+            device=cfg.device,
+            seed=cfg.seed,
+            epochs=args.epochs,
+            model_type=cfg.model.type,
+            model_backbone_type=cfg.model.backbone.type,
+            data_pipeline_img_input_shape=cfg.data.train.pipeline[2].img_scale,
+            data_pipeline_train_img_count=len(datasets[0].data_infos),
+            base_batch_size=cfg.data.samples_per_gpu,
+        )
 
     train_detector(
         model,
@@ -333,21 +394,29 @@ def main():
         distributed=distributed,
         validate=(not args.no_validate),
         timestamp=timestamp,
-        meta=meta)
+        meta=meta,
+    )
 
-    # compute complexity
+    # Compute complexity
+    # FIXME: if get_model_complexity_info() is not called successfully
+    #        ml_flow_logger['params']['flops'] and ml_flow_logger['params']['params'] should log
+    #        something like an empty string or just "NA". If this try-except loop does exactly this,
+    #        then it is fine.
     try:
         if hasattr(model, 'forward_dummy'):
             model.forward = model.forward_dummy
         else:
+            # TODO: I would rather print the error here than stop the execution
             raise NotImplementedError(
-                'FLOPs counter is currently not currently supported with {}'.format(model.__class__.__name__))
+                f'FLOPs counter is not currently supported for {model.__class__.__name__}',
+            )
 
+        # FIXME: input_shape is not a constant value and it varies from network to network,
+        #        you should get it from the config
         input_shape = (3, 1333, 800)
-        print('get_model_complexity_info!')
-        flops_count, params_count = get_model_complexity_info(model, input_shape)
-        ml_flow_logger['params']['flops_count'] = flops_count
-        ml_flow_logger['params']['params_count'] = flops_count
+        flops, params = get_model_complexity_info(model, input_shape)
+        ml_flow_logger['params']['flops'] = flops
+        ml_flow_logger['params']['params'] = params
     except Exception as err:
         print(err)
 
