@@ -371,7 +371,6 @@ def main():
     ml_flow_logger_item = [
         logger for logger in cfg.log_config.hooks if 'MlflowLoggerHook' in logger['type']
     ]
-    ml_flow_logger = None
     if ml_flow_logger_item:
         ml_flow_logger = ml_flow_logger_item[0]
         ml_flow_logger['exp_name'] = 'Edema'
@@ -386,6 +385,38 @@ def main():
             data_pipeline_train_img_count=len(datasets[0].data_infos),
             base_batch_size=cfg.data.samples_per_gpu,
         )
+        # Compute complexity
+        # FIXME: if get_model_complexity_info() is not called successfully
+        #        ml_flow_logger['params']['flops'] and ml_flow_logger['params']['params'] should log
+        #        something like an empty string or just "NA". If this try-except loop does exactly this,
+        #        then it is fine.
+        try:
+
+            tmp_model = build_detector(
+                cfg.model,
+                train_cfg=cfg.get('train_cfg'),
+                test_cfg=cfg.get('test_cfg'),
+            )
+            tmp_model.eval()
+
+            if hasattr(tmp_model, 'forward_dummy'):
+                tmp_model.forward = tmp_model.forward_dummy
+            else:
+                # TODO: I would rather print the error here than stop the execution
+                raise NotImplementedError(
+                    f'FLOPs counter is not currently supported for {tmp_model.__class__.__name__}',
+                )
+
+            # FIXME: input_shape is not a constant value and it varies from network to network,
+            #        you should get it from the config
+            input_shape = (3, *cfg.data.train.pipeline[2].img_scale)
+            flops_count, params_count = get_model_complexity_info(tmp_model, input_shape)
+            ml_flow_logger['params']['flops_count'] = flops_count
+            ml_flow_logger['params']['params_count'] = params_count
+        except Exception as err:
+            print(f'Error: {err}')
+            ml_flow_logger['params']['flops_count'] = 'NA'
+            ml_flow_logger['params']['params_count'] = 'NA'
 
     train_detector(
         model,
@@ -396,29 +427,6 @@ def main():
         timestamp=timestamp,
         meta=meta,
     )
-
-    # Compute complexity
-    # FIXME: if get_model_complexity_info() is not called successfully
-    #        ml_flow_logger['params']['flops'] and ml_flow_logger['params']['params'] should log
-    #        something like an empty string or just "NA". If this try-except loop does exactly this,
-    #        then it is fine.
-    try:
-        if hasattr(model, 'forward_dummy'):
-            model.forward = model.forward_dummy
-        else:
-            # TODO: I would rather print the error here than stop the execution
-            raise NotImplementedError(
-                f'FLOPs counter is not currently supported for {model.__class__.__name__}',
-            )
-
-        # FIXME: input_shape is not a constant value and it varies from network to network,
-        #        you should get it from the config
-        input_shape = (3, 1333, 800)
-        flops, params = get_model_complexity_info(model, input_shape)
-        ml_flow_logger['params']['flops'] = flops
-        ml_flow_logger['params']['params'] = params
-    except Exception as err:
-        print(err)
 
 
 if __name__ == '__main__':
