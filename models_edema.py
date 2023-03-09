@@ -169,8 +169,10 @@ class EdemaNet(pl.LightningModule):
     def on_train_epoch_start(self):
         if self.current_epoch < self.num_warm_epochs:
             warm(**self.blocks)
+            print_status_bar(self.trainer, self.blocks, status='WARM')
         else:
             joint(**self.blocks)
+            print_status_bar(self.trainer, self.blocks, status='JOINT')
 
     def training_epoch_end(self, outputs):
         # here, we have to put push_prototypes function
@@ -178,34 +180,11 @@ class EdemaNet(pl.LightningModule):
         if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
 
             self.update_prototypes(self.trainer.train_dataloader.loaders)
-            # with tqdm(
-            #     total=1,
-            #     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{postfix[f1_val]}]}',
-            #     desc='Validation',
-            #     postfix=dict(f1_val=0),
-            # ) as t:
             self.val_epoch(self.trainer.val_dataloaders[0])
             # TODO: save the model if the performance metric is better
-
-            # with tqdm(
-            #     total=10,
-            #     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [train_cost={postfix[0][f1_train]}'
-            #     ' val_cost={postfix[1][f1_val]}]',
-            #     desc='Training last only',
-            #     postfix=[dict(f1_train=0), dict(f1_val=0)],
-            # ) as t:
             self.train_last_only(
                 self.trainer.train_dataloader.loaders, self.trainer.val_dataloaders[0]
             )
-            # self.train_last_only(epochs=10)
-            # for i in range(10):
-            #     # for idx, batch in enumerate(self.trainer.train_dataloader.loaders):
-            #     #     cost = self.training_step(batch, idx)
-            #     self.train_epoch(self.trainer.train_dataloader.loaders)
-            #     self.val_epoch(self.trainer.val_dataloaders[0])
-            # train_cost = self.custom_train_epoch()
-            # val_cost = self.custom_validation_epoch()
-            # t.update()
 
             # save model performance
             # TODO: calculate performance and update the global performance criterium, if it is
@@ -224,7 +203,7 @@ class EdemaNet(pl.LightningModule):
         return cost
 
     def val_epoch(self, dataloader: DataLoader, t: Optional[tqdm] = None) -> Dict:
-        with tqdm(total=len(dataloader), desc='Validating', position=3, leave=False) as t1:
+        with tqdm(total=len(dataloader), desc='Validating', position=4, leave=False) as t1:
             for idx, batch in enumerate(dataloader):
                 preds = self.validation_step(batch, idx)
                 t1.update()
@@ -237,15 +216,6 @@ class EdemaNet(pl.LightningModule):
                 t.refresh()
 
     def train_epoch(self, dataloader: DataLoader, t: tqdm):
-        # with tqdm(
-        #     total=len(dataloader),
-        #     desc=f'Training last, Epoch {epoch}',
-        #     leave=False,
-        #     dynamic_ncols=True,
-        #     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [loss={postfix[0][loss]}'
-        #     ' f1_train={postfix[1][f1_train]}]',
-        #     postfix=[dict(loss=0), dict(f1_train=0)],
-        # ) as t:
         for idx, batch in enumerate(dataloader):
             preds = self.training_step(batch, idx)
             preds = self.refactor_train_dict(preds)
@@ -263,21 +233,11 @@ class EdemaNet(pl.LightningModule):
     ):
         last(**self.blocks)
         print_status_bar(self.trainer, self.blocks, status='LAST')
-        # self.trainer.progress_bar_callback.status_bar.set_description_str(
-        #     f'LAST, REQUIRES GRAD: Encoder (False),'
-        #     ' Transient layers (False),'
-        #     ' Protorype layer (False),'
-        #     ' Last layer (True)'
-        # )
         with tqdm(
-            # total=len(train_dataloader) + len(val_dataloader),
             leave=False,
             dynamic_ncols=True,
             position=3,
             file=sys.stdout,
-            # # bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [loss={postfix[0][loss]}'
-            # # ' f1_train={postfix[1][f1_train]}]',
-            # postfix=[dict(loss=0), dict(f1_train=0)],
         ) as t:
             total = len(train_dataloader) + len(val_dataloader)
             for epoch in range(epochs):
@@ -311,45 +271,6 @@ class EdemaNet(pl.LightningModule):
             sub = sub.split('=')
             d.update({sub[0]: sub[1]})
         return d
-
-    # def custom_validation_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
-    #     if self.training:
-    #         self.eval()
-    #     with tqdm(
-    #         total=len(self.trainer.val_dataloaders[0]),
-    #         bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{postfix[f1_val]}]}',
-    #         desc='Validation',
-    #         postfix=dict(f1_val=0),
-    #     ) as t:
-    #         for batch in self.trainer.val_dataloaders[0]:
-    #             with torch.no_grad():
-    #                 val_cost, f1_val = self.train_val_test(batch)
-    #             if t:
-    #                 t.postfix['f1_val'] = round(f1_val.item(), 2)
-    #             t.update()
-
-    #     return val_cost
-
-    # def custom_train_epoch(self, t: Optional[tqdm] = None) -> torch.Tensor:
-    #     if not self.training:
-    #         self.train()
-    #     with tqdm(
-    #         total=len(self.trainer.train_dataloader.loaders),
-    #         bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{postfix[f1_train]}]}',
-    #         desc='Training last only',
-    #         postfix=dict(f1_train=0),
-    #     ) as t:
-    #         for batch in self.trainer.train_dataloader.loaders:
-    #             with torch.enable_grad():
-    #                 train_cost, f1_train = self.train_val_test(batch)
-    #             if t:
-    #                 # this implementation implies that only the last cost will be saved and shown
-    #                 t.postfix['f1_train'] = round(f1_train.item(), 2)
-    #             train_cost.backward()
-    #             self.trainer.optimizers[0].step()
-    #             self.trainer.optimizers[0].zero_grad()
-    #             t.update()
-    #     return train_cost
 
     def train_val_test(self, batch):
         images, labels = batch
@@ -398,24 +319,6 @@ class EdemaNet(pl.LightningModule):
         # y_hat = self(x)
         # loss = F.cross_entropy(y_hat, y)
         return cost, f1_score
-
-    # def warm_only(self):
-    #     self.encoder.requires_grad_(False)
-    #     self.transient_layers.requires_grad_(True)
-    #     self.prototype_layer.requires_grad_(True)
-    #     self.last_layer.requires_grad_(True)
-
-    # def last_only(self):
-    #     self.encoder.requires_grad_(False)
-    #     self.transient_layers.requires_grad_(False)
-    #     self.prototype_layer.requires_grad_(False)
-    #     self.last_layer.requires_grad_(True)
-
-    # def joint(self):
-    #     self.encoder.requires_grad_(True)
-    #     self.transient_layers.requires_grad_(True)
-    #     self.prototype_layer.requires_grad_(True)
-    #     self.last_layer.requires_grad_(True)
 
     def configure_optimizers(self):
         # TODO configure the optimizer properly

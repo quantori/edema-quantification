@@ -33,23 +33,6 @@ class PNetProgressBar(TQDMProgressBar):
         super().on_train_start(trainer, pl_module)
         self.status_bar = self.init_status_tqdm()
 
-    def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-        super().on_train_epoch_start(trainer, pl_module)
-        if pl_module.current_epoch < pl_module.num_warm_epochs:
-            self.status_bar.set_description_str(
-                f'WARM-UP, REQUIRES GRAD: Encoder (False),'
-                ' Transient layers (True),'
-                ' Protorype layer (True),'
-                ' Last layer (True)'
-            )
-        else:
-            self.status_bar.set_description_str(
-                f'JOINT, REQUIRES GRAD: Encoder (True),'
-                ' Transient layers (True),'
-                ' Protorype layer (True),'
-                ' Last layer (True)'
-            )
-
 
 def get_encoder(encoders: dict, name: str = 'squezeenet') -> nn.Module:
     try:

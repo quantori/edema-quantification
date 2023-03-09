@@ -1,2 +1,10 @@
 defaults:
+  - _self_
   - model: model_config
+  
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+override hydra/job_logging: none
+override hydra/hydra_logging: none
