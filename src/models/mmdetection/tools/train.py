@@ -1,4 +1,3 @@
-# Copyright (c) OpenMMLab. All rights reserved.
 import argparse
 import copy
 import os
@@ -10,6 +9,7 @@ import mmcv
 import torch
 import torch.distributed as dist
 from mmcv import Config, DictAction
+from mmcv.cnn import get_model_complexity_info
 from mmcv.runner import get_dist_info, init_dist
 from mmcv.utils import get_git_hash
 from mmdet import __version__
@@ -32,13 +32,13 @@ def parse_args():
     parser.add_argument(
         '--config',
         type=str,
-        default='configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
+        default='src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
         help='path to a train config file',
     )
     parser.add_argument(
         '--data-dir',
         type=str,
-        default='data/MIMIC-CXR-Edema-COCO',
+        default='data/coco',
         help='directory to the COCO dataset',
     )
     parser.add_argument(
@@ -59,9 +59,13 @@ def parse_args():
         default=None,
         help='workers to pre-fetch data for each single GPU',
     )
-    parser.add_argument('--epochs', default=10, type=int, help='number of training epochs')
+    parser.add_argument('--epochs', default=2, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
-    parser.add_argument('--work-dir', help='the dir to save logs and models')
+    parser.add_argument(
+        '--work-dir',
+        default='models/sign_detection',
+        help='the dir to save logs and models',
+    )
     parser.add_argument(
         '--resume-from',
         help='the checkpoint file to resume from',
@@ -214,13 +218,11 @@ def main():
     cfg.evaluation.metric = 'bbox'
     cfg.optimizer.lr = 0.02 / 8  # The original learning rate is set for 8-GPU training.
     cfg.lr_config.warmup = None
+
     cfg.log_config.interval = 1  # Equal to batch_size
-    cfg.evaluation.interval = (
-        1  # Set the evaluation interval to increase/reduce the evaluation times
-    )
-    cfg.checkpoint_config.interval = (
-        1  # Set the checkpoint saving interval to increase/reduce the storage cost
-    )
+
+    cfg.evaluation.interval = 1  # Set the evaluation interval
+    cfg.checkpoint_config.interval = 1  # Set the checkpoint saving interval
 
     # Set seed thus the results are more reproducible
     if args.seed is not None:
@@ -260,7 +262,7 @@ def main():
     # work_dir is determined in this priority: CLI > segment in file > filename
     if args.work_dir is not None:
         # update configs according to CLI args if args.work_dir is not None
-        cfg.work_dir = args.work_dir
+        cfg.work_dir = osp.join(args.work_dir, osp.splitext(osp.basename(args.config))[0])
     elif cfg.get('work_dir', None) is None:
         # use config filename as default work_dir if cfg.work_dir is None
         cfg.work_dir = osp.join(
@@ -364,6 +366,51 @@ def main():
         )
     # add an attribute for visualization convenience
     model.CLASSES = datasets[0].CLASSES
+
+    # MLFlow config
+    ml_flow_logger_item = [
+        logger for logger in cfg.log_config.hooks if 'MlflowLoggerHook' in logger['type']
+    ]
+    if ml_flow_logger_item:
+        ml_flow_logger = ml_flow_logger_item[0]
+        ml_flow_logger['exp_name'] = 'Edema'
+        ml_flow_logger['params'] = dict(
+            cfg=cfg.filename,
+            device=cfg.device,
+            seed=cfg.seed,
+            epochs=args.epochs,
+            model_type=cfg.model.type,
+            model_backbone_type=cfg.model.backbone.type,
+            data_pipeline_img_input_shape=cfg.data.train.pipeline[2].img_scale,
+            data_pipeline_train_img_count=len(datasets[0].data_infos),
+            base_batch_size=cfg.data.samples_per_gpu,
+        )
+
+        # Compute complexity
+        try:
+            tmp_model = build_detector(
+                cfg.model,
+                train_cfg=cfg.get('train_cfg'),
+                test_cfg=cfg.get('test_cfg'),
+            )
+            tmp_model.eval()
+
+            if hasattr(tmp_model, 'forward_dummy'):
+                tmp_model.forward = tmp_model.forward_dummy
+            else:
+                raise NotImplementedError(
+                    f'FLOPs counter is not currently supported for {tmp_model.__class__.__name__}',
+                )
+
+            input_shape = (3, *cfg.data.train.pipeline[2].img_scale)
+            flops, params = get_model_complexity_info(tmp_model, input_shape)
+            ml_flow_logger['params']['flops_count'] = flops
+            ml_flow_logger['params']['params_count'] = params
+        except Exception as err:
+            print(f'Error: {err}')
+            ml_flow_logger['params']['flops_count'] = 'NA'
+            ml_flow_logger['params']['params_count'] = 'NA'
+
     train_detector(
         model,
         datasets,
