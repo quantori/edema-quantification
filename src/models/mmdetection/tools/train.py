@@ -216,13 +216,13 @@ def main():
         cfg.data.workers_per_gpu = args.num_workers
 
     cfg.evaluation.metric = 'bbox'
-    cfg.optimizer.lr = 0.02 / 8         # The original learning rate is set for 8-GPU training.
+    cfg.optimizer.lr = 0.02 / 8  # The original learning rate is set for 8-GPU training.
     cfg.lr_config.warmup = None
 
-    cfg.log_config.interval = 1         # Equal to batch_size
+    cfg.log_config.interval = 1  # Equal to batch_size
 
-    cfg.evaluation.interval = 1         # Set the evaluation interval to increase/reduce the evaluation times
-    cfg.checkpoint_config.interval = 1  # Set the checkpoint saving interval to increase/reduce the storage cost
+    cfg.evaluation.interval = 1  # Set the evaluation interval
+    cfg.checkpoint_config.interval = 1  # Set the checkpoint saving interval
 
     # Set seed thus the results are more reproducible
     if args.seed is not None:
@@ -385,13 +385,9 @@ def main():
             data_pipeline_train_img_count=len(datasets[0].data_infos),
             base_batch_size=cfg.data.samples_per_gpu,
         )
-        # Compute complexity
-        # FIXME: if get_model_complexity_info() is not called successfully
-        #        ml_flow_logger['params']['flops'] and ml_flow_logger['params']['params'] should log
-        #        something like an empty string or just "NA". If this try-except loop does exactly this,
-        #        then it is fine.
-        try:
 
+        # Compute complexity
+        try:
             tmp_model = build_detector(
                 cfg.model,
                 train_cfg=cfg.get('train_cfg'),
@@ -402,17 +398,14 @@ def main():
             if hasattr(tmp_model, 'forward_dummy'):
                 tmp_model.forward = tmp_model.forward_dummy
             else:
-                # TODO: I would rather print the error here than stop the execution
                 raise NotImplementedError(
                     f'FLOPs counter is not currently supported for {tmp_model.__class__.__name__}',
                 )
 
-            # FIXME: input_shape is not a constant value and it varies from network to network,
-            #        you should get it from the config
             input_shape = (3, *cfg.data.train.pipeline[2].img_scale)
-            flops_count, params_count = get_model_complexity_info(tmp_model, input_shape)
-            ml_flow_logger['params']['flops_count'] = flops_count
-            ml_flow_logger['params']['params_count'] = params_count
+            flops, params = get_model_complexity_info(tmp_model, input_shape)
+            ml_flow_logger['params']['flops_count'] = flops
+            ml_flow_logger['params']['params_count'] = params
         except Exception as err:
             print(f'Error: {err}')
             ml_flow_logger['params']['flops_count'] = 'NA'
