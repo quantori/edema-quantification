@@ -153,6 +153,9 @@ lightning_logs/
 .dvc/tmp
 .dvc/cache
 
+# Directory with temporary files
+/temp/
+
 # savings from training
 savings/
 
