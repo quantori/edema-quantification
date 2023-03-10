@@ -1,17 +1,19 @@
 import os
 from typing import Dict, Tuple
 
-import pandas as pd
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-from pytorch_lightning import LightningDataModule
 import albumentations as A
+import pandas as pd
 from albumentations.pytorch import ToTensorV2
+from PIL import Image
+from pytorch_lightning import LightningDataModule
+from torch.utils.data import DataLoader, Dataset
 
-import tools.data_classes_utils as data_classes_utils
+import src.data.data_classes_utils as data_classes_utils
 
 
 class EdemaDataset(Dataset):
+    """Dataset formation."""
+
     def __init__(
         self,
         metadata_df: pd.DataFrame,
@@ -26,7 +28,7 @@ class EdemaDataset(Dataset):
 
     @staticmethod
     def process_metadata_df(metadata_df: pd.DataFrame) -> Dict[int, Dict]:
-        """
+        """Process metadata.
 
         Args:
             metadata_df: DataFrame obtained from 'metadata.xlsx' spreadsheet table
@@ -36,9 +38,9 @@ class EdemaDataset(Dataset):
             Dict[int, Dict[str, Union[str, int, Dict]]] dict of dicts with data
                 extracted from image metadata
         """
-        img_data = dict()
+        img_data: Dict[int, Dict] = dict()
         for img_idx, (img_path, img_objects) in enumerate(
-            metadata_df.groupby('Image path', sort=False)
+            metadata_df.groupby('Image path', sort=False),
         ):
             img_data[img_idx] = dict()
             img_data[img_idx]['path'] = img_path
@@ -59,7 +61,9 @@ class EdemaDataset(Dataset):
 
         # resize image to target size and create list with masks, as well as labels array
         image_arr, masks, findings = data_classes_utils.resize_and_create_masks(
-            image, annotations, self.resize
+            image,
+            annotations,
+            self.resize,
         )
 
         if self.make_augmentation:
@@ -82,18 +86,21 @@ class EdemaDataset(Dataset):
                 *augmentation_functions,
                 normalization,
                 ToTensorV2(),
-            ]
+            ],
         )
 
         transformed = transform(image=image_arr, masks=masks)
 
         tensor = data_classes_utils.combine_image_and_masks(
-            transformed['image'], transformed['masks']
+            transformed['image'],
+            transformed['masks'],
         )
         return tensor, findings
 
 
 class EdemaDataModule(LightningDataModule):
+    """Special data module for using with Pytorch Lightning."""
+
     def __init__(
         self,
         data_dir: str = './',
@@ -103,8 +110,7 @@ class EdemaDataModule(LightningDataModule):
         normalize_tensors: bool = False,
         train_share: float = 0.8,
     ) -> None:
-        """
-        DataModule for preparing batches of processed images.
+        """Datamodule for preparing batches of processed images.
 
         Args:
             data_dir: directory where converted supervisely dataset reside
@@ -132,7 +138,10 @@ class EdemaDataModule(LightningDataModule):
         )
         if stage == 'fit':
             self.edema_train, self.edema_test = data_classes_utils.split_dataset(
-                edema_full, self.train_share, metadata_df, verbose=True
+                edema_full,
+                self.train_share,
+                metadata_df,
+                verbose=True,
             )
 
     def train_dataloader(self, num_workers=1, **kwargs):
@@ -147,19 +156,18 @@ class EdemaDataModule(LightningDataModule):
 
 
 if __name__ == '__main__':
-
     metadata_df = pd.read_excel(
         os.path.join(
             'C:/Users/makov/Desktop/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
             'metadata.xlsx',
-        )
+        ),
     ).fillna({'Class ID': -1})
     dataset = EdemaDataset(metadata_df, normalize_tensors=False)
     images, labels = dataset[1]
     print(images.shape)
 
     datamodule = EdemaDataModule(
-        data_dir='C:/Users/makov/Desktop/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate'
+        data_dir='C:/Users/makov/Desktop/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
     )
     datamodule.setup('fit')
     train_dataloader = datamodule.train_dataloader()

@@ -1,14 +1,14 @@
-from torch.utils.data import DataLoader, TensorDataset
-import torch
-import pytorch_lightning as pl
 import hydra
+import pytorch_lightning as pl
+import torch
 from omegaconf import DictConfig
 
-from tools.data_classes import EdemaDataModule
+from src.data.data_classes import EdemaDataModule
 from src.models.prototype_model.models_edema import EdemaNet
 from src.models.prototype_model.prototype_model_utils import PNetProgressBar
 
-@hydra.main(version_base=None, config_path='pm_configs', config_name="config")
+
+@hydra.main(version_base=None, config_path='pm_configs', config_name='config')
 def main(cfg: DictConfig):
     # clean the gpu cache
     torch.cuda.empty_cache()
@@ -19,7 +19,7 @@ def main(cfg: DictConfig):
 
     # pull the dataset and dataloader
     datamaodlule = EdemaDataModule(
-        data_dir='C:/temp/edema/edema-quantification/dataset/MIMIC-CXR-Edema-Intermediate',
+        data_dir='C:/temp/edema/edema-quantification/data/interim',
         batch_size=16,
         resize=(400, 400),
         normalize_tensors=False,

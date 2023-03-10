@@ -45,7 +45,7 @@ class EdemaNet(pl.LightningModule):
         """Pytorch Lightning model class.
 
         Args:
-            settings: DictConfig with configuration parameters for the model
+            settings: DictConfig with configuration parameters for the model.
         """
         super().__init__()
 

@@ -1,18 +1,16 @@
 import re
 from collections import defaultdict
-from typing import Dict, List, Tuple, Union
+from typing import Any, DefaultDict, Dict, List, Tuple, Union
 
-import pandas as pd
-import numpy as np
-
-import torch
-from torch.utils.data import Dataset, Subset
-import cv2
 import albumentations as A
+import cv2
+import numpy as np
+import pandas as pd
+import torch
 from PIL import Image, ImageDraw, ImageOps
+from torch.utils.data import Dataset, Subset
 
-from tools.utils_sly import FIGURE_MAP, convert_base64_to_image
-
+from src.data.utils_sly import FIGURE_MAP, convert_base64_to_image
 
 __all__ = [
     'resize_and_create_masks',
@@ -35,15 +33,14 @@ def parse_coord_string(coord_string: str) -> np.ndarray:
     return np.array(coordinates).reshape(-1, 2)
 
 
-def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[defaultdict, None]]:
-    """
+def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[DefaultDict[Any, list], None]]:
+    """Extract annotations.
 
     Args:
         group_df: chunk of DataFrame with annotations for a given image
 
     Returns:
         annotations: dict with processed annotation data for a given image
-
     """
     # for "No edema" class there are no findings
     if group_df['Figure'].isna().all():
@@ -52,13 +49,14 @@ def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[defaultdict, 
     # for other classes we create dict with finding_name as a key
     # and values are the lists containing
     # coordinates of points for polygon annotations and mask data for mask annotations
-    annotations = {k: defaultdict(list) for k in group_df['Figure'].unique()}
+    annotations: Dict[str, Union[DefaultDict[Any, list], None]] = {
+        k: defaultdict(list) for k in group_df['Figure'].unique()
+    }
 
     # change 'x1', 'y1' columns type from float (due to NANs presence) to int
     group_df = group_df[['Figure', 'x1', 'y1', 'Mask', 'Points']].astype(int, errors='ignore')
 
     for _, data in group_df.iterrows():
-
         if pd.notna(data['Mask']):
             annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())
         else:
@@ -72,7 +70,7 @@ def make_masks(
     annotations: Dict,
     linelike_finding_width: int = 15,
 ) -> Tuple[List[np.ndarray], List[int], int]:
-    """
+    """Make masks.
 
     Args:
         image: image
@@ -85,7 +83,6 @@ def make_masks(
         default_mask_value: value with which mask is padded depending on the
             presence of at least one of the edema findings in the image
     """
-
     masks = []
     findings = []
     width, height = image.size
@@ -97,28 +94,27 @@ def make_masks(
         finding_mask = Image.new(mode='1', size=(width, height), color=default_mask_value)
 
         if finding in annotations.keys():
-
             # for "No edema" class without findings we do nothing and proceed with default mask
             if annotations[finding] is None:
                 pass
 
             # draw finding mask represented by polygons
             elif annotations[finding]['polygons']:
-
                 draw = ImageDraw.Draw(finding_mask)
 
                 for point_array in annotations[finding]['polygons']:
                     # for line-like findings we draw lines with default width of 15px
                     if finding in ('Kerley', 'Cephalization'):
                         draw.line(
-                            point_array.flatten().tolist(), fill=0, width=linelike_finding_width
+                            point_array.flatten().tolist(),
+                            fill=0,
+                            width=linelike_finding_width,
                         )
                     else:
                         draw.polygon(point_array.flatten().tolist(), fill=0, outline=0)
 
             # draw finding mask represented by bitmaps
             elif annotations[finding]['bitmaps']:
-
                 for bitmap in annotations[finding]['bitmaps']:
                     bitmap_array = convert_base64_to_image(bitmap['Mask'])
                     bitmap_mask = Image.fromarray(bitmap_array).convert('1')
@@ -145,8 +141,7 @@ def resize_and_create_masks(
     target_size: Tuple[int, int],
     linelike_finding_width: int = 15,
 ) -> Tuple[np.ndarray, List[np.ndarray], torch.Tensor]:
-
-    """
+    """Resize and create masks.
 
     Args:
         image: input image
@@ -159,12 +154,13 @@ def resize_and_create_masks(
         masks_resized: list of numpy arrays of the resized masks
         findings: list of 0/1 values showing the presence/absence of a given finding in the image
     """
-
     # image and created image masks with initial size
     # images have to be unnormalized in [0, 1] to perform drawing in the model class
     image_arr = np.array(image) / 255
     masks, findings, default_mask_value = make_masks(
-        image, annotations, linelike_finding_width=linelike_finding_width
+        image,
+        annotations,
+        linelike_finding_width=linelike_finding_width,
     )
 
     # further we resize image and masks by padding them while keeping initial aspect ratio
@@ -200,7 +196,7 @@ def resize_and_create_masks(
                 value=0,
                 mask_value=default_mask_value,
             ),
-        ]
+        ],
     )
 
     transformed = transform(image=image_arr, masks=masks)
@@ -232,7 +228,7 @@ def split_dataset(
     ensure_all_classes_in_splits: bool = True,
     verbose: bool = False,
 ) -> Tuple[Subset, Subset]:
-    """
+    """Split dataset.
 
     Args:
         dataset: complete Dataset
@@ -294,7 +290,7 @@ def split_dataset(
                 f'{n_split_trials} split trials were not enough to split dataset. '
                 'Consider increasing n_split_trials parameter '
                 'or set ensure_all_classes_in_splits to False'
-            )
+            ),
         )
 
     # we need image indices but we have split the dataset using patients (through Subject IDs)
@@ -322,13 +318,13 @@ def split_dataset(
             (
                 f'{best_train_subjects_set.size} patients in train set, '
                 f'{best_test_subjects_set.size} patients in test set'
-            )
+            ),
         )
         print(
             (
                 f'{train_indices.size} images in train set, '
                 f'{test_indices.size} images in test set'
-            )
+            ),
         )
         print('#' * 80)
 
