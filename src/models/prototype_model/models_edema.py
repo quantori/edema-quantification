@@ -2,35 +2,31 @@
 
 The description to be filled...
 """
+import json
 import os
 import sys
-import math
-import json
-from typing import Optional, Dict, List, Type
-from collections import OrderedDict
+from typing import Dict, Optional
 
-from typing import Tuple
-import torch
-from torch import nn
-import pytorch_lightning as pl
-from torchvision import transforms
-import numpy as np
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
 import cv2
 import matplotlib.pyplot as plt
-from tqdm.auto import tqdm, trange
-from torchmetrics.functional.classification import multilabel_f1_score
+import numpy as np
+import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
 from omegaconf import DictConfig
+from torch import nn
+from torch.utils.data import DataLoader
+from torchmetrics.functional.classification import multilabel_f1_score
+from tqdm.auto import tqdm
 
-from src.models.prototype_model.blocks import ENCODERS, TransientLayers, PrototypeLayer, LastLayer
+from src.models.prototype_model.blocks import ENCODERS, LastLayer, PrototypeLayer, TransientLayers
 from src.models.prototype_model.prototype_model_utils import (
-    get_encoder,
     compute_proto_layer_rf_info,
-    warm,
+    get_encoder,
     joint,
     last,
     print_status_bar,
+    warm,
 )
 
 
@@ -46,19 +42,11 @@ class EdemaNet(pl.LightningModule):
         self,
         settings: DictConfig,
     ):
-        """PyTorch Lightning model class.
+        """Pytorch Lightning model class.
 
         Args:
-            encoder (nn.Module): encoder layers implemented as a distinct class.
-            num_classes (int): the number of feature classes.
-            prototype_shape (Tuple): the shape of the prototypes (num_prototypes, channels, H, W).
-            transient_layers_type (str, optional): the architecture of the transient layers. If ==
-                                                   'bottleneck', the number of channels is adjusted
-                                                   automatically.
-            top_k (int): the number of the closest distances between patches and prototypes to be
-                         considered for the similarity score calculation
+            settings: DictConfig with configuration parameters for the model
         """
-
         super().__init__()
 
         self.num_prototypes = settings.prototype_shape[0]
@@ -75,7 +63,9 @@ class EdemaNet(pl.LightningModule):
 
         # onehot indication matrix for prototypes (num_prototypes, num_classes)
         self.prototype_class_identity = torch.zeros(
-            self.num_prototypes, self.num_classes, dtype=torch.float
+            self.num_prototypes,
+            self.num_classes,
+            dtype=torch.float,
         ).cuda()
         # fills with 1 only those prototypes, which correspond to the correct class. The rest is
         # filled with 0
@@ -95,7 +85,8 @@ class EdemaNet(pl.LightningModule):
         # transient layers
         # self.transient_layers = self._make_transient_layers(self.encoder)
         self.transient_layers = TransientLayers(
-            encoder=self.encoder, prototype_shape=self.prototype_shape
+            encoder=self.encoder,
+            prototype_shape=self.prototype_shape,
         )
 
         # prototypes layer (do not make this just a tensor, since it will not be moved
@@ -117,7 +108,7 @@ class EdemaNet(pl.LightningModule):
     def forward(self, x):
         # x is a batch of images having (batch, 3, H, W) dimensions
         if x.shape[1] != 3:
-            raise Exception("The channel dimension of the input-image batch has to be 3")
+            raise Exception('The channel dimension of the input-image batch has to be 3')
 
         # save the spatial dimensions of the initial image to use them later for upsampling (PAM
         # creation)
@@ -131,29 +122,34 @@ class EdemaNet(pl.LightningModule):
         # in topk(), if dim is not given, the last dimension of the input is chosen
         closest_k_distances, _ = torch.topk(_distances, self.top_k, largest=False)
         min_distances = F.avg_pool1d(
-            closest_k_distances, kernel_size=closest_k_distances.shape[2]
+            closest_k_distances,
+            kernel_size=closest_k_distances.shape[2],
         ).view(-1, self.num_prototypes)
 
         prototype_activations = torch.log((distances + 1) / (distances + self.epsilon))
         _activations = prototype_activations.view(
-            prototype_activations.shape[0], prototype_activations.shape[1], -1
+            prototype_activations.shape[0],
+            prototype_activations.shape[1],
+            -1,
         )
         top_k_activations, _ = torch.topk(_activations, self.top_k)
         prototype_activations = F.avg_pool1d(
-            top_k_activations, kernel_size=top_k_activations.shape[2]
+            top_k_activations,
+            kernel_size=top_k_activations.shape[2],
         ).view(-1, self.num_prototypes)
 
         logits = self.last_layer(prototype_activations)
 
         activation = torch.log((distances + 1) / (distances + self.epsilon))
         upsampled_activation = torch.nn.Upsample(
-            size=(upsample_hight, upsample_width), mode="bilinear", align_corners=False
+            size=(upsample_hight, upsample_width),
+            mode='bilinear',
+            align_corners=False,
         )(activation)
 
         return logits, min_distances, upsampled_activation
 
     def update_prototypes_forward(self, x):
-        """This method is needed for the prototype updating operation"""
         conv_output = self.encoder(x)
         conv_output = self.transient_layers(conv_output)
         distances = self.prototype_distances(conv_output)
@@ -178,12 +174,12 @@ class EdemaNet(pl.LightningModule):
         # here, we have to put push_prototypes function
         # logs costs after a training epoch
         if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
-
             self.update_prototypes(self.trainer.train_dataloader.loaders)
             self.val_epoch(self.trainer.val_dataloaders[0], position=3)
             # TODO: save the model if the performance metric is better
             self.train_last_only(
-                self.trainer.train_dataloader.loaders, self.trainer.val_dataloaders[0]
+                self.trainer.train_dataloader.loaders,
+                self.trainer.val_dataloaders[0],
             )
 
             # save model performance
@@ -203,8 +199,11 @@ class EdemaNet(pl.LightningModule):
         return cost
 
     def val_epoch(
-        self, dataloader: DataLoader, t: Optional[tqdm] = None, position: int = 4
-    ) -> Dict:
+        self,
+        dataloader: DataLoader,
+        t: Optional[tqdm] = None,
+        position: int = 4,
+    ) -> None:
         with tqdm(total=len(dataloader), desc='Validating', position=position, leave=False) as t1:
             for idx, batch in enumerate(dataloader):
                 preds = self.validation_step(batch, idx)
@@ -231,7 +230,10 @@ class EdemaNet(pl.LightningModule):
             t.refresh()
 
     def train_last_only(
-        self, train_dataloader: DataLoader, val_dataloader: DataLoader, epochs: int = 2
+        self,
+        train_dataloader: DataLoader,
+        val_dataloader: DataLoader,
+        epochs: int = 2,
     ):
         last(**self.blocks)
         print_status_bar(self.trainer, self.blocks, status='LAST')
@@ -270,8 +272,8 @@ class EdemaNet(pl.LightningModule):
         splitted_str = string.split(',')
         for sub in splitted_str:
             sub = sub.strip()
-            sub = sub.split('=')
-            d.update({sub[0]: sub[1]})
+            sub_list = sub.split('=')
+            d.update({sub_list[0]: float(sub_list[1])})
         return d
 
     def train_val_test(self, batch):
@@ -283,7 +285,7 @@ class EdemaNet(pl.LightningModule):
         # images have to have the shape (batch, 10, H, W). 7 extra channel implies fine annotations,
         # in case of 7 classes
         if images.shape[1] != 12:
-            raise Exception("The channel dimension of the input-image batch has to be 10")
+            raise Exception('The channel dimension of the input-image batch has to be 10')
 
         fine_annotations = images[:, 3:12, :, :]  # 9 classes of fine annotations
         images = images[:, 0:3, :, :]  # (no view, create slice)
@@ -301,7 +303,8 @@ class EdemaNet(pl.LightningModule):
         # cluster cost
         max_dist = self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
         prototypes_of_correct_class = torch.matmul(
-            labels, self.prototype_class_identity.permute(1, 0)
+            labels,
+            self.prototype_class_identity.permute(1, 0),
         )
         cluster_cost = self.cluster_cost(max_dist, min_distances, prototypes_of_correct_class)
 
@@ -310,7 +313,9 @@ class EdemaNet(pl.LightningModule):
 
         # fine cost
         fine_cost = self.fine_cost(
-            fine_annotations, upsampled_activation, self.num_prototypes_per_class
+            fine_annotations,
+            upsampled_activation,
+            self.num_prototypes_per_class,
         )
 
         cost = cross_entropy + 0.8 * cluster_cost - 0.08 * separation_cost + 0.001 * fine_cost
@@ -339,7 +344,6 @@ class EdemaNet(pl.LightningModule):
         Returns:
             torch.Tensor: prototype distances of size (batch, num_prototypes, conv output shape)
         """
-
         # x is the conv output, shape=[Batch * channel * conv output shape]
         batch = x.shape[0]
 
@@ -355,14 +359,16 @@ class EdemaNet(pl.LightningModule):
         # dimension (if the prototype dimensions are (num_prototypes, 512, 1, 1)). -1 means that
         # this dimension is calculated based on other dimensions
         expanded_x = expanded_x.contiguous().view(
-            1, -1, self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
+            1,
+            -1,
+            self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3],
         )
 
         # if the input tensor is (num_prototypes, 512, 1, 1) and the kernel_size=(1, 1), the output
         # is (1, num_prototypes, 512=512*1*1, 1=1*1).
         # Expanded proto shape = [1, proto num, channel*proto_shape[2]*proto_shape[3], 1]
         expanded_proto = nn.Unfold(kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(
-            self.prototype_layer
+            self.prototype_layer,
         ).unsqueeze(0)
 
         # if the input is (1, num_prototypes, 512, 1), the output is (1, num_prototypes, 512=512*1)
@@ -376,7 +382,8 @@ class EdemaNet(pl.LightningModule):
 
         # (1, batch*196, num_prototypes) -> (batch, num_prototypes, 1*196)
         expanded_distances = torch.reshape(
-            expanded_distances, shape=(batch, -1, self.prototype_shape[0])
+            expanded_distances,
+            shape=(batch, -1, self.prototype_shape[0]),
         ).permute(0, 2, 1)
 
         # print(expanded_distances.shape)
@@ -422,7 +429,8 @@ class EdemaNet(pl.LightningModule):
         # (max_dist - min_distances) and, consequently, inverted_distances is done to prevent the
         # constant retrieving of 0 for min values obtained by *prototypes_of_correct_class
         inverted_distances, _ = torch.max(
-            (max_dist - min_distances) * prototypes_of_correct_class, dim=1
+            (max_dist - min_distances) * prototypes_of_correct_class,
+            dim=1,
         )
         cluster_cost = torch.mean(max_dist - inverted_distances)
 
@@ -450,7 +458,8 @@ class EdemaNet(pl.LightningModule):
         # (max_dist - min_distances) and, consequently, inverted_distances is done to prevent the
         # constant retrieving of 0 for min values obtained by *prototypes_of_correct_class
         inverted_distances_to_nontarget_prototypes, _ = torch.max(
-            (max_dist - min_distances) * prototypes_of_wrong_class, dim=1
+            (max_dist - min_distances) * prototypes_of_wrong_class,
+            dim=1,
         )
         separation_cost = torch.mean(max_dist - inverted_distances_to_nontarget_prototypes)
 
@@ -479,7 +488,11 @@ class EdemaNet(pl.LightningModule):
         return fine_cost
 
     def compute_rf_protoL_at_spatial_location(
-        self, img_size, height_index, width_index, protoL_rf_info
+        self,
+        img_size,
+        height_index,
+        width_index,
+        protoL_rf_info,
     ):
         # computes the pixel indices of the input-image patch (e.g. 224x224) that corresponds
         # to the feature-map patch with the closest distance to the current prototype
@@ -511,7 +524,10 @@ class EdemaNet(pl.LightningModule):
         height_index = prototype_patch_index[1]
         width_index = prototype_patch_index[2]
         rf_indices = self.compute_rf_protoL_at_spatial_location(
-            img_size, height_index, width_index, protoL_rf_info
+            img_size,
+            height_index,
+            width_index,
+            protoL_rf_info,
         )
         return [img_index, rf_indices[0], rf_indices[1], rf_indices[2], rf_indices[3]]
 
@@ -560,7 +576,7 @@ class EdemaNet(pl.LightningModule):
 
         # saves the patch representation that gives the current smallest distance
         global_min_fmap_patches = np.zeros(
-            [n_prototypes, prototype_shape[1], prototype_shape[2], prototype_shape[3]]
+            [n_prototypes, prototype_shape[1], prototype_shape[2], prototype_shape[3]],
         )
 
         # proto_rf_boxes (receptive field) and proto_bound_boxes column:
@@ -579,7 +595,8 @@ class EdemaNet(pl.LightningModule):
         if root_dir_for_saving_prototypes != None:
             if self.current_epoch != None:
                 proto_epoch_dir = os.path.join(
-                    root_dir_for_saving_prototypes, 'epoch-' + str(self.current_epoch)
+                    root_dir_for_saving_prototypes,
+                    'epoch-' + str(self.current_epoch),
                 )
                 if not os.path.exists(proto_epoch_dir):
                     os.makedirs(proto_epoch_dir)
@@ -702,7 +719,6 @@ class EdemaNet(pl.LightningModule):
             # this prototype
             batch_min_proto_dist_j = np.amin(proto_dist_j)
             if batch_min_proto_dist_j < global_min_proto_dist[j]:
-
                 # find arguments of the smallest distance in the matrix shape
                 arg_min_flat = np.argmin(proto_dist_j)
                 arg_min_matrix = np.unravel_index(arg_min_flat, proto_dist_j.shape)
@@ -735,7 +751,9 @@ class EdemaNet(pl.LightningModule):
                 # that generates the representation
                 protoL_rf_info = self.proto_layer_rf_info
                 rf_prototype_j = self.compute_rf_prototype(
-                    search_batch.size(2), batch_argmin_proto_dist_j, protoL_rf_info
+                    search_batch.size(2),
+                    batch_argmin_proto_dist_j,
+                    protoL_rf_info,
                 )
 
                 # get the whole image
@@ -792,7 +810,6 @@ class EdemaNet(pl.LightningModule):
 
                 # SAVING BLOCK (can be changed later)
                 if dir_for_saving_prototypes is not None:
-
                     if prototype_self_act_filename_prefix is not None:
                         # save the numpy array of the prototype activation map (e.g., (14x14))
                         np.save(
@@ -819,7 +836,8 @@ class EdemaNet(pl.LightningModule):
                         rescaled_act_img_j = upsampled_act_img_j - np.amin(upsampled_act_img_j)
                         rescaled_act_img_j = rescaled_act_img_j / np.amax(rescaled_act_img_j)
                         heatmap = cv2.applyColorMap(
-                            np.uint8(255 * rescaled_act_img_j), cv2.COLORMAP_JET
+                            np.uint8(255 * rescaled_act_img_j),
+                            cv2.COLORMAP_JET,
                         )
                         heatmap = np.float32(heatmap) / 255
                         heatmap = heatmap[..., ::-1]
@@ -882,20 +900,3 @@ class EdemaNet(pl.LightningModule):
                             vmin=0.0,
                             vmax=1.0,
                         )
-
-
-# if __name__ == '__main__':
-#     sq_net = SqueezeNet()
-#     ed_net = EdemaNet(sq_net, 9, (9, 512, 1, 1))
-#     string = 'f1_train=0.001, f1_val=0.001'
-#     print(ed_net.str_to_dict(string=string))
-# logits, _, _ = edema_net.forward(images)
-# prop = torch.nn.functional.softmax(logits, dim=1)
-
-# test_dataset = TensorDataset(
-#     torch.rand(128, 10, 400, 400), torch.randint(0, 2, (128, 7), dtype=torch.float32)
-# )
-# test_dataloader = DataLoader(test_dataset, batch_size=32, num_workers=4)
-
-# trainer = pl.Trainer(max_epochs=9, logger=False, enable_checkpointing=False, gpus=1)
-# trainer.fit(edema_net, test_dataloader)
