@@ -192,6 +192,7 @@ def print_status_bar(trainer: pl.Trainer, blocks: Dict, status: str = '') -> Non
             status=status,
             encoder=get_grad_status(blocks['encoder']),
             trans=get_grad_status(blocks['transient_layers']),
+            # protoype layer is inhereted from Tensor and, therefore, has the requires_grad attr
             prot=blocks['prototype_layer'].requires_grad,
             last=get_grad_status(blocks['last_layer']),
         )

@@ -180,7 +180,7 @@ class EdemaNet(pl.LightningModule):
         if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
 
             self.update_prototypes(self.trainer.train_dataloader.loaders)
-            self.val_epoch(self.trainer.val_dataloaders[0])
+            self.val_epoch(self.trainer.val_dataloaders[0], position=3)
             # TODO: save the model if the performance metric is better
             self.train_last_only(
                 self.trainer.train_dataloader.loaders, self.trainer.val_dataloaders[0]
@@ -202,8 +202,10 @@ class EdemaNet(pl.LightningModule):
         cost, f1_score = self.train_val_test(batch)
         return cost
 
-    def val_epoch(self, dataloader: DataLoader, t: Optional[tqdm] = None) -> Dict:
-        with tqdm(total=len(dataloader), desc='Validating', position=4, leave=False) as t1:
+    def val_epoch(
+        self, dataloader: DataLoader, t: Optional[tqdm] = None, position: int = 4
+    ) -> Dict:
+        with tqdm(total=len(dataloader), desc='Validating', position=position, leave=False) as t1:
             for idx, batch in enumerate(dataloader):
                 preds = self.validation_step(batch, idx)
                 t1.update()
