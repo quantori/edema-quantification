@@ -1,5 +1,0 @@
-wdir: ../../models/lung_segmentation_models/DeepLabV3+
-outs:
-- md5: ac1372649e8550c8495379c516ff68ad
-  size: 30133598
-  path: weights.pth

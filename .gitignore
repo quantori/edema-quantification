@@ -130,7 +130,7 @@ dmypy.json
 .pyre/
 
 # Dataset
-dataset/
+/data/
 
 # Models
 models/
@@ -155,3 +155,5 @@ lightning_logs/
 
 # savings from training
 savings/
+# MLFlow
+/mlruns/

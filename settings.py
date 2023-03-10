@@ -1,13 +1,26 @@
+from typing import List
+
 # Supervisely to Intermediate
-SUPERVISELY_DATASET_DIR = 'dataset/MIMIC-CXR-Edema-Supervisely'
-INCLUDE_DIRS = []
-EXCLUDE_DIRS = []
-INTERMEDIATE_SAVE_DIR = 'dataset/MIMIC-CXR-Edema-Intermediate'
+SUPERVISELY_DATASET_DIR = 'data/sly'
+INCLUDE_DIRS: List[str] = []
+EXCLUDE_DIRS: List[str] = []
+INTERMEDIATE_SAVE_DIR = 'data/interim'
+FIGURE_TYPE = {
+    'Cephalization': 'line',
+    'Artery': 'bitmap',
+    'Heart': 'rectangle',
+    'Kerley': 'line',
+    'Bronchus': 'bitmap',
+    'Effusion': 'polygon',
+    'Bat': 'polygon',
+    'Infiltrate': 'polygon',
+    'Cuffing': 'bitmap',
+}
 
 # Intermediate to COCO
-INTERMEDIATE_DATASET_DIR = 'dataset/MIMIC-CXR-Edema-Intermediate'
-COCO_SAVE_DIR = 'dataset/MIMIC-CXR-Edema-COCO'
-EXCLUDE_CLASSES = []
+INTERMEDIATE_DATASET_DIR = 'data/interim'
+COCO_SAVE_DIR = 'data/coco'
+EXCLUDE_CLASSES: List[str] = []
 TRAIN_SIZE = 0.8
 SEED = 11
 BOX_EXTENSION = {

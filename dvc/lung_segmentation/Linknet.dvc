@@ -1,0 +1,5 @@
+wdir: ../../models/lung_segmentation/Linknet
+outs:
+- md5: 51b3e2417ee6408852c99114e6a84815
+  size: 117671016
+  path: weights.pth

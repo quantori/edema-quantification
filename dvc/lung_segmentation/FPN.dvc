@@ -1,0 +1,5 @@
+wdir: ../../models/lung_segmentation/FPN
+outs:
+- md5: 1a084b3c23b0113230aea3d6c1b37699
+  size: 23356124
+  path: weights.pth

@@ -1,5 +1,0 @@
-wdir: ../../models/lung_segmentation_models/Unet
-outs:
-- md5: 06b8395b508afbc58bb7f8c4ae210aa4
-  size: 224545777
-  path: weights.pth
