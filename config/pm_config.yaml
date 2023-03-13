@@ -1,0 +1,10 @@
+defaults:
+- _self_
+- pm_model_config@model
+
+hydra:
+  run:
+    dir: .
+  output_subdir:
+override hydra/job_logging: none
+override hydra/hydra_logging: none

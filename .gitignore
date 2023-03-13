@@ -109,6 +109,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+edema_venv/
 
 # Spyder project settings
 .spyderproject
@@ -145,6 +146,7 @@ calculations/
 
 # Logs directory
 logs/
+lightning_logs/
 
 # DVC files
 .dvc/config.local
@@ -153,6 +155,9 @@ logs/
 
 # Directory with temporary files
 /temp/
+
+# savings from training
+savings/
 
 # MLFlow
 /mlruns/
