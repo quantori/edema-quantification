@@ -58,7 +58,7 @@ def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[DefaultDict[A
 
     for _, data in group_df.iterrows():
         if pd.notna(data['Mask']):
-            annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())
+            annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())  # type: ignore
         else:
             annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
 

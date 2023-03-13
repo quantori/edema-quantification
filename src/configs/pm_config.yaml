@@ -1,6 +1,6 @@
 defaults:
 - _self_
-- model: model_config
+- pm_model_config@model
 
 hydra:
   run:
