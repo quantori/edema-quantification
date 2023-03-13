@@ -8,9 +8,8 @@ from src.models.prototype_model.models_edema import EdemaNet
 from src.models.prototype_model.prototype_model_utils import PNetProgressBar
 
 
-@hydra.main(version_base=None, config_path='../../configs', config_name='pm_config')
+@hydra.main(version_base=None, config_path='../../../config', config_name='pm_config')
 def main(cfg: DictConfig):
-    print(cfg)
     # clean the gpu cache
     torch.cuda.empty_cache()
 
