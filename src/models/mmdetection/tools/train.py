@@ -5,6 +5,7 @@ import os.path as osp
 import time
 import warnings
 
+import mlflow
 import mmcv
 import torch
 import torch.distributed as dist
@@ -59,7 +60,7 @@ def parse_args():
         default=None,
         help='workers to pre-fetch data for each single GPU',
     )
-    parser.add_argument('--epochs', default=2, type=int, help='number of training epochs')
+    parser.add_argument('--epochs', default=1, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument(
         '--work-dir',
@@ -260,9 +261,10 @@ def main():
         torch.backends.cudnn.benchmark = True
 
     # work_dir is determined in this priority: CLI > segment in file > filename
+    timestamp = time.strftime('%H%M%S_%d%m%y', time.localtime())
     if args.work_dir is not None:
         # update configs according to CLI args if args.work_dir is not None
-        cfg.work_dir = osp.join(args.work_dir, osp.splitext(osp.basename(args.config))[0])
+        cfg.work_dir = osp.join(args.work_dir, f'{cfg.model.type}_{timestamp}')
     elif cfg.get('work_dir', None) is None:
         # use config filename as default work_dir if cfg.work_dir is None
         cfg.work_dir = osp.join(
@@ -306,7 +308,6 @@ def main():
     # dump config
     cfg.dump(osp.join(cfg.work_dir, osp.basename(args.config)))
     # init the logger before other steps
-    timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     log_file = osp.join(cfg.work_dir, f'{timestamp}.log')
     logger = get_root_logger(log_file=log_file, log_level=cfg.log_level)
 
@@ -373,17 +374,19 @@ def main():
     ]
     if ml_flow_logger_item:
         ml_flow_logger = ml_flow_logger_item[0]
-        ml_flow_logger['exp_name'] = 'Edema'
+        mlflow.set_experiment('Edema')
+        run_name = f'{cfg.model.type}_{timestamp}'
+        mlflow.set_tag('mlflow.runName', run_name)
         ml_flow_logger['params'] = dict(
-            cfg=cfg.filename,
-            device=cfg.device,
-            seed=cfg.seed,
+            dataset_size=len(datasets[0].data_infos),
+            model=cfg.model.type,
+            backbone=cfg.model.backbone.type,
+            img_size=cfg.data.train.pipeline[2].img_scale,
+            batch_size=cfg.data.samples_per_gpu,
             epochs=args.epochs,
-            model_type=cfg.model.type,
-            model_backbone_type=cfg.model.backbone.type,
-            data_pipeline_img_input_shape=cfg.data.train.pipeline[2].img_scale,
-            data_pipeline_train_img_count=len(datasets[0].data_infos),
-            base_batch_size=cfg.data.samples_per_gpu,
+            seed=cfg.seed,
+            device=cfg.device,
+            cfg=cfg.filename,
         )
 
         # Compute complexity
@@ -404,12 +407,12 @@ def main():
 
             input_shape = (3, *cfg.data.train.pipeline[2].img_scale)
             flops, params = get_model_complexity_info(tmp_model, input_shape)
-            ml_flow_logger['params']['flops_count'] = flops
-            ml_flow_logger['params']['params_count'] = params
+            ml_flow_logger['params']['flops'] = flops
+            ml_flow_logger['params']['params'] = params
         except Exception as err:
             print(f'Error: {err}')
-            ml_flow_logger['params']['flops_count'] = 'NA'
-            ml_flow_logger['params']['params_count'] = 'NA'
+            ml_flow_logger['params']['flops'] = 'NA'
+            ml_flow_logger['params']['params'] = 'NA'
 
     train_detector(
         model,
