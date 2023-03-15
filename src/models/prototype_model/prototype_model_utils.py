@@ -214,44 +214,50 @@ def get_grad_status(block: nn.Module) -> bool:
         )
 
 
-def _make_global_min_proto_dist(num_prototypes: int) -> np.ndarray:
-    # make an array for the global closest distance per epoch (initialized with floating point
-    # representation of positive infinity)
-    return np.full(num_prototypes, np.inf)
+class _GlobalActivations:
+    """ "Internal class for fmaps, prototype distances, recptive fields, and bound boxes.
 
+    The class serves to initialize gloabal per epoch fmaps, prototype distances, receptive fields of
+    prototypes, as well as bound boxes based on the activations of the prototypes.
 
-def _make_global_min_fmap_patches(model: EdemaNet) -> np.ndarray:
-    # creates the patch representation that gives the current smallest distance
-    return np.zeros(
-        (
-            model.num_prototypes,
-            model.prototype_shape[1],
-            model.prototype_shape[2],
-            model.prototype_shape[3],
-        ),
-    )
+    Attributes:
+        global_min_proto_dist: initial tensor for global per epoch min distances.
+        global_min_fmap_patches: initial tensor for global per epoch feature maps.
+        proto_rf_boxes: initial dict for storing receptive field boxes of the prototypes. It is
+            supposed to have the following structure:
+                0: image index in the entire dataset
+                1: height start index
+                2: height end index
+                3: width start index
+                4: width end index
+                5: class identities.
+        proto_bound_boxes: initial dict for storing bound boxes based on the activations of the
+            prototypes. It is suposed to have the same structure as proto_rf_boxes.
+    """
 
+    def __init__(self, model: EdemaNet) -> None:
+        self.global_min_proto_dist: np.ndarray = self._make_global_min_proto_dist(
+            model.num_prototypes
+        )
+        self.global_min_fmap_patches: np.ndarray = self._make_global_min_fmap_patches(model)
+        self.proto_rf_boxes: Dict = {}
+        self.proto_bound_boxes: Dict = {}
 
-def _make_proto_rf_boxes() -> Dict:
-    # creates proto_rf_boxes (receptive field) dict, which will have the following structure:
-    # 0: image index in the entire dataset
-    # 1: height start index
-    # 2: height end index
-    # 3: width start index
-    # 4: width end index
-    # 5: class identities
-    return {}
+    def _make_global_min_proto_dist(num_prototypes: int) -> np.ndarray:
+        # make an array for the global closest distance per epoch (initialized with floating point
+        # representation of positive infinity)
+        return np.full(num_prototypes, np.inf)
 
-
-def _make_proto_bound_boxes() -> Dict:
-    # creates proto_bound_boxes dict, which will have the following structure:
-    # 0: image index in the entire dataset
-    # 1: height start index
-    # 2: height end index
-    # 3: width start index
-    # 4: width end index
-    # 5: class identities
-    return {}
+    def _make_global_min_fmap_patches(model: EdemaNet) -> np.ndarray:
+        # creates the patch representation that gives the current smallest distance
+        return np.zeros(
+            (
+                model.num_prototypes,
+                model.prototype_shape[1],
+                model.prototype_shape[2],
+                model.prototype_shape[3],
+            ),
+        )
 
 
 def update_prototypes(
@@ -264,10 +270,6 @@ def update_prototypes(
     # prototype_self_act_filename_prefix: str = 'prototype-self-act',
     # proto_bound_boxes_filename_prefix: str = 'bb',
 ) -> None:
-    global_min_proto_dist = _make_global_min_proto_dist(model.num_prototypes)
-    global_min_fmap_patches = _make_global_min_fmap_patches(model)
-    proto_rf_boxes = _make_proto_rf_boxes()
-    proto_bound_boxes = _make_proto_bound_boxes()
 
     # making a directory for saving prototypes
     # if root_dir_for_saving_prototypes != None:
