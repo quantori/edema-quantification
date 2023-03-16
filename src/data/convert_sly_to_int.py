@@ -58,6 +58,7 @@ def process_image(
 
     img_stem = Path(img_path).stem
     subject_id, study_id, width_frontal, width_lateral = img_stem.split('_')
+    dataset = Path(img_path).parts[-3]
     img = cv2.imread(img_path)
     height = img.shape[0]
     width = int(width_frontal)
@@ -73,6 +74,7 @@ def process_image(
         'Image name': Path(img_path).name,
         'Subject ID': subject_id,
         'Study ID': study_id,
+        'Dataset': dataset,
         'Image width': width,
         'Image height': height,
     }
@@ -97,46 +99,30 @@ def process_annotation(
     ann = sly.io.json.load_json_file(ann_path)
     class_name = get_class_name(ann)
 
-    if len(ann['objects']) > 0 and class_name in [
-        'Vascular congestion',
-        'Interstitial edema',
-        'Alveolar edema',
-    ]:
-        for obj in ann['objects']:
-            logger.debug(f'Processing object {obj}')
+    for obj in ann['objects']:
+        logger.debug(f'Processing object {obj}')
 
-            rp = get_tag_value(obj, tag_name='RP')
-            mask_points = get_mask_points(obj)
-            xy = get_object_box(obj)
-            box = get_box_sizes(*xy.values())
-            figure_name = obj['classTitle']
+        rp = get_tag_value(obj, tag_name='RP')
+        mask_points = get_mask_points(obj)
+        xy = get_object_box(obj)
+        box = get_box_sizes(*xy.values())
+        figure_name = obj['classTitle']
 
-            obj_info = {
-                'Figure ID': FIGURE_MAP[figure_name],
-                'Figure': figure_name,
-                'Source type': obj['geometryType'],
-                'Reference type': FIGURE_TYPE[figure_name],
-                'Match': int(obj['geometryType'] == FIGURE_TYPE[figure_name]),
-                'RP': rp,
-                'Class ID': CLASS_MAP[class_name],
-                'Class': class_name,
-            }
-            obj_info.update(img_info)
-            obj_info.update(xy)
-            obj_info.update(box)
-            obj_info.update(mask_points)
-            meta = meta.append(obj_info, ignore_index=True)
-
-    elif len(ann['objects']) == 0 and class_name == 'No edema':
         obj_info = {
+            'Figure ID': FIGURE_MAP[figure_name],
+            'Figure': figure_name,
+            'Source type': obj['geometryType'],
+            'Reference type': FIGURE_TYPE[figure_name],
+            'Match': int(obj['geometryType'] == FIGURE_TYPE[figure_name]),
+            'RP': rp,
             'Class ID': CLASS_MAP[class_name],
             'Class': class_name,
         }
         obj_info.update(img_info)
+        obj_info.update(xy)
+        obj_info.update(box)
+        obj_info.update(mask_points)
         meta = meta.append(obj_info, ignore_index=True)
-
-    # else:
-    #     logger.warning(f'No objects or classes available for image {Path(img_path).name}')
 
     return meta
 
