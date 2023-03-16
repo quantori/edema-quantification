@@ -36,6 +36,7 @@ METADATA_COLUMNS = [
     'Image name',
     'Subject ID',
     'Study ID',
+    'Dataset',
     'Image width',
     'Image height',
     'Figure ID',
