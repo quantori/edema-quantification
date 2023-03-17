@@ -1,10 +1,12 @@
-from typing import Any, Dict, Optional, Union, List, Sequence, Tuple
+from typing import Any, Dict, Optional, Union, List, Sequence, Tuple, Callable
 import sys
 import math
+from dataclasses import dataclass
 
 from pytorch_lightning.callbacks import TQDMProgressBar
 import pytorch_lightning as pl
 from tqdm import tqdm
+import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig
@@ -215,7 +217,7 @@ def get_grad_status(block: nn.Module) -> bool:
 
 
 class _GlobalActivations:
-    """ "Internal class for fmaps, prototype distances, recptive fields, and bound boxes.
+    """Internal class for fmaps, prototype distances, recptive fields, and bound boxes.
 
     The class serves to initialize gloabal per epoch fmaps, prototype distances, receptive fields of
     prototypes, as well as bound boxes based on the activations of the prototypes.
@@ -235,30 +237,28 @@ class _GlobalActivations:
             prototypes. It is suposed to have the same structure as proto_rf_boxes.
     """
 
-    def __init__(self, model: EdemaNet) -> None:
-        self.global_min_proto_dist: np.ndarray = self._make_global_min_proto_dist(
-            model.num_prototypes
-        )
-        self.global_min_fmap_patches: np.ndarray = self._make_global_min_fmap_patches(model)
+    def __init__(self, num_prototypes: int, prototype_shape: List[int]) -> None:
+        self.global_min_proto_dist = np.full(num_prototypes, np.inf)
+        self.global_min_fmap_patches = np.zeros((num_prototypes, prototype_shape[1], prototype_shape[2], prototype_shape[3]),)
         self.proto_rf_boxes: Dict = {}
         self.proto_bound_boxes: Dict = {}
 
-    def _make_global_min_proto_dist(num_prototypes: int) -> np.ndarray:
-        # make an array for the global closest distance per epoch (initialized with floating point
-        # representation of positive infinity)
-        return np.full(num_prototypes, np.inf)
 
-    def _make_global_min_fmap_patches(model: EdemaNet) -> np.ndarray:
-        # creates the patch representation that gives the current smallest distance
-        return np.zeros(
-            (
-                model.num_prototypes,
-                model.prototype_shape[1],
-                model.prototype_shape[2],
-                model.prototype_shape[3],
-            ),
-        )
+class _Batch:
+    """Internal class for storing batch used in update_prototypes func.
 
+    Attributes:
+        images_and_masks: images + fine annotation masks obtained from a batch.
+        images: images separated from the masks.
+        labels: labels obtained from the batch.
+        index: the index of the current batch.
+    """
+    def __init__(self, batch: torch.Tensor, iter: int, batch_size: int) -> None:
+        self.images_and_masks = batch[0]
+        self.images = self.images_and_masks[:, 0:3, :, :]
+        self.labels = batch[1]
+        self.index = iter * batch_size
+        
 
 def update_prototypes(
     model: EdemaNet,
@@ -289,22 +289,10 @@ def update_prototypes(
 
     with tqdm(total=len(dataloader), desc='Updating prototypes', position=3, leave=False) as t:
         for push_iter, batch in enumerate(dataloader):
-            search_batch_images, search_labels = batch
-            if search_batch_images.shape[1] > 3:
-                # only imagees (the extra channels in this dimension belong to fine annot masks)
-                search_batch_images = search_batch_images[:, 0:3, :, :]
-
-            start_index_of_search_batch = push_iter * search_batch_size
-
-            self.update_prototypes_on_batch(
-                search_batch_images,
-                start_index_of_search_batch,
-                search_labels,
-                global_min_proto_dist,
-                global_min_fmap_patches,
-                proto_rf_boxes,
-                proto_bound_boxes,
-                prototype_layer_stride=prototype_layer_stride,
+            update_prototypes_on_batch(
+                _Batch(batch, push_iter, dataloader.batch_size),
+                _GlobalActivations(model.num_prototypes, model.prototype_shape), 
+                prototype_layer_stride=model.prototype_layer.stride,
                 dir_for_saving_prototypes=proto_epoch_dir,
                 prototype_img_filename_prefix=prototype_img_filename_prefix,
                 prototype_self_act_filename_prefix=prototype_self_act_filename_prefix,
@@ -349,6 +337,7 @@ def update_prototypes_on_batch(
     search_batch_images,
     start_index_of_search_batch,
     search_labels,
+    Callable[int, List[int]],
     global_min_proto_dist,  # this will be updated
     global_min_fmap_patches,  # this will be updated
     proto_rf_boxes,  # this will be updated

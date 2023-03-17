@@ -129,6 +129,11 @@ class TransientLayers(nn.Sequential):
 
 
 class PrototypeLayer(nn.Parameter):
+    def __init__(self, prototype_layer_stride: int = 1):
+        super().__init__()
+
+        self.stride = prototype_layer_stride
+
     def warm(self) -> None:
         self.requires_grad_(True)
 
