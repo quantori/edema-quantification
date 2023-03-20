@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union, List, Sequence, Tuple, Callable
+from typing import Any, Dict, Optional, Union, List, Sequence, Tuple, Callable, Iterable
 import sys
 import math
 from dataclasses import dataclass
@@ -216,34 +216,6 @@ def get_grad_status(block: nn.Module) -> bool:
         )
 
 
-class _GlobalActivations:
-    """Internal class for fmaps, prototype distances, recptive fields, and bound boxes.
-
-    The class serves to initialize gloabal per epoch fmaps, prototype distances, receptive fields of
-    prototypes, as well as bound boxes based on the activations of the prototypes.
-
-    Attributes:
-        global_min_proto_dist: initial tensor for global per epoch min distances.
-        global_min_fmap_patches: initial tensor for global per epoch feature maps.
-        proto_rf_boxes: initial dict for storing receptive field boxes of the prototypes. It is
-            supposed to have the following structure:
-                0: image index in the entire dataset
-                1: height start index
-                2: height end index
-                3: width start index
-                4: width end index
-                5: class identities.
-        proto_bound_boxes: initial dict for storing bound boxes based on the activations of the
-            prototypes. It is suposed to have the same structure as proto_rf_boxes.
-    """
-
-    def __init__(self, num_prototypes: int, prototype_shape: List[int]) -> None:
-        self.global_min_proto_dist = np.full(num_prototypes, np.inf)
-        self.global_min_fmap_patches = np.zeros((num_prototypes, prototype_shape[1], prototype_shape[2], prototype_shape[3]),)
-        self.proto_rf_boxes: Dict = {}
-        self.proto_bound_boxes: Dict = {}
-
-
 class _Batch:
     """Internal class for storing batch used in update_prototypes func.
 
@@ -258,7 +230,62 @@ class _Batch:
         self.images = self.images_and_masks[:, 0:3, :, :]
         self.labels = batch[1]
         self.index = iter * batch_size
+
+
+class PrototypeUpdater:
+    """Class for updating prototypes.
+
+    The class performs all the necessary internal work to update protoypes.
+
+    Args:
+        model: the pl.LightningModule subclass from which this class is called. 
+        dataloader: DataLoader with the data.
+        proto_rf_boxes: initial dict for storing receptive field boxes of the prototypes.
+        proto_bound_boxes: initial dict for storing bound boxes based on the activations of the
+            prototypes.
+    """
+    def __init__(self, model: EdemaNet, dataloader: DataLoader, settings_save: Optional[DictConfig] = None) -> None:
+        self._model = model
+        self._dataloader = dataloader
+        if settings_save is not None:
+            self._settings_save = settings_save
+        self._global_min_proto_dist = self._get_global_min_proto_dist(model.num_prototypes)
+        self._global_min_fmap_patches = self._get_global_min_fmap_patches(model.num_prototypes, model.prototype_shape)
+        self._proto_rf_boxes = self._get_proto_rf_boxes()
+        self._proto_bound_boxes = self._get_proto_bound_boxes()
+
+    def update_prototypes(self) -> None:
+        with tqdm(total=len(self.dataloader), desc='Updating prototypes', position=3, leave=False) as t:
+            for push_iter, batch in enumerate(self.dataloader):
+                self._update_prototypes_on_batch()
+                
+    def _update_prototypes_on_batch(self):
+        pass
+
         
+    def _get_global_min_proto_dist(self, num_prototypes: int) -> np.array:
+        # returns tensor for global per epoch min distances initialized by infs
+        return np.full(num_prototypes, np.inf)
+
+    def _get_global_min_fmap_patches(self, num_prototypes: int, prototype_shape: Iterable[int]) -> np.array:
+        # returns tensor for global per epoch feature maps initialized by zeros
+        return np.zeros((num_prototypes, prototype_shape[1], prototype_shape[2], prototype_shape[3]),)
+
+    def _get_proto_rf_boxes(self) -> Dict[int, Union[int, Iterable[int]]]:
+        # initial dict for storing receptive field boxes of the prototypes. It is supposed to have
+        # the following structure:
+        #     0: image index in the entire dataset
+        #     1: height start index
+        #     2: height end index
+        #     3: width start index
+        #     4: width end index
+        #     5: class identities
+        return {}
+
+    def _get_proto_bound_boxes(self) -> Dict[int, Union[int, Iterable[int]]]:
+        # initial dict for storing bound boxes based on the activations of the prototypes. It is
+        # suposed to have the same structure as proto_rf_boxes
+        return {}
 
 def update_prototypes(
     model: EdemaNet,
