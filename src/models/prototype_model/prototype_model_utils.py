@@ -256,11 +256,11 @@ class PrototypeUpdater:
 
     def update_prototypes(self) -> None:
         with tqdm(total=len(self.dataloader), desc='Updating prototypes', position=3, leave=False) as t:
-            for push_iter, batch in enumerate(self.dataloader):
-                self._update_prototypes_on_batch()
+            for iter, batch in enumerate(self.dataloader):
+                self._update_prototypes_on_batch(batch, iter)
                 
-    def _update_prototypes_on_batch(self):
-        pass
+    def _update_prototypes_on_batch(self, batch: torch.Tensor, iter: int):
+        
 
         
     def _get_global_min_proto_dist(self, num_prototypes: int) -> np.array:
