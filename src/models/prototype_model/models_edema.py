@@ -59,6 +59,10 @@ class EdemaNet(pl.LightningModule):
         self.num_warm_epochs = settings_model.num_warm_epochs
         self.push_start = settings_model.push_start
         self.push_epochs = settings_model.push_epochs
+        # TODO: implement the Saver class
+        if settings_save is not None:
+            self.saver = Saver(settings_save)
+
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
 
