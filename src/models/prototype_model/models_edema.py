@@ -20,13 +20,14 @@ from torchmetrics.functional.classification import multilabel_f1_score
 from tqdm.auto import tqdm
 
 from src.models.prototype_model.blocks import ENCODERS, LastLayer, PrototypeLayer, TransientLayers
-from src.models.prototype_model.prototype_model_utils import (
+from src.models.prototype_model.utils import (
     compute_proto_layer_rf_info,
     get_encoder,
     joint,
     last,
     print_status_bar,
     warm,
+    ImageSaver,
 )
 
 
@@ -38,11 +39,7 @@ class EdemaNet(pl.LightningModule):
     prototype layer. The encoder is the variable part of EdemaNet, which is passed as an argument.
     """
 
-    def __init__(
-        self,
-        settings_model: DictConfig,
-        settings_save: DictConfig = None
-    ):
+    def __init__(self, settings_model: DictConfig, settings_save: DictConfig = None):
         """Pytorch Lightning model class.
 
         Args:
@@ -61,7 +58,9 @@ class EdemaNet(pl.LightningModule):
         self.push_epochs = settings_model.push_epochs
         # TODO: implement the Saver class
         if settings_save is not None:
-            self.saver = Saver(settings_save)
+            self.image_saver = ImageSaver(settings_save)
+        else:
+            self.image_saver = None
 
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
@@ -179,7 +178,8 @@ class EdemaNet(pl.LightningModule):
         # here, we have to put push_prototypes function
         # logs costs after a training epoch
         if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
-            self.update_prototypes(self.trainer.train_dataloader.loaders, )
+            self.prototype_layer.update(saver=self.image_saver)
+            # self.update_prototypes(self.trainer.train_dataloader.loaders, )
             self.val_epoch(self.trainer.val_dataloaders[0], position=3)
             # TODO: save the model if the performance metric is better
             self.train_last_only(

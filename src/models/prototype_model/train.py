@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 
 from src.data.data_classes import EdemaDataModule
 from src.models.prototype_model.models_edema import EdemaNet
-from src.models.prototype_model.prototype_model_utils import PNetProgressBar
+from src.models.prototype_model.utils import PNetProgressBar
 
 
 @hydra.main(
