@@ -1,0 +1,5 @@
+python src/models/mmdetection/tools/train.py --config "src/models/mmdetection/configs/scnet/scnet_x101_64x4d_fpn_20e_coco.py" &> dry-run-models-logs/scnet_x101_64x4d_fpn_20e_coco.log
+python src/models/mmdetection/tools/train.py --config "src/models/mmdetection/configs/htc/htc_x101_64x4d_fpn_dconv_c3-c5_mstrain_400_1400_16x1_20e_coco.py" &> dry-run-models-logs/htc_x101_64x4d_fpn_dconv_c3-c5_mstrain_400_1400_16x1_20e_coco.log
+python src/models/mmdetection/tools/train.py --config "src/models/mmdetection/configs/detectors/detectors_htc_r101_20e_coco.py" &> dry-run-models-logs/detectors_htc_r101_20e_coco.log
+python src/models/mmdetection/tools/train.py --config "src/models/mmdetection/configs/resnest/cascade_mask_rcnn_s101_fpn_syncbn-backbone+head_mstrain_1x_coco.py" &> dry-run-models-logs/cascade_mask_rcnn_s101_fpn_syncbn-backbone+head_mstrain_1x_coco.log
+python src/models/mmdetection/tools/train.py --config "src/models/mmdetection/configs/res2net/cascade_mask_rcnn_r2_101_fpn_20e_coco.py" &> dry-run-models-logs/cascade_mask_rcnn_r2_101_fpn_20e_coco.log
