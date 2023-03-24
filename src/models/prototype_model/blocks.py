@@ -1,4 +1,5 @@
 from typing import List, Optional, Sequence, Dict, Union
+from abc import ABC, abstractmethod
 
 import torch
 from torch import nn
@@ -11,161 +12,19 @@ import pytorch_lightning as pl
 from src.models.prototype_model.utils import _make_layers
 from utils import ImageSaver, copy_tensor_to_nparray
 
+####################################################################################################
+# UPDATER
+####################################################################################################
 
-class SqueezeNet(nn.Module):
-    """SqueezeNet encoder.
+class ProtoUpdater(ABC):
+    """Abstract base class for implementing an updater for prototypes."""
 
-    The pre-trained model expects input images normalized in the same way, i.e. mini-batches of
-    3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The
-    images have to be loaded in to a range of [0, 1] and then normalized using
-    mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
-    """
-
-    def __init__(
-        self,
-        preprocessed: bool = False,
-        pretrained: bool = True,
-    ):
-        """SqueezeNet encoder.
-
-        Args:
-            preprocessed (bool, optional): _description_. Defaults to True.
-            pretrained (bool, optional): _description_. Defaults to True.
-        """
-
-        super().__init__()
-
-        self.model = torch.hub.load(
-            "pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True, verbose=False
-        )
-        del self.model.classifier
-
-        self.preprocessed = preprocessed
-
-    def forward(self, x) -> torch.Tensor:
-        """Forward implementation.
-
-        Uses only the model.features component of SqueezeNet without model.classifier.
-
-        Args:
-            x: raw input in format (batch, channels, spatial, spatial)
-
-        Returns:
-            torch.Tensor: convolution layers after passing the SqueezNet backbone
-        """
-        if self.preprocessed:
-            x = self.preprocess(x)
-
-        return self.model.features(x)
-
-    def preprocess(self, x):
-        """Image preprocessing function.
-
-        To make image preprocessing model specific and modular.
-
-        Args:
-            x: input image.
-
-        Returns:
-            preprocessed image.
-        """
-
-        preprocess = transforms.Compose(
-            [
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                # transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
-
-        return preprocess(x)
-
-    def conv_info(self):
-        features = {}
-        features['kernel_sizes'] = []
-        features['strides'] = []
-        features['paddings'] = []
-
-        for module in self.modules():
-            if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
-                if isinstance(module.kernel_size, tuple):
-                    features['kernel_sizes'].append(module.kernel_size[0])
-                else:
-                    features['kernel_sizes'].append(module.kernel_size)
-
-                if isinstance(module.stride, tuple):
-                    features['strides'].append(module.stride[0])
-                else:
-                    features['strides'].append(module.stride)
-
-                if isinstance(module.padding, tuple):
-                    features['paddings'].append(module.padding[0])
-                else:
-                    features['paddings'].append(module.padding)
-
-        return features
-
-    def warm(self) -> None:
-        self.requires_grad_(False)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(False)
+    @abstractmethod
+    def update_prototypes():
+        """Implement this at subclasses."""
 
 
-ENCODERS = {'squezeenet': SqueezeNet()}
-
-
-class TransientLayers(nn.Sequential):
-    def __init__(self, encoder: nn.Module, prototype_shape: List = [9, 512, 1, 1]):
-        super().__init__(*_make_layers(encoder, prototype_shape))
-
-    def warm(self) -> None:
-        self.requires_grad_(True)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(False)
-
-
-class PrototypeLayer(nn.Parameter):
-    def __init__(
-        self, num_prototypes: int, prototype_shape: Sequence[int], prototype_layer_stride: int = 1
-    ):
-        super().__init__()
-        self.stride = prototype_layer_stride
-        self.prototype_updater = _PrototypeUpdater(num_prototypes, prototype_shape)
-
-    def update(self, dataloader: DataLoader, saver: Optional[ImageSaver] = None):
-        self.prototype_updater.update_prototypes(dataloader, saver)
-
-    def warm(self) -> None:
-        self.requires_grad_(True)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(False)
-
-
-class LastLayer(nn.Linear):
-    def warm(self) -> None:
-        self.requires_grad_(True)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(True)
-
-
-class _PrototypeUpdater:
+class PrototypeUpdaterParameter(ProtoUpdater):
     """Class for updating prototypes.
 
     The class performs all the necessary internal work to update protoypes.
@@ -178,13 +37,12 @@ class _PrototypeUpdater:
             prototypes.
     """
 
-    def __init__(self, num_prototypes: int, prototype_shape: Sequence[int]) -> None:
-        self._global_min_proto_dist = _PrototypeUpdater._get_global_min_proto_dist(num_prototypes)
-        self._global_min_fmap_patches = _PrototypeUpdater._get_global_min_fmap_patches(
-            num_prototypes, prototype_shape
-        )
-        self._proto_rf_boxes = _PrototypeUpdater._get_proto_rf_boxes()
-        self._proto_bound_boxes = _PrototypeUpdater._get_proto_bound_boxes()
+    def __init__(self, prototype_layer: nn.Parameter) -> None:
+        self._prototype_layer = prototype_layer
+        self._global_min_proto_dist = self._get_global_min_proto_dist()
+        self._global_min_fmap_patches = self._get_global_min_fmap_patches()
+        self._proto_rf_boxes = PrototypeUpdaterParameter._get_proto_rf_boxes()
+        self._proto_bound_boxes = PrototypeUpdaterParameter._get_proto_bound_boxes()
 
     def update_prototypes(self, model: pl.LightningModule, dataloader: DataLoader, saver: Optional[ImageSaver]) -> None:
         with tqdm(total=len(dataloader), desc='Updating prototypes', position=3, leave=False) as t:
@@ -196,9 +54,14 @@ class _PrototypeUpdater:
         self, model: pl.LightningModule, batch: torch.Tensor, batch_index: int, saver: Optional[ImageSaver]
     ):
         images, masks, labels = _split_batch(batch)
-        proto_layer_input, proto_distances = self._get_input_output_proto_layer(model, images)
+        proto_layer_input, proto_distances = PrototypeUpdaterParameter._get_input_output_of_proto_layer(model, images)
+        class_to_img_index_dict = _form_class_to_img_index_dict(model.num_classes, labels)
 
-    def _get_input_output_of_proto_layer(self, model: pl.LightningModule, images: torch.Tensor):
+        for prototype in range(self._prototype_layer.num_prototypes):
+            pass
+
+    @staticmethod
+    def _get_input_output_of_proto_layer(model: pl.LightningModule, images: torch.Tensor):
         if model.training: model.eval()
         with torch.no_grad():
             search_batch = images.cuda()
@@ -209,18 +72,14 @@ class _PrototypeUpdater:
         del proto_layer_input_torch, proto_distances_torch
         return proto_layer_input, proto_distances   
 
-    @staticmethod
-    def _get_global_min_proto_dist(num_prototypes: int) -> np.array:
+    def _get_global_min_proto_dist(self) -> np.array:
         # returns tensor for global per epoch min distances initialized by infs
-        return np.full(num_prototypes, np.inf)
+        return np.full(self._prototype_layer.num_prototypes, np.inf)
 
-    @staticmethod
-    def _get_global_min_fmap_patches(
-        num_prototypes: int, prototype_shape: Sequence[int]
-    ) -> np.array:
+    def _get_global_min_fmap_patches(self) -> np.array:
         # returns tensor for global per epoch feature maps initialized by zeros
         return np.zeros(
-            (num_prototypes, prototype_shape[1], prototype_shape[2], prototype_shape[3]),
+            (self._prototype_layer.num_prototypes, self._prototype_layer.prototype_shape[1], self._prototype_layer.prototype_shape[2], self._prototype_layer.prototype_shape[3]),
         )
 
     @staticmethod
@@ -252,6 +111,18 @@ def _split_batch(batch: torch.Tensor) -> torch.Tensor:
 
 def _get_batch_index(iter: int, batch_size: int) -> int:
     return iter * batch_size
+
+
+def _form_class_to_img_index_dict(num_classes: int, labels: torch.Tensor) -> Dict[int, List[int]]:
+    # form a dict with {class:[images_idxs]}
+    class_to_img_index_dict = {key: [] for key in range(num_classes)}
+    for img_index, img_y in enumerate(labels):
+        img_y.tolist()
+        for idx, i in enumerate(img_y):
+            if i:
+                class_to_img_index_dict[idx].append(img_index)
+    return class_to_img_index_dict
+
 
 def update_prototypes_on_batch(
     self,
@@ -489,3 +360,174 @@ def update_prototypes_on_batch(
                         vmin=0.0,
                         vmax=1.0,
                     )
+
+
+class SqueezeNet(nn.Module):
+    """SqueezeNet encoder.
+
+    The pre-trained model expects input images normalized in the same way, i.e. mini-batches of
+    3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The
+    images have to be loaded in to a range of [0, 1] and then normalized using
+    mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
+    """
+
+    def __init__(
+        self,
+        preprocessed: bool = False,
+        pretrained: bool = True,
+    ):
+        """SqueezeNet encoder.
+
+        Args:
+            preprocessed (bool, optional): _description_. Defaults to True.
+            pretrained (bool, optional): _description_. Defaults to True.
+        """
+
+        super().__init__()
+
+        self.model = torch.hub.load(
+            "pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True, verbose=False
+        )
+        del self.model.classifier
+
+        self.preprocessed = preprocessed
+
+    def forward(self, x) -> torch.Tensor:
+        """Forward implementation.
+
+        Uses only the model.features component of SqueezeNet without model.classifier.
+
+        Args:
+            x: raw input in format (batch, channels, spatial, spatial)
+
+        Returns:
+            torch.Tensor: convolution layers after passing the SqueezNet backbone
+        """
+        if self.preprocessed:
+            x = self.preprocess(x)
+
+        return self.model.features(x)
+
+    def preprocess(self, x):
+        """Image preprocessing function.
+
+        To make image preprocessing model specific and modular.
+
+        Args:
+            x: input image.
+
+        Returns:
+            preprocessed image.
+        """
+
+        preprocess = transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                # transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
+
+        return preprocess(x)
+
+    def conv_info(self):
+        features = {}
+        features['kernel_sizes'] = []
+        features['strides'] = []
+        features['paddings'] = []
+
+        for module in self.modules():
+            if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
+                if isinstance(module.kernel_size, tuple):
+                    features['kernel_sizes'].append(module.kernel_size[0])
+                else:
+                    features['kernel_sizes'].append(module.kernel_size)
+
+                if isinstance(module.stride, tuple):
+                    features['strides'].append(module.stride[0])
+                else:
+                    features['strides'].append(module.stride)
+
+                if isinstance(module.padding, tuple):
+                    features['paddings'].append(module.padding[0])
+                else:
+                    features['paddings'].append(module.padding)
+
+        return features
+
+    def warm(self) -> None:
+        self.requires_grad_(False)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(False)
+
+
+ENCODERS = {'squezeenet': SqueezeNet()}
+
+
+class TransientLayers(nn.Sequential):
+    def __init__(self, encoder: nn.Module, prototype_shape: List = [9, 512, 1, 1]):
+        super().__init__(*_make_layers(encoder, prototype_shape))
+
+    def warm(self) -> None:
+        self.requires_grad_(True)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(False)
+
+
+class PrototypeLayer(nn.Parameter):
+    def __init__(
+        self, num_classes: int, num_prototypes: int, prototype_shape: Sequence[int], prototype_layer_stride: int = 1
+    ):
+        super().__init__()
+        self._num_classes = num_classes
+        self.num_prototypes = num_prototypes
+        self.num_prototypes_per_class = self.num_prototypes // self._num_classes
+        self.prototype_shape = prototype_shape
+        self.stride = prototype_layer_stride
+
+    def update(self, model: pl.LightningModule, dataloader: DataLoader, updater: ProtoUpdater, saver: Optional[ImageSaver] = None) -> None:
+        self.updater.update_prototypes(model, dataloader, saver)
+
+    def get_prototype_class_identity(self):
+        # onehot indication matrix for prototypes (num_prototypes, num_classes)        
+        prototype_class_identity = torch.zeros(
+            self.num_prototypes,
+            self._num_classes,
+            dtype=torch.float,
+        ).cuda()
+        # fills with 1 only those prototypes, which correspond to the correct class. The rest is
+        # filled with 0
+        for i in range(self.num_prototypes):
+            prototype_class_identity[i, i // self.num_prototypes_per_class] = 1
+        return prototype_class_identity
+
+    def warm(self) -> None:
+        self.requires_grad_(True)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(False)
+
+
+class LastLayer(nn.Linear):
+    def warm(self) -> None:
+        self.requires_grad_(True)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(True)
+
+
