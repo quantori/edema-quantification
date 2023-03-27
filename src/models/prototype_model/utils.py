@@ -221,7 +221,7 @@ class ImageSaver:
     pass
 
 
-def copy_tensor_to_nparray(tensor: torch.Tensor):
+def copy_tensor_to_nparray(tensor: torch.Tensor) -> np.ndarray:
     # newer versions of PyTorch (at least 2.0.0) have numpy(force=False), where the force flag
     # substitutes tensor.detach().cpu().resolve_conj().resolve_neg().numpy()
     return np.copy(tensor.detach().cpu().numpy())

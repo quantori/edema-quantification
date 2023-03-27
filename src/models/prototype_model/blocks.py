@@ -24,8 +24,8 @@ class ProtoUpdater(ABC):
         """Implement this at subclasses."""
 
 
-class PrototypeUpdaterParameter(ProtoUpdater):
-    """Class for updating prototypes.
+class ProtoUpdaterParameter(ProtoUpdater):
+    """Class for updating prototypes based on Parameter class from PyTorch.
 
     The class performs all the necessary internal work to update protoypes.
 
@@ -41,8 +41,8 @@ class PrototypeUpdaterParameter(ProtoUpdater):
         self._prototype_layer = prototype_layer
         self._global_min_proto_dist = self._get_global_min_proto_dist()
         self._global_min_fmap_patches = self._get_global_min_fmap_patches()
-        self._proto_rf_boxes = PrototypeUpdaterParameter._get_proto_rf_boxes()
-        self._proto_bound_boxes = PrototypeUpdaterParameter._get_proto_bound_boxes()
+        self._proto_rf_boxes = ProtoUpdaterParameter._get_proto_rf_boxes()
+        self._proto_bound_boxes = ProtoUpdaterParameter._get_proto_bound_boxes()
 
     def update_prototypes(self, model: pl.LightningModule, dataloader: DataLoader, saver: Optional[ImageSaver]) -> None:
         with tqdm(total=len(dataloader), desc='Updating prototypes', position=3, leave=False) as t:
@@ -54,14 +54,18 @@ class PrototypeUpdaterParameter(ProtoUpdater):
         self, model: pl.LightningModule, batch: torch.Tensor, batch_index: int, saver: Optional[ImageSaver]
     ):
         images, masks, labels = _split_batch(batch)
-        proto_layer_input, proto_distances = PrototypeUpdaterParameter._get_input_output_of_proto_layer(model, images)
+        proto_layer_input, proto_distances = ProtoUpdaterParameter._get_input_output_of_proto_layer(model, images)
         class_to_img_index_dict = _form_class_to_img_index_dict(model.num_classes, labels)
 
-        for prototype in range(self._prototype_layer.num_prototypes):
-            pass
+        for prototype_idx in range(self._prototype_layer.num_prototypes):
+            one_proto_dists = self._get_one_prototype_distances(prototype_idx, class_to_img_index_dict, proto_distances)
+            if one_proto_dists is None: continue
+            batch_min_proto_dist = self._get_batch_min_proto_dist(one_proto_dists)
+            if batch_min_proto_dist < self._global_min_proto_dist[prototype_idx]:
+                pass
 
     @staticmethod
-    def _get_input_output_of_proto_layer(model: pl.LightningModule, images: torch.Tensor):
+    def _get_input_output_of_proto_layer(model: pl.LightningModule, images: torch.Tensor) -> np.ndarray:
         if model.training: model.eval()
         with torch.no_grad():
             search_batch = images.cuda()
@@ -71,6 +75,19 @@ class PrototypeUpdaterParameter(ProtoUpdater):
         proto_distances = copy_tensor_to_nparray(proto_distances_torch)
         del proto_layer_input_torch, proto_distances_torch
         return proto_layer_input, proto_distances   
+
+    def _get_one_prototype_distances(self, prototype_idx: int, class_to_img_index_dict: Dict[int, List[int]], proto_distances: np.ndarray) -> Optional[np.ndarray]:
+        # target_class is the class of the class_specific prototype
+        target_class = torch.argmax(self._prototype_layer.prototype_class_identity()[prototype_idx]).item()
+        # if there is not images of the target_class from this batch
+        # we go on to the next prototype
+        if len(class_to_img_index_dict[target_class]) == 0:
+            return None
+        one_proto_dists = proto_distances[class_to_img_index_dict[target_class]][:, prototype_idx, :, :]
+        return one_proto_dists
+
+    def _get_batch_min_proto_dist(one_proto_dists: np.ndarray) -> float:
+        return np.amin(one_proto_dists)
 
     def _get_global_min_proto_dist(self) -> np.array:
         # returns tensor for global per epoch min distances initialized by infs
@@ -170,12 +187,12 @@ def update_prototypes_on_batch(
 
     for j in range(n_prototypes):
         # target_class is the class of the class_specific prototype
-        target_class = torch.argmax(self.prototype_class_identity[j]).item()
-        # if there is not images of the target_class from this batch
-        # we go on to the next prototype
-        if len(class_to_img_index_dict[target_class]) == 0:
-            continue
-        proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:, j, :, :]
+        # target_class = torch.argmax(self.prototype_class_identity[j]).item()
+        # # if there is not images of the target_class from this batch
+        # # we go on to the next prototype
+        # if len(class_to_img_index_dict[target_class]) == 0:
+        #     continue
+        # proto_dist_j = proto_dist_[class_to_img_index_dict[target_class]][:, j, :, :]
 
         # if the smallest distance in the batch is less than the global smallest distance for
         # this prototype
