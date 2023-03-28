@@ -68,6 +68,8 @@ class ProtoUpdaterParameter(ProtoUpdater):
                 self._set_global_min_proto_dist(prototype_idx, batch_min_proto_dist)
                 self._set_global_min_fmap_patch(prototype_idx, batch_min_fmap_patch)
 
+    
+
     def _set_global_min_proto_dist(self, prototype_idx: int, batch_min_proto_dist: float) -> None:
         self._global_min_proto_dists[prototype_idx] = batch_min_proto_dist
 
@@ -545,17 +547,87 @@ class TransientLayers(nn.Sequential):
 
 class PrototypeLayer(nn.Parameter):
     def __init__(
-        self, num_classes: int, num_prototypes: int, prototype_shape: Sequence[int], prototype_layer_stride: int = 1
+        self, model: pl.LightningModule, num_prototypes: int, prototype_shape: Sequence[int], prototype_layer_stride: int = 1
     ):
         super().__init__()
-        self._num_classes = num_classes
-        self.num_prototypes = num_prototypes
-        self.num_prototypes_per_class = self.num_prototypes // self._num_classes
-        self.shape = prototype_shape
-        self.layer_stride = prototype_layer_stride
+        self._model = model
+        self._num_prototypes = num_prototypes
+        self._shape = prototype_shape
+        self._layer_stride = prototype_layer_stride
 
-    def update(self, model: pl.LightningModule, dataloader: DataLoader, updater: ProtoUpdater, saver: Optional[ImageSaver] = None) -> None:
-        self.updater.update_prototypes(model, dataloader, saver)
+    @property
+    def num_prototypes(self):
+        return self._num_prototypes
+
+    @property
+    def num_prototypes_per_class(self):
+        return self.num_prototypes // self._model.num_classes
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def layer_stride(self):
+        return self._layer_stride
+
+    @property
+    def prototype_class_identity(self):
+         # onehot indication matrix for prototypes (num_prototypes, num_classes)        
+        prototype_class_identity = torch.zeros(
+            self.num_prototypes,
+            self._model.num_classes,
+            dtype=torch.float,
+        ).cuda()
+        # fills with 1 only those prototypes, which correspond to the correct class. The rest is
+        # filled with 0
+        for i in range(self.num_prototypes):
+            prototype_class_identity[i, i // self.num_prototypes_per_class] = 1
+        return prototype_class_identity
+
+    def update(self, dataloader: DataLoader, saver: Optional[ImageSaver] = None) -> None:
+        with tqdm(total=len(dataloader), desc='Updating prototypes', position=3, leave=False) as t:
+            for iter, batch in enumerate(dataloader):
+                batch_index = _get_batch_index(iter, dataloader.batch_size)
+                self._update_prototypes_on_batch(batch, batch_index, saver)
+
+    def _update_prototypes_on_batch(self, batch: torch.Tensor, batch_index: int, saver: Optional[ImageSaver]):
+        images, masks, labels = _split_batch(batch)
+        proto_layer_input, proto_distances = self._get_input_output_of_proto_layer(images)
+        class_to_img_index_dict = _form_class_to_img_index_dict(self._model.num_classes, labels)
+
+        for prototype_idx in range(self.num_prototypes):
+            one_proto_dists = self._get_one_prototype_distances(prototype_idx, class_to_img_index_dict, proto_distances)
+            if one_proto_dists is None: continue
+            batch_min_proto_dist = np.amin(one_proto_dists)
+            if batch_min_proto_dist < self._global_min_proto_dists[prototype_idx]:
+                batch_argmin_proto_dist = ProtoUpdaterParameter._get_batch_argmin_proto_dist(one_proto_dists)
+                batch_argmin_proto_dist_indexed = self._change_index(prototype_idx, batch_argmin_proto_dist, class_to_img_index_dict)
+                batch_min_fmap_patch = self._get_fmap_patch(batch_argmin_proto_dist_indexed, proto_layer_input)
+                self._set_global_min_proto_dist(prototype_idx, batch_min_proto_dist)
+                self._set_global_min_fmap_patch(prototype_idx, batch_min_fmap_patch)
+
+    def _get_input_output_of_proto_layer(self, images: torch.Tensor) -> np.ndarray:
+        if self._model.training: self._model.eval()
+        with torch.no_grad():
+            search_batch = images.cuda()
+            # this computation currently is not parallelized
+            proto_layer_input_torch, proto_distances_torch = self._model.update_prototypes_forward(search_batch)
+        proto_layer_input = copy_tensor_to_nparray(proto_layer_input_torch)
+        proto_distances = copy_tensor_to_nparray(proto_distances_torch)
+        del proto_layer_input_torch, proto_distances_torch
+        return proto_layer_input, proto_distances
+
+    def _get_one_prototype_distances(self, prototype_idx: int, class_to_img_index_dict: Dict[int, Sequence[int]], proto_distances: np.ndarray) -> Optional[np.ndarray]:
+        # if there is not images of the target_class from this batch we go on to the next prototype
+        if len(class_to_img_index_dict[self._get_target_class(prototype_idx)]) == 0:
+            return None
+        one_proto_dists = proto_distances[class_to_img_index_dict[self._get_target_class(prototype_idx)]][:, prototype_idx, :, :]
+        return one_proto_dists
+
+    def _get_target_class(self, prototype_idx: int) -> int:
+        # target_class is the class of the class_specific prototype
+        return torch.argmax(self.prototype_class_identity[prototype_idx]).item()
 
     def compute_proto_layer_rf_info(self, img_size: int, conv_info: Dict[str, int]) -> List[Union[int, float]]:
         _check_dimensions(conv_info)
@@ -570,18 +642,47 @@ class PrototypeLayer(nn.Parameter):
         )
         return proto_layer_rf_info
 
-    def make_prototype_class_identity(self):
-        # onehot indication matrix for prototypes (num_prototypes, num_classes)        
-        prototype_class_identity = torch.zeros(
-            self.num_prototypes,
-            self._num_classes,
-            dtype=torch.float,
-        ).cuda()
-        # fills with 1 only those prototypes, which correspond to the correct class. The rest is
-        # filled with 0
-        for i in range(self.num_prototypes):
-            prototype_class_identity[i, i // self.num_prototypes_per_class] = 1
-        return prototype_class_identity
+    def compute_rf_prototype(self, img_size, prototype_patch_index, protoL_rf_info):
+        img_index = prototype_patch_index[0]
+        rf_indices = self._compute_rf_protoL_at_spatial_location(
+            img_size=img_size,
+            height_index=prototype_patch_index[1],
+            width_index=prototype_patch_index[2],
+            protoL_rf_info=protoL_rf_info,
+        )
+        return [img_index, rf_indices[0], rf_indices[1], rf_indices[2], rf_indices[3]]
+
+    @staticmethod
+    def _compute_rf_protoL_at_spatial_location(
+        img_size,
+        height_index,
+        width_index,
+        protoL_rf_info: List[Union[int, float]],
+    ):
+        # computes the pixel indices of the input-image patch (e.g. 224x224) that corresponds
+        # to the feature-map patch with the closest distance to the current prototype
+        n = protoL_rf_info[0]
+        j = protoL_rf_info[1]
+        r = protoL_rf_info[2]
+        start = protoL_rf_info[3]
+        assert height_index <= n
+        assert width_index <= n
+
+        center_h = start + (height_index * j)
+        center_w = start + (width_index * j)
+
+        rf_start_height_index = max(int(center_h - (r / 2)), 0)
+        rf_end_height_index = min(int(center_h + (r / 2)), img_size)
+
+        rf_start_width_index = max(int(center_w - (r / 2)), 0)
+        rf_end_width_index = min(int(center_w + (r / 2)), img_size)
+
+        return [
+            rf_start_height_index,
+            rf_end_height_index,
+            rf_start_width_index,
+            rf_end_width_index,
+        ]
 
     def warm(self) -> None:
         self.requires_grad_(True)
@@ -593,15 +694,27 @@ class PrototypeLayer(nn.Parameter):
         self.requires_grad_(False)
 
 
-class LastLayer(nn.Linear):
-    def warm(self) -> None:
-        self.requires_grad_(True)
+def _split_batch(batch: torch.Tensor) -> torch.Tensor:
+    images_and_masks = batch[0]
+    images = images_and_masks[:, 0:3, :, :]
+    masks = images_and_masks[:, 3:, :, :]
+    labels = batch[1]
+    return images, masks, labels
+    
 
-    def joint(self) -> None:
-        self.requires_grad_(True)
+def _get_batch_index(iter: int, batch_size: int) -> int:
+    return iter * batch_size
 
-    def last(self) -> None:
-        self.requires_grad_(True)
+
+def _form_class_to_img_index_dict(num_classes: int, labels: torch.Tensor) -> Dict[int, List[int]]:
+    # form a dict with {class:[images_idxs]}
+    class_to_img_index_dict = {key: [] for key in range(num_classes)}
+    for img_index, img_y in enumerate(labels):
+        img_y.tolist()
+        for idx, i in enumerate(img_y):
+            if i:
+                class_to_img_index_dict[idx].append(img_index)
+    return class_to_img_index_dict
 
 
 def _check_dimensions(conv_info: Dict[str, int]) -> None:
@@ -620,7 +733,6 @@ def _extract_network_rf_info(conv_info: Dict[str, int], rf_info: Sequence[Union[
             previous_layer_rf_info=rf_info,
         )
     return rf_info
-
 
 def _compute_layer_rf_info(layer_filter_size: int, layer_stride: int, layer_padding: int, previous_layer_rf_info: List[Union[int, float]]) -> List[Union[int, float]]:
     # based on https://blog.mlreview.com/a-guide-to-receptive-field-arithmetic-for-convolutional-neural-networks-e0f514068807
@@ -660,3 +772,17 @@ def _compute_layer_rf_info(layer_filter_size: int, layer_stride: int, layer_padd
     start_out = start_in + ((layer_filter_size - 1) / 2 - pL) * j_in
 
     return [n_out, j_out, r_out, start_out]
+
+
+class LastLayer(nn.Linear):
+    def warm(self) -> None:
+        self.requires_grad_(True)
+
+    def joint(self) -> None:
+        self.requires_grad_(True)
+
+    def last(self) -> None:
+        self.requires_grad_(True)
+
+
+
