@@ -91,7 +91,7 @@ class ProtoUpdaterParameter(ProtoUpdater):
 
     def _get_target_class(self, prototype_idx: int) -> int:
         # target_class is the class of the class_specific prototype
-        return torch.argmax(self._prototype_layer.prototype_class_identity()[prototype_idx]).item()
+        return torch.argmax(self._prototype_layer.make_prototype_class_identity()[prototype_idx]).item()
 
     @staticmethod
     def _get_input_output_of_proto_layer(model: pl.LightningModule, images: torch.Tensor) -> np.ndarray:
@@ -171,8 +171,6 @@ def _split_batch(batch: torch.Tensor) -> torch.Tensor:
 
 def _get_batch_index(iter: int, batch_size: int) -> int:
     return iter * batch_size
-
-
 
 
 def _form_class_to_img_index_dict(num_classes: int, labels: torch.Tensor) -> Dict[int, List[int]]:
@@ -559,7 +557,20 @@ class PrototypeLayer(nn.Parameter):
     def update(self, model: pl.LightningModule, dataloader: DataLoader, updater: ProtoUpdater, saver: Optional[ImageSaver] = None) -> None:
         self.updater.update_prototypes(model, dataloader, saver)
 
-    def get_prototype_class_identity(self):
+    def compute_proto_layer_rf_info(self, img_size: int, conv_info: Dict[str, int]) -> List[Union[int, float]]:
+        _check_dimensions(conv_info)
+        # receptive field parameters for the first layer (image itself)
+        rf_info = [img_size, 1, 1, 0.5]
+        rf_info = _extract_network_rf_info(conv_info, rf_info)
+        proto_layer_rf_info = _compute_layer_rf_info(
+            layer_filter_size=self.shape[2],
+            layer_stride=self.layer_stride,
+            layer_padding='VALID',
+            previous_layer_rf_info=rf_info,
+        )
+        return proto_layer_rf_info
+
+    def make_prototype_class_identity(self):
         # onehot indication matrix for prototypes (num_prototypes, num_classes)        
         prototype_class_identity = torch.zeros(
             self.num_prototypes,
@@ -593,3 +604,59 @@ class LastLayer(nn.Linear):
         self.requires_grad_(True)
 
 
+def _check_dimensions(conv_info: Dict[str, int]) -> None:
+    if len(conv_info['kernel_sizes']) != len(conv_info['strides']):
+        raise Exception("The number of kernels has to be equla to the number of strides")
+    if len(conv_info['kernel_sizes']) != len(conv_info['paddings']):
+        raise Exception("The number of kernels has to be equla to the number of paddings")
+
+
+def _extract_network_rf_info(conv_info: Dict[str, int], rf_info: Sequence[Union[int, float]]) -> List[Union[int, float]]:
+    for i in range(len(conv_info['kernel_sizes'])):
+        rf_info = _compute_layer_rf_info(
+            layer_filter_size=conv_info['kernel_sizes'][i],
+            layer_stride=conv_info['strides'][i],
+            layer_padding=conv_info['paddings'][i],
+            previous_layer_rf_info=rf_info,
+        )
+    return rf_info
+
+
+def _compute_layer_rf_info(layer_filter_size: int, layer_stride: int, layer_padding: int, previous_layer_rf_info: List[Union[int, float]]) -> List[Union[int, float]]:
+    # based on https://blog.mlreview.com/a-guide-to-receptive-field-arithmetic-for-convolutional-neural-networks-e0f514068807
+    n_in = previous_layer_rf_info[0]  # receptive-field input size
+    j_in = previous_layer_rf_info[1]  # receptive field jump of input layer
+    r_in = previous_layer_rf_info[2]  # receptive field size of input layer
+    start_in = previous_layer_rf_info[3]  # center of receptive field of input layer
+
+    if layer_padding == 'SAME':
+        n_out = math.ceil(float(n_in) / float(layer_stride))
+        if n_in % layer_stride == 0:
+            pad = max(layer_filter_size - layer_stride, 0)
+        else:
+            pad = max(layer_filter_size - (n_in % layer_stride), 0)
+        assert (
+            n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+        )  # sanity check
+        assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
+    elif layer_padding == 'VALID':
+        n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
+        pad = 0
+        assert (
+            n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+        )  # sanity check
+        assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
+    else:
+        # layer_padding is an int that is the amount of padding on one side
+        pad = layer_padding * 2
+        # with math.floor n_out of the protoype layers has (1x1) pixels less then the
+        # convulution transformations from the encoder
+        # n_out = math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
+        n_out = round((n_in - layer_filter_size + pad) / layer_stride) + 1
+
+    pL = math.floor(pad / 2)
+    j_out = j_in * layer_stride
+    r_out = r_in + (layer_filter_size - 1) * j_in
+    start_out = start_in + ((layer_filter_size - 1) / 2 - pL) * j_in
+
+    return [n_out, j_out, r_out, start_out]
