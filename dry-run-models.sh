@@ -16,7 +16,7 @@ python src/models/mmdetection/tools/train.py \
 &> dry-run-models-logs/gfl_x101_32x4d_fpn_dconv_c4-c5_mstrain_2x_coco.log
 
 python src/models/mmdetection/tools/train.py \
---config "src/models/mmdetection/configs/resnest/cascade_mask_rcnn_s101_fpn_syncbn-backbone+head_mstrain_1x_coco.py " \
+--config "src/models/mmdetection/configs/resnest/cascade_mask_rcnn_s101_fpn_syncbn-backbone+head_mstrain_1x_coco.py" \
 &> dry-run-models-logs/cascade_mask_rcnn_s101_fpn_syncbn-backbone+head_mstrain_1x_coco.log
 
 python src/models/mmdetection/tools/train.py \
