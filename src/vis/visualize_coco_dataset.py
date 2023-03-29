@@ -2,18 +2,17 @@ import argparse
 import os
 
 import fiftyone as fo
-import fiftyone.utils.annotations as fo_ann
 
 from settings import COCO_SAVE_DIR, SEED
 
 
 def main(
-        dataset_dir: str,
-        subset: str,
-        dataset_name: str = None,
-        max_samples: int = None,
-        shuffle: bool = False,
-        seed: int = 11,
+    dataset_dir: str,
+    subset: str,
+    dataset_name: str = None,
+    max_samples: int = None,
+    shuffle: bool = False,
+    seed: int = 11,
 ) -> None:
     """Visualize a COCO dataset to verify its correctness.
 
@@ -40,26 +39,8 @@ def main(
         )
     except ValueError:
         dataset = fo.load_dataset(dataset_name)
-
-    # config = fo_ann.DrawConfig.default()
-    config = fo_ann.DrawConfig({
-        # "font_size": 24,
-        # "bbox_linewidth": 5,
-        "show_frame_attr_names": False,
-        "show_frame_attr_confidences": False,
-        "show_object_attrs": False,
-        "show_object_attr_names": False,
-        "show_event_attrs": False,
-        "show_event_attr_names": False,
-        "show_event_label_on_objects": False,
-        "per_object_label_colors": True,
-    })
-    dataset.draw_labels(output_dir=r'C:\Users\irina.ryndova\PROJECTS\edema-quantification\data\demo\output\fiftyone',
-                        overwrite=True, config=config)
-
-    session = fo.launch_app(dataset, port=5154)
+    session = fo.launch_app(dataset)
     session.wait()
-
     dataset.delete()
 
 
