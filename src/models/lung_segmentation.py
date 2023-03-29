@@ -184,7 +184,7 @@ class LungSegmentation:
 
 if __name__ == '__main__':
     model_name = 'DeepLabV3+'
-    img_path = 'data/demo/input/10000032_50414267.png'
+    img_path = 'data/demo/input/10123949_50217724.png'
     model = LungSegmentation(
         model_dir=f'models/lung_segmentation/{model_name}',
         threshold=0.50,
