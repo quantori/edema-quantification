@@ -1,3 +1,4 @@
+import math
 from typing import List, Optional, Sequence, Dict, Union, Tuple
 from abc import ABC, abstractmethod
 
@@ -8,6 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 import numpy as np
 import pytorch_lightning as pl
+import cv2
 
 from src.models.prototype_model.utils import _make_layers
 from utils import ImageSaver, copy_tensor_to_nparray
@@ -493,7 +495,7 @@ class SqueezeNet(nn.Module):
 
         return preprocess(x)
 
-    def conv_info(self):
+    def conv_info(self) -> Dict[str, int]:
         features = {}
         features['kernel_sizes'] = []
         features['strides'] = []
@@ -547,13 +549,14 @@ class TransientLayers(nn.Sequential):
 
 class PrototypeLayer(nn.Parameter):
     def __init__(
-        self, model: pl.LightningModule, num_prototypes: int, prototype_shape: Sequence[int], prototype_layer_stride: int = 1
+        self, model: pl.LightningModule, num_prototypes: int, prototype_shape: Sequence[int], prototype_layer_stride: int = 1, epsilon: float = 1e-4
     ):
         super().__init__()
         self._model = model
         self._num_prototypes = num_prototypes
         self._shape = prototype_shape
         self._layer_stride = prototype_layer_stride
+        self._epsilon = epsilon
         self._global_min_proto_dists: Optional[np.ndarray] = None
         self._global_min_fmap_patches: Optional[np.ndarray] = None
 
@@ -565,8 +568,8 @@ class PrototypeLayer(nn.Parameter):
         #     3: width start index
         #     4: width end index
         #     5: class identities
-        self._proto_rf_boxes:  Optional[Dict[int, Union[int, Sequence[int]]]] = None
-        self._proto_bound_boxes: Optional[Dict[int, Union[int, Sequence[int]]]] = None
+        self._proto_rf_boxes:  Optional[Dict[int, Dict[str, Union[int, Sequence[int]]]]] = None
+        self._proto_bound_boxes: Optional[Dict[int, Dict[str, Union[int, Sequence[int]]]]] = None
 
 
     @property
@@ -584,6 +587,10 @@ class PrototypeLayer(nn.Parameter):
     @property
     def layer_stride(self):
         return self._layer_stride
+
+    @property
+    def epsilon(self):
+        return self._epsilon
 
     @property
     def prototype_class_identity(self):
@@ -610,6 +617,10 @@ class PrototypeLayer(nn.Parameter):
         )
 
     def update(self, dataloader: DataLoader, saver: Optional[ImageSaver] = None) -> None:
+        self._global_min_proto_dists = self._create_global_min_proto_dist()
+        self._global_min_fmap_patches = self._create_global_min_fmap_patches()
+        self._proto_rf_boxes = {}
+        self._proto_bound_boxes = {}
         with tqdm(total=len(dataloader), desc='Updating prototypes', position=3, leave=False) as t:
             for iter, batch in enumerate(dataloader):
                 batch_index = _get_batch_index(iter, dataloader.batch_size)
@@ -628,8 +639,40 @@ class PrototypeLayer(nn.Parameter):
                 batch_argmin_proto_dist = PrototypeLayer._get_batch_argmin_proto_dist(one_proto_dists)
                 batch_argmin_proto_dist_indexed = self._change_to_batch_index(prototype_idx, batch_argmin_proto_dist, class_to_img_index_dict)
                 batch_min_fmap_patch = self._get_fmap_patch(batch_argmin_proto_dist_indexed, proto_layer_input)
-                self._set_global_min_proto_dist(prototype_idx, batch_min_proto_dist)
-                self._set_global_min_fmap_patch(prototype_idx, batch_min_fmap_patch)
+                self._global_min_proto_dists[prototype_idx] = batch_min_proto_dist
+                self._global_min_fmap_patches[prototype_idx] = batch_min_fmap_patch
+                rf_prototype = self._compute_rf_prototype(
+                images.size(2),
+                batch_argmin_proto_dist_indexed,
+                self._compute_proto_layer_rf_info(images.size(2), self._model.encoder.conv_info())
+                )
+                original_img_for_shortest_proto_dist = self._get_orignial_img(images, rf_prototype)
+                img_crop_of_proto_rf = self._crop_out_proto_rf(original_img_for_shortest_proto_dist, rf_prototype)
+                self._save_info_in_proto_rf_boxes(rf_prototype, labels, batch_index)
+                high_proto_activation_roi = self._find_high_activation_roi(proto_distances, batch_index, prototype_idx, original_img_for_shortest_proto_dist.shape[0])
+
+
+# find the highly activated region of the original image
+            proto_dist_img_j = proto_dist_[img_index_in_batch, j, :, :]
+            # the activation function of the distances is log
+            proto_act_img_j = np.log((proto_dist_img_j + 1) / (proto_dist_img_j + self.epsilon))
+            # upsample the matrix with distances (e.g., (14x14)->(224x224))
+            upsampled_act_img_j = cv2.resize(
+                proto_act_img_j,
+                dsize=(original_img_size, original_img_size),
+                interpolation=cv2.INTER_CUBIC,
+            )
+            # find a high activation ROI (default treshold = 95 %)
+            proto_bound_j = self.find_high_activation_crop(upsampled_act_img_j)
+            # crop out the ROI with high activation from the image where the distnce for j
+            # protoype turned out to be the smallest
+            # the dimensions' order of original_img_j, e.g., (224, 224, 3)
+            proto_img_j = original_img_j[
+                proto_bound_j[0] : proto_bound_j[1], proto_bound_j[2] : proto_bound_j[3], :
+            ]
+            
+                
+            
 
     def _get_input_output_of_proto_layer(self, images: torch.Tensor) -> np.ndarray:
         if self._model.training: self._model.eval()
@@ -684,13 +727,7 @@ class PrototypeLayer(nn.Parameter):
         ]
         return batch_min_fmap_patch
 
-    def _set_global_min_proto_dist(self, prototype_idx: int, batch_min_proto_dist: float) -> None:
-        self._global_min_proto_dists[prototype_idx] = batch_min_proto_dist
-
-    def _set_global_min_fmap_patch(self, prototype_idx: int, batch_min_fmap_patch: np.ndarray) -> None:
-        self._global_min_fmap_patches[prototype_idx] = batch_min_fmap_patch
-
-    def compute_proto_layer_rf_info(self, img_size: int, conv_info: Dict[str, int]) -> List[Union[int, float]]:
+    def _compute_proto_layer_rf_info(self, img_size: int, conv_info: Dict[str, int]) -> List[Union[int, float]]:
         _check_dimensions(conv_info)
         # receptive field parameters for the first layer (image itself)
         rf_info = [img_size, 1, 1, 0.5]
@@ -703,9 +740,9 @@ class PrototypeLayer(nn.Parameter):
         )
         return proto_layer_rf_info
 
-    def compute_rf_prototype(self, img_size, prototype_patch_index, protoL_rf_info):
+    def _compute_rf_prototype(self, img_size: int, prototype_patch_index: Sequence[int], protoL_rf_info: List[Union[int, float]]) -> List[int]:
         img_index = prototype_patch_index[0]
-        rf_indices = self._compute_rf_protoL_at_spatial_location(
+        rf_indices = self._compute_rf_proto_layer_at_spatial_location(
             img_size=img_size,
             height_index=prototype_patch_index[1],
             width_index=prototype_patch_index[2],
@@ -714,10 +751,10 @@ class PrototypeLayer(nn.Parameter):
         return [img_index, rf_indices[0], rf_indices[1], rf_indices[2], rf_indices[3]]
 
     @staticmethod
-    def _compute_rf_protoL_at_spatial_location(
-        img_size,
-        height_index,
-        width_index,
+    def _compute_rf_proto_layer_at_spatial_location(
+        img_size: int,
+        height_index: int,
+        width_index: int,
         protoL_rf_info: List[Union[int, float]],
     ):
         # computes the pixel indices of the input-image patch (e.g. 224x224) that corresponds
@@ -744,6 +781,48 @@ class PrototypeLayer(nn.Parameter):
             rf_start_width_index,
             rf_end_width_index,
         ]
+
+    @staticmethod
+    def _get_orignial_img(images: torch.Tensor, rf_prototype: Sequence[int]) -> np.ndarray:
+        # get the whole original image where the protoype has the shortest distance
+        original_img = images[rf_prototype[0]]
+        original_img_np = original_img.numpy()
+        original_img_transposed = np.transpose(original_img_np, (1, 2, 0))
+        return original_img_transposed
+
+    @staticmethod
+    def _crop_out_proto_rf(original_img_for_shortest_proto_dist: torch.Tensor, rf_prototype: List[int]) -> np.ndarray:
+        # crop out the prototype receptive field from the original image
+        return original_img_for_shortest_proto_dist[
+                rf_prototype[1] : rf_prototype[2], rf_prototype[3] : rf_prototype[4], :
+            ]
+
+    def _save_info_in_proto_rf_boxes(self, prototype_idx: int, rf_prototype: Sequence[int], labels: torch.Tensor, batch_index: int) -> None:
+        # save the prototype receptive field information (pixel indices in the input image)
+        self._proto_rf_boxes[prototype_idx] = {}
+        self._proto_rf_boxes[prototype_idx]['image_index'] = rf_prototype[0] + batch_index
+        self._proto_rf_boxes[prototype_idx]['height_start_index'] = rf_prototype[1]
+        self._proto_rf_boxes[prototype_idx]['height_end_index'] = rf_prototype[2]
+        self._proto_rf_boxes[prototype_idx]['width_start_index'] = rf_prototype[3]
+        self._proto_rf_boxes[prototype_idx]['width_end_index'] = rf_prototype[4]
+        self._proto_rf_boxes[prototype_idx]['class_indentities'] = labels[rf_prototype[0]].tolist()
+
+    def _find_high_activation_roi(self, proto_distances: np.ndarray, batch_index: int, prototype_idx: int, original_img_size: int) -> Tuple[int, int, int, int]:
+        # find the highly activated region of the original image
+        proto_dist_img = proto_distances[batch_index, prototype_idx, :, :]
+        # the activation function of the distances is log
+        proto_act_img = np.log((proto_dist_img + 1) / (proto_dist_img + self.epsilon))
+        # upsample the matrix with distances (e.g., (14x14)->(224x224))
+        upsampled_act_img = cv2.resize(
+            proto_act_img,
+            dsize=(original_img_size, original_img_size),
+            interpolation=cv2.INTER_CUBIC,
+        )
+        # find a high activation ROI (default treshold = 95 %)
+        return _find_high_activation_crop(upsampled_act_img) 
+
+    
+
 
     def warm(self) -> None:
         self.requires_grad_(True)
@@ -795,7 +874,7 @@ def _extract_network_rf_info(conv_info: Dict[str, int], rf_info: Sequence[Union[
         )
     return rf_info
 
-def _compute_layer_rf_info(layer_filter_size: int, layer_stride: int, layer_padding: int, previous_layer_rf_info: List[Union[int, float]]) -> List[Union[int, float]]:
+def _compute_layer_rf_info(layer_filter_size: int, layer_stride: int, layer_padding: int, previous_layer_rf_info: Sequence[Union[int, float]]) -> List[Union[int, float]]:
     # based on https://blog.mlreview.com/a-guide-to-receptive-field-arithmetic-for-convolutional-neural-networks-e0f514068807
     n_in = previous_layer_rf_info[0]  # receptive-field input size
     j_in = previous_layer_rf_info[1]  # receptive field jump of input layer
@@ -833,6 +912,37 @@ def _compute_layer_rf_info(layer_filter_size: int, layer_stride: int, layer_padd
     start_out = start_in + ((layer_filter_size - 1) / 2 - pL) * j_in
 
     return [n_out, j_out, r_out, start_out]
+
+def _find_high_activation_crop(activation_map: np.ndarray, percentile: int = 95) -> Tuple[int, int, int, int]:
+    threshold = np.percentile(activation_map, percentile)
+    mask = np.ones(activation_map.shape)
+    mask[activation_map < threshold] = 0
+    lower_y, upper_y, lower_x, upper_x = 0, 0, 0, 0
+    for i in range(mask.shape[0]):
+        if np.amax(mask[i]) > 0.5:
+            lower_y = i
+            break
+    for i in reversed(range(mask.shape[0])):
+        if np.amax(mask[i]) > 0.5:
+            upper_y = i
+            break
+    for j in range(mask.shape[1]):
+        if np.amax(mask[:, j]) > 0.5:
+            lower_x = j
+            break
+    for j in reversed(range(mask.shape[1])):
+        if np.amax(mask[:, j]) > 0.5:
+            upper_x = j
+            break
+    return (lower_y, upper_y + 1, lower_x, upper_x + 1)
+
+# TODO: finish
+def _find_lower_y(lower_y, mask):
+    for i in range(mask.shape[0]):
+        if np.amax(mask[i]) > 0.5:
+            lower_y = i
+            break
+    return lower_y
 
 
 class LastLayer(nn.Linear):
