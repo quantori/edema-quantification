@@ -648,29 +648,23 @@ class PrototypeLayer(nn.Parameter):
                 )
                 original_img_for_shortest_proto_dist = self._get_orignial_img(images, rf_prototype)
                 img_crop_of_proto_rf = self._crop_out_proto_rf(original_img_for_shortest_proto_dist, rf_prototype)
-                self._save_info_in_proto_rf_boxes(rf_prototype, labels, batch_index)
+                self._save_info_in_proto_rf_boxes(prototype_idx, rf_prototype, labels, batch_index)
                 high_proto_activation_roi = self._find_high_activation_roi(proto_distances, batch_index, prototype_idx, original_img_for_shortest_proto_dist.shape[0])
+                high_proto_activation_roi_crop = _get_roi_crop(original_img_for_shortest_proto_dist, high_proto_activation_roi)
+                self._save_info_in_proto_bound_boxes(prototype_idx, high_proto_activation_roi) 
 
 
-# find the highly activated region of the original image
-            proto_dist_img_j = proto_dist_[img_index_in_batch, j, :, :]
-            # the activation function of the distances is log
-            proto_act_img_j = np.log((proto_dist_img_j + 1) / (proto_dist_img_j + self.epsilon))
-            # upsample the matrix with distances (e.g., (14x14)->(224x224))
-            upsampled_act_img_j = cv2.resize(
-                proto_act_img_j,
-                dsize=(original_img_size, original_img_size),
-                interpolation=cv2.INTER_CUBIC,
-            )
-            # find a high activation ROI (default treshold = 95 %)
-            proto_bound_j = self.find_high_activation_crop(upsampled_act_img_j)
-            # crop out the ROI with high activation from the image where the distnce for j
-            # protoype turned out to be the smallest
-            # the dimensions' order of original_img_j, e.g., (224, 224, 3)
-            proto_img_j = original_img_j[
-                proto_bound_j[0] : proto_bound_j[1], proto_bound_j[2] : proto_bound_j[3], :
-            ]
-            
+
+            # save the ROI (rectangular boundary of highly activated region)
+            # the activated region can be larger than the receptive field of the patch with the
+            # smallest distance
+            proto_bound_boxes[j] = {}
+            proto_bound_boxes[j]['image_index'] = proto_rf_boxes[j]['image_index']
+            proto_bound_boxes[j]['height_start_index'] = proto_bound_j[0]
+            proto_bound_boxes[j]['height_end_index'] = proto_bound_j[1]
+            proto_bound_boxes[j]['width_start_index'] = proto_bound_j[2]
+            proto_bound_boxes[j]['width_end_index'] = proto_bound_j[3]
+            proto_bound_boxes[j]['class_indentities'] = search_labels[rf_prototype_j[0]].tolist() 
                 
             
 
@@ -821,6 +815,19 @@ class PrototypeLayer(nn.Parameter):
         # find a high activation ROI (default treshold = 95 %)
         return _find_high_activation_crop(upsampled_act_img) 
 
+    def _save_info_in_proto_bound_boxes(self, prototype_idx: int, roi: Tuple[int, int, int, int], labels: torch.Tensor, rf_prototype: Sequence[int]):
+        # save the ROI (rectangular boundary of highly activated region)
+        # the activated region can be larger than the receptive field of the patch with the
+        # smallest distance
+        self._proto_bound_boxes[prototype_idx] = {}
+        self._proto_bound_boxes[prototype_idx]['image_index'] = self._proto_rf_boxes[prototype_idx]['image_index']
+        self._proto_bound_boxes[prototype_idx]['height_start_index'] = roi[0]
+        self._proto_bound_boxes[prototype_idx]['height_end_index'] = roi[1]
+        self._proto_bound_boxes[prototype_idx]['width_start_index'] = roi[2]
+        self._proto_bound_boxes[prototype_idx]['width_end_index'] = roi[3]
+        self._proto_bound_boxes[prototype_idx]['class_indentities'] = labels[rf_prototype[0]].tolist() 
+
+
     
 
 
@@ -917,32 +924,49 @@ def _find_high_activation_crop(activation_map: np.ndarray, percentile: int = 95)
     threshold = np.percentile(activation_map, percentile)
     mask = np.ones(activation_map.shape)
     mask[activation_map < threshold] = 0
-    lower_y, upper_y, lower_x, upper_x = 0, 0, 0, 0
-    for i in range(mask.shape[0]):
-        if np.amax(mask[i]) > 0.5:
-            lower_y = i
-            break
-    for i in reversed(range(mask.shape[0])):
-        if np.amax(mask[i]) > 0.5:
-            upper_y = i
-            break
-    for j in range(mask.shape[1]):
-        if np.amax(mask[:, j]) > 0.5:
-            lower_x = j
-            break
-    for j in reversed(range(mask.shape[1])):
-        if np.amax(mask[:, j]) > 0.5:
-            upper_x = j
-            break
+    lower_y = _find_lower_y(mask)
+    upper_y = _find_upper_y(mask)
+    lower_x = _find_lower_x(mask)
+    upper_x = _find_upper_x(mask)
     return (lower_y, upper_y + 1, lower_x, upper_x + 1)
 
-# TODO: finish
-def _find_lower_y(lower_y, mask):
+
+def _find_lower_y(mask: np.ndarray, lower_y: int = 0) -> int:
     for i in range(mask.shape[0]):
         if np.amax(mask[i]) > 0.5:
             lower_y = i
             break
     return lower_y
+
+
+def _find_upper_y(mask: np.ndarray, upper_y: int = 0) -> int:
+    for i in reversed(range(mask.shape[0])):
+        if np.amax(mask[i]) > 0.5:
+            upper_y = i
+            break
+    return upper_y
+
+
+def _find_lower_x(mask: np.ndarray, lower_x: int = 0) -> int:
+    for j in range(mask.shape[1]):
+        if np.amax(mask[:, j]) > 0.5:
+            lower_x = j
+            break
+    return lower_x
+
+
+def _find_upper_x(mask: np.ndarray, upper_x: int = 0) -> int:
+    for j in reversed(range(mask.shape[1])):
+        if np.amax(mask[:, j]) > 0.5:
+            upper_x = j
+            break
+    return upper_x
+
+
+def _get_roi_crop(original_img: np.ndarray, roi: Tuple[int, int, int, int]) -> np.ndarray:
+    # Crop out the ROI with high activation from the image where the distnce for j protoype turned 
+    # out to be the smallest the dimensions' order of original_img_j, e.g., (224, 224, 3)
+    return original_img[roi[0] : roi[1], roi[2] : roi[3], :]
 
 
 class LastLayer(nn.Linear):
