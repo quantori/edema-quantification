@@ -8,8 +8,7 @@ import cv2
 from tqdm import tqdm
 
 from src.data.utils import get_file_list
-from src.models.border_extractor import BorderExtractor
-from src.models.lung_segmentation import LungSegmentation
+from src.models.models import BorderExtractor, LungSegmentation
 
 os.makedirs('logs', exist_ok=True)
 logging.basicConfig(
