@@ -815,10 +815,10 @@ class PrototypeLayer(nn.Parameter):
         # find a high activation ROI (default treshold = 95 %)
         return _find_high_activation_crop(upsampled_act_img) 
 
-    def _save_info_in_proto_bound_boxes(self, prototype_idx: int, roi: Tuple[int, int, int, int], labels: torch.Tensor, rf_prototype: Sequence[int]):
-        # save the ROI (rectangular boundary of highly activated region)
-        # the activated region can be larger than the receptive field of the patch with the
-        # smallest distance
+    def _save_info_in_proto_bound_boxes(self, prototype_idx: int, roi: Tuple[int, int, int, int], labels: torch.Tensor, rf_prototype: Sequence[int]) -> None:
+        # save the ROI (rectangular boundary of highly activated region) dfklaswuoerw 
+        # the activated region can be larger than the receptive field of the patch with the     
+        # smallest distance       
         self._proto_bound_boxes[prototype_idx] = {}
         self._proto_bound_boxes[prototype_idx]['image_index'] = self._proto_rf_boxes[prototype_idx]['image_index']
         self._proto_bound_boxes[prototype_idx]['height_start_index'] = roi[0]
@@ -826,10 +826,6 @@ class PrototypeLayer(nn.Parameter):
         self._proto_bound_boxes[prototype_idx]['width_start_index'] = roi[2]
         self._proto_bound_boxes[prototype_idx]['width_end_index'] = roi[3]
         self._proto_bound_boxes[prototype_idx]['class_indentities'] = labels[rf_prototype[0]].tolist() 
-
-
-    
-
 
     def warm(self) -> None:
         self.requires_grad_(True)
