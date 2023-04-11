@@ -5,7 +5,7 @@ The description to be filled...
 import json
 import os
 import sys
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import cv2
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ from src.models.prototype_model.utils import (
 )
 
 
-class EdemaNet(pl.LightningModule):
+class EdemaPrototypeNet(pl.LightningModule):
     """PyTorch Lightning model class.
 
     A complete model is implemented (includes the encoder, transient, prototype and fully connected
@@ -39,68 +39,48 @@ class EdemaNet(pl.LightningModule):
     prototype layer. The encoder is the variable part of EdemaNet, which is passed as an argument.
     """
 
-    def __init__(self, settings_model: DictConfig, settings_save: DictConfig = None):
+    def __init__(
+        self,
+        encoder: Union[nn.Module, nn.Sequential],
+        transient_layers: Union[nn.Module, nn.Sequential],
+        prototype_layer: Union[nn.Parameter, nn.Module, nn.Sequential],
+        last_layer: Union[nn.Module, nn.Sequential],
+        settings_model: DictConfig,
+        # figure_logger: ... = None,
+    ) -> None:
         """Pytorch Lightning model class.
 
         Args:
             settings: DictConfig with configuration parameters for the model.
         """
         super().__init__()
-
-        self.num_prototypes = settings_model.prototype_shape[0]
-        self.prototype_shape = settings_model.prototype_shape
         self.top_k = settings_model.top_k  # for a 14x14: top_k=3 is 1.5%, top_k=9 is 4.5%
         self.epsilon = settings_model.epsilon  # needed for the similarity calculation
         self.num_classes = settings_model.num_classes
-        self.num_prototypes_per_class = self.num_prototypes // self.num_classes
         self.num_warm_epochs = settings_model.num_warm_epochs
         self.push_start = settings_model.push_start
         self.push_epochs = settings_model.push_epochs
-        # TODO: implement the Saver class
-        if settings_save is not None:
-            self.image_saver = ImageSaver(settings_save)
-        else:
-            self.image_saver = None
+
+        # TODO: implement the Logger class
+        # if figure_logger is not None:
+        #     self.figure_logger = ...
 
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
 
-        # onehot indication matrix for prototypes (num_prototypes, num_classes)
-        self.prototype_class_identity = torch.zeros(
-            self.num_prototypes,
-            self.num_classes,
-            dtype=torch.float,
-        ).cuda()
-        # fills with 1 only those prototypes, which correspond to the correct class. The rest is
-        # filled with 0
-        for j in range(self.num_prototypes):
-            self.prototype_class_identity[j, j // self.num_prototypes_per_class] = 1
-
         # encoder
-        self.encoder = get_encoder(encoders=ENCODERS, name=settings_model.encoder)
-
-        # receptive-field information that is needed to cut out the chosen upsampled fmap patch
-        self.proto_layer_rf_info = compute_proto_layer_rf_info(
-            img_size=settings_model.img_size,
-            conv_info=self.encoder.conv_info(),
-            prototype_kernel_size=self.prototype_shape[2],
-        )
+        self.encoder = encoder
 
         # transient layers
-        # self.transient_layers = self._make_transient_layers(self.encoder)
-        self.transient_layers = TransientLayers(
-            encoder=self.encoder,
-            prototype_shape=self.prototype_shape,
-        )
+        self.transient_layers = transient_layers
 
         # prototypes layer (do not make this just a tensor, since it will not be moved
         # automatically to gpu)
-        # self.prototype_layer = nn.Parameter(torch.rand(*self.prototype_shape), requires_grad=True)
-        self.prototype_layer = PrototypeLayer(data=torch.rand(*self.prototype_shape))
+        self.prototype_layer = prototype_layer
 
         # last fully connected layer for the classification of edema features. The bias is not used
         # in the original paper
-        self.last_layer = LastLayer(self.num_prototypes, self.num_classes, bias=False)
+        self.last_layer = last_layer
 
         self.blocks = {
             'encoder': self.encoder,
@@ -128,7 +108,7 @@ class EdemaNet(pl.LightningModule):
         min_distances = F.avg_pool1d(
             closest_k_distances,
             kernel_size=closest_k_distances.shape[2],
-        ).view(-1, self.num_prototypes)
+        ).view(-1, self.prototype_layer.num_prototypes)
 
         prototype_activations = torch.log((distances + 1) / (distances + self.epsilon))
         _activations = prototype_activations.view(
@@ -140,7 +120,7 @@ class EdemaNet(pl.LightningModule):
         prototype_activations = F.avg_pool1d(
             top_k_activations,
             kernel_size=top_k_activations.shape[2],
-        ).view(-1, self.num_prototypes)
+        ).view(-1, self.prototype_layer.num_prototypes)
 
         logits = self.last_layer(prototype_activations)
 
@@ -178,7 +158,7 @@ class EdemaNet(pl.LightningModule):
         # here, we have to put push_prototypes function
         # logs costs after a training epoch
         if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
-            self.prototype_layer.update(saver=self.image_saver)
+            self.prototype_layer.update(self, self.trainer.train_dataloader.loaders)
             # self.update_prototypes(self.trainer.train_dataloader.loaders, )
             self.val_epoch(self.trainer.val_dataloaders[0], position=3)
             # TODO: save the model if the performance metric is better
@@ -306,7 +286,11 @@ class EdemaNet(pl.LightningModule):
         cross_entropy = self.cross_entropy_cost(output, labels)
 
         # cluster cost
-        max_dist = self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3]
+        max_dist = (
+            self.prototype_layer.shape[1]
+            * self.prototype_layer.shape[2]
+            * self.prototype_layer.shape[3]
+        )
         prototypes_of_correct_class = torch.matmul(
             labels,
             self.prototype_class_identity.permute(1, 0),
@@ -320,7 +304,7 @@ class EdemaNet(pl.LightningModule):
         fine_cost = self.fine_cost(
             fine_annotations,
             upsampled_activation,
-            self.num_prototypes_per_class,
+            self.prototype_layer.num_prototypes_per_class,
         )
 
         cost = cross_entropy + 0.8 * cluster_cost - 0.08 * separation_cost + 0.001 * fine_cost
@@ -354,7 +338,9 @@ class EdemaNet(pl.LightningModule):
 
         # if the input is (batch, 512, 14, 14) and the kernel_size=(1, 1), the output will be
         # (batch, 512=512*1*1, 196=14*14)
-        expanded_x = nn.Unfold(kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(x)
+        expanded_x = nn.Unfold(
+            kernel_size=(self.prototype_layer.shape[2], self.prototype_layer.shape[3])
+        )(x)
 
         # expanded shape = [1, batch, number of such blocks, channel*proto_shape[2]*proto_shape[3]]
         expanded_x = expanded_x.unsqueeze(0).permute(0, 1, 3, 2)
@@ -366,15 +352,17 @@ class EdemaNet(pl.LightningModule):
         expanded_x = expanded_x.contiguous().view(
             1,
             -1,
-            self.prototype_shape[1] * self.prototype_shape[2] * self.prototype_shape[3],
+            self.prototype_layer.shape[1]
+            * self.prototype_layer.shape[2]
+            * self.prototype_layer.shape[3],
         )
 
         # if the input tensor is (num_prototypes, 512, 1, 1) and the kernel_size=(1, 1), the output
         # is (1, num_prototypes, 512=512*1*1, 1=1*1).
         # Expanded proto shape = [1, proto num, channel*proto_shape[2]*proto_shape[3], 1]
-        expanded_proto = nn.Unfold(kernel_size=(self.prototype_shape[2], self.prototype_shape[3]))(
-            self.prototype_layer,
-        ).unsqueeze(0)
+        expanded_proto = nn.Unfold(
+            kernel_size=(self.prototype_layer.shape[2], self.prototype_layer.shape[3])
+        )(self.prototype_layer,).unsqueeze(0)
 
         # if the input is (1, num_prototypes, 512, 1), the output is (1, num_prototypes, 512=512*1)
         expanded_proto = expanded_proto.contiguous().view(1, expanded_proto.shape[1], -1)
@@ -388,7 +376,7 @@ class EdemaNet(pl.LightningModule):
         # (1, batch*196, num_prototypes) -> (batch, num_prototypes, 1*196)
         expanded_distances = torch.reshape(
             expanded_distances,
-            shape=(batch, -1, self.prototype_shape[0]),
+            shape=(batch, -1, self.prototype_layer.shape[0]),
         ).permute(0, 2, 1)
 
         # print(expanded_distances.shape)
@@ -405,9 +393,9 @@ class EdemaNet(pl.LightningModule):
             expanded_distances,
             shape=(
                 batch,
-                self.prototype_shape[0],
-                x.shape[2] - self.prototype_shape[2] + 1,
-                x.shape[3] - self.prototype_shape[3] + 1,
+                self.prototype_layer.shape[0],
+                x.shape[2] - self.prototype_layer.shape[2] + 1,
+                x.shape[3] - self.prototype_layer.shape[3] + 1,
             ),
         )
 

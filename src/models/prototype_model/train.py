@@ -6,7 +6,8 @@ import torch
 from omegaconf import DictConfig
 
 from src.data.data_classes import EdemaDataModule
-from src.models.prototype_model.models_edema import EdemaNet
+from blocks import SqueezeNet, TransientLayers, PrototypeLayer, LastLayer
+from src.models.prototype_model.models_edema import EdemaPrototypeNet
 from src.models.prototype_model.utils import PNetProgressBar
 
 
@@ -19,8 +20,18 @@ def main(cfg: DictConfig):
     # clean the gpu cache
     torch.cuda.empty_cache()
 
-    # create the model
-    edema_net_st = EdemaNet(settings=cfg.model)
+    # create blocks and model
+    encoder = SqueezeNet()
+    transient_layers = TransientLayers(encoder, cfg.model.prototype_shape)
+    prototype_layer = PrototypeLayer(
+        cfg.model.num_classes,
+        cfg.model.num_prototypes,
+        cfg.model.prototype_shape,
+        cfg.model.prototype_layer_stride,
+        cfg.model.epsilon,
+    )
+    last_layer = LastLayer(cfg.model.num_prototypes, cfg.model.num_classes, bias=False)
+    edema_net_st = EdemaPrototypeNet(encoder, transient_layers, prototype_layer, last_layer, settings=cfg.model)
     edema_net = edema_net_st.cuda()
 
     # pull the dataset and dataloader
