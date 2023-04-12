@@ -13,6 +13,7 @@ import cv2
 
 from src.models.prototype_model.utils import _make_layers
 from utils import ImageSaver, copy_tensor_to_nparray
+from loggers import PrototypeLogger
 
 
 class SqueezeNet(nn.Module):
@@ -214,7 +215,7 @@ class PrototypeLayer(nn.Parameter):
         self,
         model: pl.LightningModule,
         dataloader: DataLoader,
-        logger: Optional[ImageSaver] = None,
+        logger: Optional[PrototypeLogger] = None,
     ) -> None:
         self._global_min_proto_dists = self._create_global_min_proto_dist()
         self._global_min_fmap_patches = self._create_global_min_fmap_patches()
@@ -224,6 +225,15 @@ class PrototypeLayer(nn.Parameter):
             for iter, batch in enumerate(dataloader):
                 batch_index = _get_batch_index(iter, dataloader.batch_size)
                 self._update_prototypes_on_batch(model, batch, batch_index, logger)
+        # TODO: implement
+        self.copy_to_protoytpe_layer()
+        if logger is not None:
+            if logger.with_epoch:
+                logger.save_rf_boxes(self._proto_rf_boxes, model.current_epoch)
+                logger.save_bound_boxes(self._proto_bound_boxes, model.current_epoch)
+            else:
+                logger.save_rf_boxes(self._proto_rf_boxes)
+                logger.save_bound_boxes(self._proto_bound_boxes)
 
     # if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
     #         proto_rf_boxes_json = json.dumps(proto_rf_boxes)
