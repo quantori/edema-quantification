@@ -214,7 +214,7 @@ class PrototypeLayer(nn.Parameter):
         self,
         model: pl.LightningModule,
         dataloader: DataLoader,
-        figure_logger: Optional[ImageSaver] = None,
+        logger: Optional[ImageSaver] = None,
     ) -> None:
         self._global_min_proto_dists = self._create_global_min_proto_dist()
         self._global_min_fmap_patches = self._create_global_min_fmap_patches()
@@ -223,7 +223,7 @@ class PrototypeLayer(nn.Parameter):
         with tqdm(total=len(dataloader), desc='Updating prototypes', position=3, leave=False) as t:
             for iter, batch in enumerate(dataloader):
                 batch_index = _get_batch_index(iter, dataloader.batch_size)
-                self._update_prototypes_on_batch(model, batch, batch_index, figure_logger)
+                self._update_prototypes_on_batch(model, batch, batch_index, logger)
 
     # if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
     #         proto_rf_boxes_json = json.dumps(proto_rf_boxes)
