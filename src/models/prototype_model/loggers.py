@@ -6,32 +6,12 @@ from typing import Union, Dict, Sequence
 from omegaconf import DictConfig
 import numpy as np
 import torch
+from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.loggers.base import rank_zero_experiment
+from pytorch_lightning.loggers import LightningLoggerBasefrom
 
 
-class PrototypeLogger(ABC):
-    """Abstract base class for loggers.
-
-    Subclass this class and override any of the relevant save methods.
-    """
-
-    @abstractclassmethod
-    def save_graphics(self) -> None:
-        """Called when graphical data need to be saved"""
-
-    @abstractclassmethod
-    def save_prototype_representations(self) -> None:
-        """Called when embeddings of the prototypes need to be saved"""
-
-    @abstractclassmethod
-    def save_rf_boxes(self) -> None:
-        """Called when receptive field and bounding boxes need to be saved"""
-
-    @abstractclassmethod
-    def save_bound_boxes(self) -> None:
-        """Called when receptive field and bounding boxes need to be saved"""
-
-
-class PrototypeLogger1(PrototypeLogger):
+class PrototypeLogger(LightningLoggerBasefrom):
     """Logger for prototype model.
 
     Args:
