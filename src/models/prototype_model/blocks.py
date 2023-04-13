@@ -225,15 +225,10 @@ class PrototypeLayer(nn.Parameter):
             for iter, batch in enumerate(dataloader):
                 batch_index = _get_batch_index(iter, dataloader.batch_size)
                 self._update_prototypes_on_batch(model, batch, batch_index, logger)
-        # TODO: implement
         self.copy_to_protoytpe_layer()
         if logger is not None:
-            if logger.with_epoch:
-                logger.save_rf_boxes(self._proto_rf_boxes, model.current_epoch)
-                logger.save_bound_boxes(self._proto_bound_boxes, model.current_epoch)
-            else:
-                logger.save_rf_boxes(self._proto_rf_boxes)
-                logger.save_bound_boxes(self._proto_bound_boxes)
+                logger.save_boxes(self._proto_rf_boxes, 'rf', model.current_epoch)
+                logger.save_boxes(self._proto_bound_boxes, 'bound', model.current_epoch)
 
     # if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
     #         proto_rf_boxes_json = json.dumps(proto_rf_boxes)
@@ -527,6 +522,10 @@ class PrototypeLayer(nn.Parameter):
         self._proto_bound_boxes[prototype_idx]['class_indentities'] = labels[
             rf_prototype[0]
         ].tolist()
+
+    def copy_to_protoytpe_layer(self):
+        prototype_update = np.reshape(self._global_min_fmap_patches, tuple(self.shape))
+        self.data.copy_(torch.tensor(prototype_update, dtype=torch.float32).cuda()) 
 
     def warm(self) -> None:
         self.requires_grad_(True)
