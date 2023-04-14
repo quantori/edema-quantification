@@ -15,6 +15,7 @@ import numpy as np
 from models_edema import EdemaNet
 
 
+# Castom progress bar for prototype updating
 class PNetProgressBar(TQDMProgressBar):
     def __init__(self, process_position: int = 1):
         super().__init__(process_position=process_position)
@@ -216,84 +217,7 @@ def get_grad_status(block: nn.Module) -> bool:
         )
 
 
-class ImageSaver:
-    # TODO: implement
-    pass
-
-
 def copy_tensor_to_nparray(tensor: torch.Tensor) -> np.ndarray:
     # newer versions of PyTorch (at least 2.0.0) have numpy(force=False), where the force flag
     # substitutes tensor.detach().cpu().resolve_conj().resolve_neg().numpy()
     return np.copy(tensor.detach().cpu().numpy())
-
-
-def update_prototypes(
-    model: EdemaNet,
-    dataloader: DataLoader,  # pytorch dataloader (must be unnormalized in [0,1])
-    settings_save: DictConfig = None
-    # prototype_layer_stride: int = 1,
-    # root_dir_for_saving_prototypes: str = './savings/',  # if not None, prototypes will be saved here
-    # prototype_img_filename_prefix: str = 'prototype-img',
-    # prototype_self_act_filename_prefix: str = 'prototype-self-act',
-    # proto_bound_boxes_filename_prefix: str = 'bb',
-) -> None:
-
-    # making a directory for saving prototypes
-    # if root_dir_for_saving_prototypes != None:
-    #     if self.current_epoch != None:
-    #         proto_epoch_dir = os.path.join(
-    #             root_dir_for_saving_prototypes,
-    #             'epoch-' + str(self.current_epoch),
-    #         )
-    #         if not os.path.exists(proto_epoch_dir):
-    #             os.makedirs(proto_epoch_dir)
-    #     else:
-    #         proto_epoch_dir = root_dir_for_saving_prototypes
-    # else:
-    #     proto_epoch_dir = None
-
-    # search_batch_size = dataloader.batch_size
-
-    with tqdm(total=len(dataloader), desc='Updating prototypes', position=3, leave=False) as t:
-        for push_iter, batch in enumerate(dataloader):
-            update_prototypes_on_batch(
-                _Batch(batch, push_iter, dataloader.batch_size),
-                _GlobalActivations(model.num_prototypes, model.prototype_shape),
-                prototype_layer_stride=model.prototype_layer.stride,
-                dir_for_saving_prototypes=proto_epoch_dir,
-                prototype_img_filename_prefix=prototype_img_filename_prefix,
-                prototype_self_act_filename_prefix=prototype_self_act_filename_prefix,
-            )
-            t.update()
-
-    if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
-        proto_rf_boxes_json = json.dumps(proto_rf_boxes)
-        f = open(
-            os.path.join(
-                proto_epoch_dir,
-                proto_bound_boxes_filename_prefix
-                + '-receptive_field'
-                + str(self.current_epoch)
-                + '.json',
-            ),
-            'w',
-        )
-        f.write(proto_rf_boxes_json)
-        f.close()
-
-        proto_bound_boxes_json = json.dumps(proto_bound_boxes)
-        f = open(
-            os.path.join(
-                proto_epoch_dir,
-                proto_bound_boxes_filename_prefix + str(self.current_epoch) + '.json',
-            ),
-            'w',
-        )
-        f.write(proto_bound_boxes_json)
-        f.close()
-
-    prototype_update = np.reshape(global_min_fmap_patches, tuple(prototype_shape))
-    self.prototype_layer.data.copy_(torch.tensor(prototype_update, dtype=torch.float32).cuda())
-    # # prototype_network_parallel.cuda()
-    # end = time.time()
-    # log('\tpush time: \t{0}'.format(end - start))

@@ -227,47 +227,15 @@ class PrototypeLayer(nn.Parameter):
                 self._update_prototypes_on_batch(model, batch, batch_index, logger)
         self.copy_to_protoytpe_layer()
         if logger is not None:
-                logger.save_boxes(self._proto_rf_boxes, 'rf', model.current_epoch)
-                logger.save_boxes(self._proto_bound_boxes, 'bound', model.current_epoch)
-
-    # if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
-    #         proto_rf_boxes_json = json.dumps(proto_rf_boxes)
-    #         f = open(
-    #             os.path.join(
-    #                 proto_epoch_dir,
-    #                 proto_bound_boxes_filename_prefix
-    #                 + '-receptive_field'
-    #                 + str(self.current_epoch)
-    #                 + '.json',
-    #             ),
-    #             'w',
-    #         )
-    #         f.write(proto_rf_boxes_json)
-    #         f.close()
-
-    #         proto_bound_boxes_json = json.dumps(proto_bound_boxes)
-    #         f = open(
-    #             os.path.join(
-    #                 proto_epoch_dir,
-    #                 proto_bound_boxes_filename_prefix + str(self.current_epoch) + '.json',
-    #             ),
-    #             'w',
-    #         )
-    #         f.write(proto_bound_boxes_json)
-    #         f.close()
-
-    #     prototype_update = np.reshape(global_min_fmap_patches, tuple(prototype_shape))
-    #     self.prototype_layer.data.copy_(torch.tensor(prototype_update, dtype=torch.float32).cuda())
-    #     # # prototype_network_parallel.cuda()
-    #     # end = time.time()
-    #     # log('\tpush time: \t{0}'.format(end - start))
+            logger.save_boxes(self._proto_rf_boxes, 'rf', model.current_epoch)
+            logger.save_boxes(self._proto_bound_boxes, 'bound', model.current_epoch)
 
     def _update_prototypes_on_batch(
         self,
         model: pl.LightningModule,
         batch: torch.Tensor,
         batch_index: int,
-        figure_logger: Optional[ImageSaver],
+        logger: Optional[PrototypeLogger] = None,
     ):
         images, masks, labels = _split_batch(batch)
         proto_layer_input, proto_distances = self._get_input_output_of_proto_layer(model, images)
@@ -297,8 +265,11 @@ class PrototypeLayer(nn.Parameter):
                     batch_argmin_proto_dist_indexed,
                     self._compute_proto_layer_rf_info(images.size(2), model.encoder.conv_info()),
                 )
-                original_img_for_shortest_proto_dist = self._get_orignial_img(images, rf_prototype)
-                img_crop_of_proto_rf = self._crop_out_proto_rf(
+                original_img_for_shortest_proto_dist = _get_img(images, rf_prototype[0])
+                masks_for_shortest_proto_dist = _get_masks(
+                    masks, original_img_for_shortest_proto_dist[0]
+                )
+                img_crop_of_proto_rf = _crop_out_rf(
                     original_img_for_shortest_proto_dist, rf_prototype
                 )
                 self._save_info_in_proto_rf_boxes(prototype_idx, rf_prototype, labels, batch_index)
@@ -306,12 +277,15 @@ class PrototypeLayer(nn.Parameter):
                     proto_distances,
                     batch_index,
                     prototype_idx,
-                    original_img_for_shortest_proto_dist.shape[0],
+                    original_img_for_shortest_proto_dist.shape[-1],
                 )
                 high_proto_activation_roi_crop = _get_roi_crop(
                     original_img_for_shortest_proto_dist, high_proto_activation_roi
                 )
                 self._save_info_in_proto_bound_boxes(prototype_idx, high_proto_activation_roi)
+
+                if logger is not None:
+                    logger.save_prototype_distances()
 
     def _get_input_output_of_proto_layer(
         self, model: pl.LightningModule, images: torch.Tensor
@@ -448,23 +422,6 @@ class PrototypeLayer(nn.Parameter):
             rf_end_width_index,
         ]
 
-    @staticmethod
-    def _get_orignial_img(images: torch.Tensor, rf_prototype: Sequence[int]) -> np.ndarray:
-        # get the whole original image where the protoype has the shortest distance
-        original_img = images[rf_prototype[0]]
-        original_img_np = original_img.numpy()
-        original_img_transposed = np.transpose(original_img_np, (1, 2, 0))
-        return original_img_transposed
-
-    @staticmethod
-    def _crop_out_proto_rf(
-        original_img_for_shortest_proto_dist: torch.Tensor, rf_prototype: List[int]
-    ) -> np.ndarray:
-        # crop out the prototype receptive field from the original image
-        return original_img_for_shortest_proto_dist[
-            rf_prototype[1] : rf_prototype[2], rf_prototype[3] : rf_prototype[4], :
-        ]
-
     def _save_info_in_proto_rf_boxes(
         self,
         prototype_idx: int,
@@ -525,7 +482,7 @@ class PrototypeLayer(nn.Parameter):
 
     def copy_to_protoytpe_layer(self):
         prototype_update = np.reshape(self._global_min_fmap_patches, tuple(self.shape))
-        self.data.copy_(torch.tensor(prototype_update, dtype=torch.float32).cuda()) 
+        self.data.copy_(torch.tensor(prototype_update, dtype=torch.float32).cuda())
 
     def warm(self) -> None:
         self.requires_grad_(True)
@@ -565,6 +522,30 @@ def _check_dimensions(conv_info: Dict[str, int]) -> None:
         raise Exception("The number of kernels has to be equla to the number of strides")
     if len(conv_info['kernel_sizes']) != len(conv_info['paddings']):
         raise Exception("The number of kernels has to be equla to the number of paddings")
+
+
+def _get_img(batch_imgs: torch.Tensor, num_img: int) -> np.ndarray:
+    # Get the whole original image where the protoype has the shortest distance
+    # (num_img, img_size, img_size)
+    img = batch_imgs[num_img]
+    img_np = img.numpy()
+    return img_np
+
+
+def _get_masks(batch_masks: torch.Tensor, num_masks: int) -> np.ndarray:
+    # Returns masks for the image with the shoretest prototype distance in numpy array format
+    masks = batch_masks[num_masks]
+    masks_np = masks.numpy()
+    return masks_np
+
+
+def _crop_out_rf(
+    original_img_for_shortest_proto_dist: torch.Tensor, rf_prototype: Sequence[int]
+) -> np.ndarray:
+    # crop out the prototype receptive field from the original image
+    return original_img_for_shortest_proto_dist[
+        :, rf_prototype[1] : rf_prototype[2], rf_prototype[3] : rf_prototype[4]
+    ]
 
 
 def _extract_network_rf_info(
@@ -673,7 +654,7 @@ def _find_upper_x(mask: np.ndarray, upper_x: int = 0) -> int:
 def _get_roi_crop(original_img: np.ndarray, roi: Tuple[int, int, int, int]) -> np.ndarray:
     # Crop out the ROI with high activation from the image where the distnce for j protoype turned
     # out to be the smallest the dimensions' order of original_img_j, e.g., (224, 224, 3)
-    return original_img[roi[0] : roi[1], roi[2] : roi[3], :]
+    return original_img[:, roi[0] : roi[1], roi[2] : roi[3]]
 
 
 class LastLayer(nn.Linear):
