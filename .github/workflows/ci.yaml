@@ -8,51 +8,46 @@ on:
 env:
   GREEN: '\033[0;32m'
   NO_COLOR: '\033[0m'
-  REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-#  pre-commit:
-#    runs-on: ubuntu-latest
-#    steps:
-#    - name: Checkout code
-#      uses: actions/checkout@v3
-#    - name: Setup Python
-#      uses: actions/setup-python@v4
-#      with:
-#        python-version: '3.8'
-#        cache: 'pip'
-#    - name: Setup dependencies
-#      run: |
-#        pip install -r requirements_dev.txt
-#    - name: Linting
-#      run: |
-#        pre-commit run check-yaml
-#        pre-commit run check-toml
-#        pre-commit run check-json
-#        pre-commit run check-ast
-#        pre-commit run requirements-txt-fixer
-#        pre-commit run trailing-whitespace
-#        pre-commit run end-of-file-fixer
-#        pre-commit run double-quote-string-fixer
-#        pre-commit run add-trailing-comma
-#        pre-commit run black
-#        pre-commit run pretty-format-yaml
-#        pre-commit run pycln
-#        pre-commit run isort
-#        echo -e "${GREEN}Job completed successfully${NC}"
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        cache: 'pip'
+    - name: Setup dependencies
+      run: |
+        pip install -r requirements_dev.txt
+    - name: Linting
+      run: |
+        pre-commit run check-yaml
+        pre-commit run check-toml
+        pre-commit run check-json
+        pre-commit run check-ast
+        pre-commit run requirements-txt-fixer
+        pre-commit run trailing-whitespace
+        pre-commit run end-of-file-fixer
+        pre-commit run double-quote-string-fixer
+        pre-commit run add-trailing-comma
+        pre-commit run black
+        pre-commit run pretty-format-yaml
+        pre-commit run pycln
+        pre-commit run isort
+        echo -e "${GREEN}Job completed successfully${NC}"
 
   unit-testing:
-#    needs: [pre-commit]
+    needs: [pre-commit]
     runs-on: ubuntu-latest
     # optionally use a convenient Ubuntu LTS + DVC + CML image
     # container: ghcr.io/iterative/cml:0-dvc2-base1
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-#    - name: Setup Node.js environment
-#      uses: actions/setup-node@v3
-#      with:
-#        node-version: '16'
     - name: Setup CML
       uses: iterative/setup-cml@v1
       with:
@@ -69,6 +64,5 @@ jobs:
       run: |
         export PYTHONPATH=${PWD}
         echo -e "${GREEN}PWD: $PYTHONPATH${NC}"
-        echo -e "${GREEN}REPO_TOKEN: REPO_TOKEN${NC}"
         python tests/convert_sly_to_int_test.py
         echo -e "${GREEN}Job completed successfully${NC}"
