@@ -17,9 +17,18 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        cache: 'pip'
+    - name: Setup dependencies
+      run: |
+        pip install -r requirements_dev.txt
     - name: Linting
       run: |
-        pip install pre-commit
+        pwd
+        echo PWD: $PYTHONPATH
         pre-commit run check-yaml
         pre-commit run check-toml
         pre-commit run check-json
@@ -58,11 +67,11 @@ jobs:
         cache: 'pip'
     - name: Setup dependencies
       run: |
-        pip install -r requirements.txt
+        pip install -r requirements_dev.txt
     - name: Unit testing
       run: |
         # export PYTHONPATH=${PWD}
-        # echo PWD: $PYTHONPATH
+        echo PWD: $PYTHONPATH
         # Testing convert_sly_to_int.py
         python tests/convert_sly_to_int_test.py
         echo -e "${GREEN}Job completed successfully${NC}"
