@@ -5,23 +5,35 @@ on:
     branches:
     - main
 
+env:
+  GREEN: '\033[0;32m'
+  NO_COLOR: '\033[0m'
+  REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  PYTHONPATH: ${PWD}
+
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      env:
-        REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.8'
-        cache: 'pip'
     - name: Linting
       run: |
         pip install pre-commit
-        pre-commit run --from main --to HEAD
+        pre-commit run check-yaml
+        pre-commit run check-toml
+        pre-commit run check-json
+        pre-commit run check-ast
+        pre-commit run requirements-txt-fixer
+        pre-commit run trailing-whitespace
+        pre-commit run end-of-file-fixer
+        pre-commit run double-quote-string-fixer
+        pre-commit run add-trailing-comma
+        pre-commit run black
+        pre-commit run pretty-format-yaml
+        pre-commit run pycln
+        pre-commit run isort
+        echo -e "${GREEN}Job completed successfully${NC}"
 
   unit-testing:
     needs: [pre-commit]
@@ -31,8 +43,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      env:
-        REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Setup Node.js environment
       uses: actions/setup-node@v3
       with:
@@ -51,10 +61,8 @@ jobs:
         pip install -r requirements.txt
     - name: Unit testing
       run: |
-        export PYTHONPATH=${PWD}
-        echo PWD: $PYTHONPATH
+        # export PYTHONPATH=${PWD}
+        # echo PWD: $PYTHONPATH
         # Testing convert_sly_to_int.py
         python tests/convert_sly_to_int_test.py
-        COLOR='\033[0;32m'
-        NO_COLOR='\033[0m'
-        echo -e "${COLOR}Job completed successfully${NC}"
+        echo -e "${GREEN}Job completed successfully${NC}"
