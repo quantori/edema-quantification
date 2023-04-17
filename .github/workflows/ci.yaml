@@ -9,7 +9,6 @@ env:
   GREEN: '\033[0;32m'
   NO_COLOR: '\033[0m'
   REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  PYTHONPATH: ${PWD}
 
 jobs:
   pre-commit:
@@ -27,8 +26,6 @@ jobs:
         pip install -r requirements_dev.txt
     - name: Linting
       run: |
-        pwd
-        echo PWD: $PYTHONPATH
         pre-commit run check-yaml
         pre-commit run check-toml
         pre-commit run check-json
@@ -70,8 +67,8 @@ jobs:
         pip install -r requirements_dev.txt
     - name: Unit testing
       run: |
-        # export PYTHONPATH=${PWD}
-        echo PWD: $PYTHONPATH
+        export PYTHONPATH=${PWD}
+        echo -e "${GREEN}PWD: $PYTHONPATH${NC}"
         # Testing convert_sly_to_int.py
         python tests/convert_sly_to_int_test.py
         echo -e "${GREEN}Job completed successfully${NC}"
