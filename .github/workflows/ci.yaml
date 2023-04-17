@@ -49,10 +49,10 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    - name: Setup Node.js environment
-      uses: actions/setup-node@v3
-      with:
-        node-version: '16'
+#    - name: Setup Node.js environment
+#      uses: actions/setup-node@v3
+#      with:
+#        node-version: '16'
     - name: Setup CML
       uses: iterative/setup-cml@v1
       with:
@@ -69,6 +69,6 @@ jobs:
       run: |
         export PYTHONPATH=${PWD}
         echo -e "${GREEN}PWD: $PYTHONPATH${NC}"
-        # Testing convert_sly_to_int.py
+        echo -e "${GREEN}REPO_TOKEN: REPO_TOKEN${NC}"
         python tests/convert_sly_to_int_test.py
         echo -e "${GREEN}Job completed successfully${NC}"
