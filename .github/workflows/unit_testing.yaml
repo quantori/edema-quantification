@@ -1,0 +1,30 @@
+name: unit-testing
+on: [push]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # optionally use a convenient Ubuntu LTS + DVC + CML image
+    # container: ghcr.io/iterative/cml:0-dvc2-base1
+    steps:
+    - uses: actions/checkout@v3
+      # may need to setup NodeJS & Python3 on e.g. self-hosted
+      # - uses: actions/setup-node@v3
+      #   with:
+      #     node-version: '16'
+      # - uses: actions/setup-python@v4
+      #   with:
+      #     python-version: '3.x'
+    - uses: iterative/setup-cml@v1
+    - name: Initialization
+      env:
+        REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        pip install -r requirements.txt
+    - name: Unit testing
+      run: |
+        export PYTHONPATH=${PWD}
+        echo PWD: $PYTHONPATH
+
+        # Testing convert_sly_to_int.py
+        python tests/convert_sly_to_int_test.py
+        echo Success
