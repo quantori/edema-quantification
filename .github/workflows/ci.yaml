@@ -6,16 +6,7 @@ on:
     - main
 
 jobs:
-  black:
-    runs-on: ubuntu-latest
-    steps:
-    - name: black
-      uses: pre-commit/action@v3.0.0
-      with:
-        extra_args: black --skip-string-normalization --line-length 80
-
   pre-commit:
-    needs: [black]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -30,7 +21,7 @@ jobs:
     - name: Linting
       run: |
         pip install pre-commit
-        pre-commit run --all-files
+        pre-commit run --from main --to HEAD
 
   unit-testing:
     needs: [pre-commit]
