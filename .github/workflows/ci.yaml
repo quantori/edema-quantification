@@ -22,7 +22,7 @@ jobs:
         cache: 'pip'
     - name: Setup dependencies
       run: |
-        pip install -r requirements_dev.txt
+        pip install -r requirements/tests.txt
     - name: Linting
       run: |
         pre-commit run check-yaml
@@ -59,7 +59,7 @@ jobs:
         cache: 'pip'
     - name: Setup dependencies
       run: |
-        pip install -r requirements_dev.txt
+        pip install -r requirements/tests.txt
     - name: Unit testing
       run: |
         export PYTHONPATH=${PWD}

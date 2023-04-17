@@ -3,7 +3,7 @@
 # :::::::::::::::::: Options ::::::::::::::::::
 PYTHON_VERSION=$( bc <<< "3.8" )
 ENV_NAME="edema"
-REQUIREMENTS_PATH="requirements.txt"
+REQUIREMENTS_PATH="requirements/main.txt"
 # :::::::::::::::::::::::::::::::::::::::::::::
 
 conda update -n base -c defaults conda --yes
