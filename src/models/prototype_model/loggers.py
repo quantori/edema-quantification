@@ -1,15 +1,18 @@
 import json
 import os
 from abc import ABC, abstractclassmethod
-from typing import Union, Dict, Sequence, Optional
+from typing import Union, Dict, Sequence, Optional, TypeVar, Generic
 
 from omegaconf import DictConfig
 import numpy as np
 import torch
 from PIL import Image
 
+DIST_co = TypeVar('DIST_co', covariant=True)
+BOXES_co = TypeVar('BOXES_co', covariant=True)
 
-class PrototypeLogger(ABC):
+
+class PrototypeLogger(ABC, Generic[DIST_co, BOXES_co]):
     """Abstract base class for prototype loggers."""
 
     @abstractclassmethod
@@ -18,17 +21,21 @@ class PrototypeLogger(ABC):
         raise NotImplementedError
 
     @abstractclassmethod
-    def save_prototype_distances(self, distances: , prototype_idx: int, *args, **kwargs) -> None:
+    def save_prototype_distances(
+        self, distances: DIST_co, prototype_idx: int, *args, **kwargs
+    ) -> None:
         """Called when prototype distances need to be saved."""
         raise NotImplementedError
 
     @abstractclassmethod
-    def save_boxes(self, *args, **kwargs) -> None:
+    def save_boxes(self, boxes: BOXES_co, *args, **kwargs) -> None:
         """Called when receptive field and/or bound boxes data need to be saved."""
         raise NotImplementedError
 
 
-class PrototypeLogger1(PrototypeLogger):
+class PrototypeLoggerComp(
+    PrototypeLogger[np.ndarray, Dict[int, Dict[str, Union[int, Sequence[int]]]]]
+):
     """Logger for prototypes data.
 
     Args:
@@ -41,17 +48,17 @@ class PrototypeLogger1(PrototypeLogger):
     def _get_epoch_dir(self, epoch_num: int) -> str:
         return self._save_config.dir + '/' + str(epoch_num)
 
-    def _make_composition(original_img: np.ndarray, upsampled_act_distances: np.ndarray, masks: ) -> Image:
+    def _make_composition(
+        original_img: np.ndarray, upsampled_act_distances: np.ndarray, masks: np.ndarray
+    ) -> Image:
         pass
-        
 
     def save_graphics(
-        self,
-        **kwargs,
-        rf_of_prototype: np.ndarray,
-        highly_act_roi: np.ndarray,
+        self, rf_of_prototype: np.ndarray, highly_act_roi: np.ndarray, **kwargs
     ) -> None:
-        composition = self._make_composition(kwargs['original_img'], kwargs['upsampled_act_distances'], kwargs['masks'])
+        composition = self._make_composition(
+            kwargs['original_img'], kwargs['upsampled_act_distances'], kwargs['masks']
+        )
 
         # if prototype_img_filename_prefix is not None:
 
@@ -135,7 +142,9 @@ class PrototypeLogger1(PrototypeLogger):
     #                         vmax=1.0,
     #                     )
 
-    def save_prototype_distances(self, distances: np.ndarray, prototype_idx: int, epoch_num: int) -> None:
+    def save_prototype_distances(
+        self, distances: np.ndarray, prototype_idx: int, epoch_num: int
+    ) -> None:
         # Save activated prototype distances as numpy array (the activation function of the
         # distances is log)
         np.save(
@@ -156,7 +165,7 @@ class PrototypeLogger1(PrototypeLogger):
         boxes_json = json.dumps(boxes)
         f = open(
             os.path.join(
-                self._mkdir_epoch(epoch_num),
+                self._get_epoch_dir(epoch_num),
                 prefix + str(epoch_num) + '.json',
             ),
             'w',
