@@ -25,6 +25,7 @@ jobs:
         pip install -r requirements/tests.txt
     - name: Linting
       run: |
+        pre-commit run check-yaml --from-ref origin/inference_detection --to-ref origin/main
         pre-commit run check-yaml
         pre-commit run check-toml
         pre-commit run check-json
@@ -38,6 +39,7 @@ jobs:
         pre-commit run pretty-format-yaml
         pre-commit run pycln
         pre-commit run isort
+        pre-commit run pydocstyle
         echo -e "${GREEN}Job completed successfully${NC}"
 
   unit-testing:
