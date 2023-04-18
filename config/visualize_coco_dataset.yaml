@@ -1,0 +1,10 @@
+defaults:
+- main
+- _self_
+
+dataset_dir: data/coco
+subset: train                 # train or test
+dataset_name:
+max_samples:
+seed: 11
+shuffle: true
