@@ -1,35 +1,20 @@
-import argparse
 import json
 import logging
 import os
-from pathlib import Path
 from typing import List
 
+import hydra
 import pandas as pd
+from omegaconf import DictConfig, OmegaConf
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from settings import (
-    BOX_EXTENSION,
-    COCO_SAVE_DIR,
-    EXCLUDE_CLASSES,
-    INTERMEDIATE_DATASET_DIR,
-    SEED,
-    TRAIN_SIZE,
-)
 from src.data.utils import copy_files
 from src.data.utils_coco import get_ann_info, get_img_info
 from src.data.utils_sly import FIGURE_MAP
 
-os.makedirs('logs', exist_ok=True)
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%d.%m.%Y %H:%M:%S',
-    filename='logs/{:s}.log'.format(Path(__file__).stem),
-    filemode='w',
-    level=logging.INFO,
-)
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 def process_metadata(
@@ -101,15 +86,15 @@ def split_dataset(
     df_out.sort_values(by=['Image path'], inplace=True)
     df_out.reset_index(drop=True, inplace=True)
 
-    logger.info('')
-    logger.info('Overall train/test split')
-    logger.info(
+    log.info('')
+    log.info('Overall train/test split')
+    log.info(
         f'Subjects..................: {df_train["Subject ID"].nunique()}/{df_test["Subject ID"].nunique()}',
     )
-    logger.info(
+    log.info(
         f'Studies...................: {df_train["Study ID"].nunique()}/{df_test["Study ID"].nunique()}',
     )
-    logger.info(f'Images....................: {len(df_train)}/{len(df_test)}')
+    log.info(f'Images....................: {len(df_train)}/{len(df_test)}')
 
     return df_out
 
@@ -187,14 +172,13 @@ def prepare_coco(
     )
 
 
-def main(
-    dataset_dir: str,
-    save_dir: str,
-    box_extension: dict,
-    exclude_classes: List[str] = None,
-    train_size: float = 0.8,
-    seed: int = 11,
-) -> None:
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), 'config'),
+    config_name='convert_int_to_coco',
+    version_base=None,
+)
+def main(cfg: DictConfig) -> None:
+    log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
     """Convert intermediate dataset to COCO.
 
     Args:
@@ -207,37 +191,21 @@ def main(
     Returns:
         None
     """
-    logger.info(f'Input directory...........: {dataset_dir}')
-    logger.info(f'Excluded classes...........: {exclude_classes}')
-    logger.info(f'Train/Test split..........: {train_size:.2f} / {(1 - train_size):.2f}')
-    logger.info(f'Box extension.............: {box_extension}')
-    logger.info(f'Seed......................: {seed}')
-    logger.info(f'Output directory..........: {save_dir}')
+    log.info(f'Input directory...........: {cfg.dataset_dir}')
+    log.info(f'Excluded classes...........: {cfg.exclude_classes}')
+    log.info(f'Train/Test split..........: {cfg.train_size:.2f} / {(1 - cfg.train_size):.2f}')
+    log.info(f'Box extension.............: {cfg.box_extension}')
+    log.info(f'Seed......................: {cfg.seed}')
+    log.info(f'Output directory..........: {cfg.save_dir}')
 
-    metadata = process_metadata(dataset_dir, exclude_classes)
+    metadata = process_metadata(cfg.dataset_dir, cfg.exclude_classes)
 
-    metadata_split = split_dataset(metadata, train_size, seed)
+    metadata_split = split_dataset(metadata, cfg.train_size, cfg.seed)
 
-    prepare_coco(metadata_split, box_extension, save_dir)
+    prepare_coco(metadata_split, cfg.box_extension, cfg.save_dir)
 
-    logger.info('Complete')
+    log.info('Complete')
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Intermediate-to-COCO dataset conversion')
-    parser.add_argument('--dataset_dir', default=INTERMEDIATE_DATASET_DIR, type=str)
-    parser.add_argument('--exclude_classes', default=EXCLUDE_CLASSES, type=str)
-    parser.add_argument('--train_size', default=TRAIN_SIZE, type=float)
-    parser.add_argument('--box_extension', default=BOX_EXTENSION)
-    parser.add_argument('--seed', default=SEED, type=int)
-    parser.add_argument('--save_dir', default=COCO_SAVE_DIR, type=str)
-    args = parser.parse_args()
-
-    main(
-        dataset_dir=args.dataset_dir,
-        exclude_classes=args.exclude_classes,
-        train_size=args.train_size,
-        box_extension=args.box_extension,
-        seed=args.seed,
-        save_dir=args.save_dir,
-    )
+    main()
