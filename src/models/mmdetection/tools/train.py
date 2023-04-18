@@ -194,30 +194,8 @@ def main():
     except Exception:
         try:
             cfg.model.roi_head.bbox_head.num_classes = len(CLASSES)
-        except Exception:
-            try:
-                for bbox_head in cfg.model.bbox_head:
-                    bbox_head.num_classes = len(CLASSES)
-                for roi_head_mask_head in cfg.model.roi_head.mask_head:
-                    roi_head_mask_head.num_classes = len(CLASSES)
-                for roi_head_bbox_head in cfg.model.roi_head.bbox_head:
-                    roi_head_bbox_head.num_classes = len(CLASSES)
-            except Exception:
-                try:
-                    for roi_head_mask_head in cfg.model.roi_head.mask_head:
-                        roi_head_mask_head.num_classes = len(CLASSES)
-                    for head in cfg.model.roi_head.bbox_head:
-                        head.num_classes = len(CLASSES)
-                except Exception:
-                    try:
-                        cfg.model.roi_head.mask_head.num_classes = len(CLASSES)
-                        for roi_head_bbox_head in cfg.model.roi_head.bbox_head:
-                            roi_head_bbox_head.num_classes = len(CLASSES)
-                    except Exception as ex:
-                        try:
-                            cfg.model.roi_head.semantic_head.num_classes = len(CLASSES)
-                        except Exception as ex:
-                            print(f'\n\n\nError: {ex}')
+        except Exception as ex:
+            print(f'\nError: {ex}')
 
     cfg.data.train.type = args.dataset_type
     cfg.data.train.classes = cfg.classes
