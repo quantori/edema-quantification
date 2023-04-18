@@ -11,6 +11,9 @@ model = dict(
             in_channels=256,
             conv_out_channels=256,
             fc_out_channels=1024,
-            num_classes=80)),
+            num_classes=80,
+        ),
+    ),
     # model training and testing settings
-    train_cfg=dict(rcnn=dict(mask_thr_binary=0.5)))
+    train_cfg=dict(rcnn=dict(mask_thr_binary=0.5)),
+)

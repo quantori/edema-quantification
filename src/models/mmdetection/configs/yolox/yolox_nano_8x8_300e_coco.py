@@ -7,5 +7,7 @@ model = dict(
         in_channels=[64, 128, 256],
         out_channels=64,
         num_csp_blocks=1,
-        use_depthwise=True),
-    bbox_head=dict(in_channels=64, feat_channels=64, use_depthwise=True))
+        use_depthwise=True,
+    ),
+    bbox_head=dict(in_channels=64, feat_channels=64, use_depthwise=True),
+)

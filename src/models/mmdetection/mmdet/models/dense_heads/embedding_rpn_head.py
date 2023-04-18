@@ -2,8 +2,8 @@
 import torch
 import torch.nn as nn
 from mmcv.runner import BaseModule
-
 from mmdet.models.builder import HEADS
+
 from ...core import bbox_cxcywh_to_xyxy
 
 
@@ -23,13 +23,10 @@ class EmbeddingRPNHead(BaseModule):
             Default: None
     """
 
-    def __init__(self,
-                 num_proposals=100,
-                 proposal_feature_channel=256,
-                 init_cfg=None,
-                 **kwargs):
-        assert init_cfg is None, 'To prevent abnormal initialization ' \
-                                 'behavior, init_cfg is not allowed to be set'
+    def __init__(self, num_proposals=100, proposal_feature_channel=256, init_cfg=None, **kwargs):
+        assert init_cfg is None, (
+            'To prevent abnormal initialization ' 'behavior, init_cfg is not allowed to be set'
+        )
         super(EmbeddingRPNHead, self).__init__(init_cfg)
         self.num_proposals = num_proposals
         self.proposal_feature_channel = proposal_feature_channel
@@ -39,7 +36,9 @@ class EmbeddingRPNHead(BaseModule):
         """Initialize a sparse set of proposal boxes and proposal features."""
         self.init_proposal_bboxes = nn.Embedding(self.num_proposals, 4)
         self.init_proposal_features = nn.Embedding(
-            self.num_proposals, self.proposal_feature_channel)
+            self.num_proposals,
+            self.proposal_feature_channel,
+        )
 
     def init_weights(self):
         """Initialize the init_proposal_bboxes as normalized.
@@ -89,7 +88,8 @@ class EmbeddingRPNHead(BaseModule):
 
         init_proposal_features = self.init_proposal_features.weight.clone()
         init_proposal_features = init_proposal_features[None].expand(
-            num_imgs, *init_proposal_features.size())
+            num_imgs, *init_proposal_features.size()
+        )
         return proposals, init_proposal_features, imgs_whwh
 
     def forward_dummy(self, img, img_metas):
@@ -113,4 +113,5 @@ class EmbeddingRPNHead(BaseModule):
 
     def aug_test_rpn(self, feats, img_metas):
         raise NotImplementedError(
-            'EmbeddingRPNHead does not support test-time augmentation')
+            'EmbeddingRPNHead does not support test-time augmentation',
+        )

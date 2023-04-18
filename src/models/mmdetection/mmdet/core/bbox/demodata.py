@@ -1,7 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import numpy as np
 import torch
-
 from mmdet.utils.util_random import ensure_rng
 
 

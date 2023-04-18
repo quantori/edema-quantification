@@ -3,7 +3,10 @@ _base_ = '../_base_/default_runtime.py'
 dataset_type = 'CocoDataset'
 data_root = 'data/coco/'
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[123.675, 116.28, 103.53],
+    std=[58.395, 57.12, 57.375],
+    to_rgb=True,
+)
 image_size = (1024, 1024)
 
 file_client_args = dict(backend='disk')
@@ -18,13 +21,15 @@ load_pipeline = [
         img_scale=image_size,
         ratio_range=(0.8, 1.25),
         multiscale_mode='range',
-        keep_ratio=True),
+        keep_ratio=True,
+    ),
     dict(
         type='RandomCrop',
         crop_type='absolute_range',
         crop_size=image_size,
         recompute_bbox=True,
-        allow_negative_crop=True),
+        allow_negative_crop=True,
+    ),
     dict(type='FilterAnnotations', min_gt_bbox_wh=(1e-2, 1e-2)),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Pad', size=image_size),
@@ -48,7 +53,8 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 
 data = dict(
@@ -60,18 +66,23 @@ data = dict(
             type=dataset_type,
             ann_file=data_root + 'annotations/instances_train2017.json',
             img_prefix=data_root + 'train2017/',
-            pipeline=load_pipeline),
-        pipeline=train_pipeline),
+            pipeline=load_pipeline,
+        ),
+        pipeline=train_pipeline,
+    ),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+    ),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+    ),
+)
 
 evaluation = dict(interval=6000, metric=['bbox', 'segm'])
 
@@ -85,7 +96,8 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=1000,
     warmup_ratio=0.001,
-    step=[243000, 256500, 263250])
+    step=[243000, 256500, 263250],
+)
 checkpoint_config = dict(interval=6000)
 # The model is trained by 270k iterations with batch_size 64,
 # which is roughly equivalent to 144 epochs.

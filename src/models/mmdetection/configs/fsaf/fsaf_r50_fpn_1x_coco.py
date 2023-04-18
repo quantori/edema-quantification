@@ -17,7 +17,8 @@ model = dict(
             octave_base_scale=1,
             scales_per_octave=1,
             ratios=[1.0],
-            strides=[8, 16, 32, 64, 128]),
+            strides=[8, 16, 32, 64, 128],
+        ),
         bbox_coder=dict(_delete_=True, type='TBLRBBoxCoder', normalizer=4.0),
         loss_cls=dict(
             type='FocalLoss',
@@ -25,13 +26,16 @@ model = dict(
             gamma=2.0,
             alpha=0.25,
             loss_weight=1.0,
-            reduction='none'),
+            reduction='none',
+        ),
         loss_bbox=dict(
             _delete_=True,
             type='IoULoss',
             eps=1e-6,
             loss_weight=1.0,
-            reduction='none')),
+            reduction='none',
+        ),
+    ),
     # training and testing settings
     train_cfg=dict(
         assigner=dict(
@@ -39,10 +43,15 @@ model = dict(
             type='CenterRegionAssigner',
             pos_scale=0.2,
             neg_scale=0.2,
-            min_pos_iof=0.01),
+            min_pos_iof=0.01,
+        ),
         allowed_border=-1,
         pos_weight=-1,
-        debug=False))
+        debug=False,
+    ),
+)
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(
-    _delete_=True, grad_clip=dict(max_norm=10, norm_type=2))
+    _delete_=True,
+    grad_clip=dict(max_norm=10, norm_type=2),
+)

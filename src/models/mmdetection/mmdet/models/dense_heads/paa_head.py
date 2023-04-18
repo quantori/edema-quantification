@@ -2,7 +2,6 @@
 import numpy as np
 import torch
 from mmcv.runner import force_fp32
-
 from mmdet.core import multi_apply, multiclass_nms
 from mmdet.core.bbox.iou_calculators import bbox_overlaps
 from mmdet.models import HEADS
@@ -71,12 +70,7 @@ class PAAHead(ATSSHead):
             cases, 'diag' should be a good choice.
     """
 
-    def __init__(self,
-                 *args,
-                 topk=9,
-                 score_voting=True,
-                 covariance_type='diag',
-                 **kwargs):
+    def __init__(self, *args, topk=9, score_voting=True, covariance_type='diag', **kwargs):
         # topk used in paa reassign process
         self.topk = topk
         self.with_score_voting = score_voting
@@ -84,14 +78,16 @@ class PAAHead(ATSSHead):
         super(PAAHead, self).__init__(*args, **kwargs)
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds', 'iou_preds'))
-    def loss(self,
-             cls_scores,
-             bbox_preds,
-             iou_preds,
-             gt_bboxes,
-             gt_labels,
-             img_metas,
-             gt_bboxes_ignore=None):
+    def loss(
+        self,
+        cls_scores,
+        bbox_preds,
+        iou_preds,
+        gt_bboxes,
+        gt_labels,
+        img_metas,
+        gt_bboxes_ignore=None,
+    ):
         """Compute losses of the head.
 
         Args:
@@ -118,7 +114,10 @@ class PAAHead(ATSSHead):
 
         device = cls_scores[0].device
         anchor_list, valid_flag_list = self.get_anchors(
-            featmap_sizes, img_metas, device=device)
+            featmap_sizes,
+            img_metas,
+            device=device,
+        )
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
         cls_reg_targets = self.get_targets(
             anchor_list,
@@ -129,32 +128,43 @@ class PAAHead(ATSSHead):
             gt_labels_list=gt_labels,
             label_channels=label_channels,
         )
-        (labels, labels_weight, bboxes_target, bboxes_weight, pos_inds,
-         pos_gt_index) = cls_reg_targets
+        (
+            labels,
+            labels_weight,
+            bboxes_target,
+            bboxes_weight,
+            pos_inds,
+            pos_gt_index,
+        ) = cls_reg_targets
         cls_scores = levels_to_images(cls_scores)
-        cls_scores = [
-            item.reshape(-1, self.cls_out_channels) for item in cls_scores
-        ]
+        cls_scores = [item.reshape(-1, self.cls_out_channels) for item in cls_scores]
         bbox_preds = levels_to_images(bbox_preds)
         bbox_preds = [item.reshape(-1, 4) for item in bbox_preds]
         iou_preds = levels_to_images(iou_preds)
         iou_preds = [item.reshape(-1, 1) for item in iou_preds]
-        pos_losses_list, = multi_apply(self.get_pos_loss, anchor_list,
-                                       cls_scores, bbox_preds, labels,
-                                       labels_weight, bboxes_target,
-                                       bboxes_weight, pos_inds)
+        (pos_losses_list,) = multi_apply(
+            self.get_pos_loss,
+            anchor_list,
+            cls_scores,
+            bbox_preds,
+            labels,
+            labels_weight,
+            bboxes_target,
+            bboxes_weight,
+            pos_inds,
+        )
 
         with torch.no_grad():
-            reassign_labels, reassign_label_weight, \
-                reassign_bbox_weights, num_pos = multi_apply(
-                    self.paa_reassign,
-                    pos_losses_list,
-                    labels,
-                    labels_weight,
-                    bboxes_weight,
-                    pos_inds,
-                    pos_gt_index,
-                    anchor_list)
+            reassign_labels, reassign_label_weight, reassign_bbox_weights, num_pos = multi_apply(
+                self.paa_reassign,
+                pos_losses_list,
+                labels,
+                labels_weight,
+                bboxes_weight,
+                pos_inds,
+                pos_gt_index,
+                anchor_list,
+            )
             num_pos = sum(num_pos)
         # convert all tensor list to a flatten tensor
         cls_scores = torch.cat(cls_scores, 0).view(-1, cls_scores[0].size(-1))
@@ -162,45 +172,65 @@ class PAAHead(ATSSHead):
         iou_preds = torch.cat(iou_preds, 0).view(-1, iou_preds[0].size(-1))
         labels = torch.cat(reassign_labels, 0).view(-1)
         flatten_anchors = torch.cat(
-            [torch.cat(item, 0) for item in anchor_list])
+            [torch.cat(item, 0) for item in anchor_list],
+        )
         labels_weight = torch.cat(reassign_label_weight, 0).view(-1)
-        bboxes_target = torch.cat(bboxes_target,
-                                  0).view(-1, bboxes_target[0].size(-1))
+        bboxes_target = torch.cat(
+            bboxes_target,
+            0,
+        ).view(-1, bboxes_target[0].size(-1))
 
-        pos_inds_flatten = ((labels >= 0)
-                            &
-                            (labels < self.num_classes)).nonzero().reshape(-1)
+        pos_inds_flatten = ((labels >= 0) & (labels < self.num_classes)).nonzero().reshape(-1)
 
         losses_cls = self.loss_cls(
             cls_scores,
             labels,
             labels_weight,
-            avg_factor=max(num_pos, len(img_metas)))  # avoid num_pos=0
+            avg_factor=max(num_pos, len(img_metas)),
+        )  # avoid num_pos=0
         if num_pos:
             pos_bbox_pred = self.bbox_coder.decode(
                 flatten_anchors[pos_inds_flatten],
-                bbox_preds[pos_inds_flatten])
+                bbox_preds[pos_inds_flatten],
+            )
             pos_bbox_target = bboxes_target[pos_inds_flatten]
             iou_target = bbox_overlaps(
-                pos_bbox_pred.detach(), pos_bbox_target, is_aligned=True)
+                pos_bbox_pred.detach(),
+                pos_bbox_target,
+                is_aligned=True,
+            )
             losses_iou = self.loss_centerness(
                 iou_preds[pos_inds_flatten],
                 iou_target.unsqueeze(-1),
-                avg_factor=num_pos)
+                avg_factor=num_pos,
+            )
             losses_bbox = self.loss_bbox(
                 pos_bbox_pred,
                 pos_bbox_target,
                 iou_target.clamp(min=EPS),
-                avg_factor=iou_target.sum())
+                avg_factor=iou_target.sum(),
+            )
         else:
             losses_iou = iou_preds.sum() * 0
             losses_bbox = bbox_preds.sum() * 0
 
         return dict(
-            loss_cls=losses_cls, loss_bbox=losses_bbox, loss_iou=losses_iou)
+            loss_cls=losses_cls,
+            loss_bbox=losses_bbox,
+            loss_iou=losses_iou,
+        )
 
-    def get_pos_loss(self, anchors, cls_score, bbox_pred, label, label_weight,
-                     bbox_target, bbox_weight, pos_inds):
+    def get_pos_loss(
+        self,
+        anchors,
+        cls_score,
+        bbox_pred,
+        label,
+        label_weight,
+        bbox_target,
+        bbox_weight,
+        pos_inds,
+    ):
         """Calculate loss of all potential positive samples obtained from first
         match process.
 
@@ -225,7 +255,7 @@ class PAAHead(ATSSHead):
             Tensor: Losses of all positive samples in single image.
         """
         if not len(pos_inds):
-            return cls_score.new([]),
+            return (cls_score.new([]),)
         anchors_all_level = torch.cat(anchors, 0)
         pos_scores = cls_score[pos_inds]
         pos_bbox_pred = bbox_pred[pos_inds]
@@ -242,21 +272,31 @@ class PAAHead(ATSSHead):
             pos_label,
             pos_label_weight,
             avg_factor=1.0,
-            reduction_override='none')
+            reduction_override='none',
+        )
 
         loss_bbox = self.loss_bbox(
             pos_bbox_pred,
             pos_bbox_target,
             pos_bbox_weight,
             avg_factor=1.0,  # keep same loss weight before reassign
-            reduction_override='none')
+            reduction_override='none',
+        )
 
         loss_cls = loss_cls.sum(-1)
         pos_loss = loss_bbox + loss_cls
-        return pos_loss,
+        return (pos_loss,)
 
-    def paa_reassign(self, pos_losses, label, label_weight, bbox_weight,
-                     pos_inds, pos_gt_inds, anchors):
+    def paa_reassign(
+        self,
+        pos_losses,
+        label,
+        label_weight,
+        bbox_weight,
+        pos_inds,
+        pos_gt_inds,
+        anchors,
+    ):
         """Fit loss to GMM distribution and separate positive, ignore, negative
         samples again with GMM model.
 
@@ -299,8 +339,7 @@ class PAAHead(ATSSHead):
         inds_level_interval = np.cumsum(num_anchors_each_level)
         pos_level_mask = []
         for i in range(num_level):
-            mask = (pos_inds >= inds_level_interval[i]) & (
-                pos_inds < inds_level_interval[i + 1])
+            mask = (pos_inds >= inds_level_interval[i]) & (pos_inds < inds_level_interval[i + 1])
             pos_level_mask.append(mask)
         pos_inds_after_paa = [label.new_tensor([])]
         ignore_inds_after_paa = [label.new_tensor([])]
@@ -312,7 +351,9 @@ class PAAHead(ATSSHead):
                 level_mask = pos_level_mask[level]
                 level_gt_mask = level_mask & gt_mask
                 value, topk_inds = pos_losses[level_gt_mask].topk(
-                    min(level_gt_mask.sum(), self.topk), largest=False)
+                    min(level_gt_mask.sum(), self.topk),
+                    largest=False,
+                )
                 pos_inds_gmm.append(pos_inds[level_gt_mask][topk_inds])
                 pos_loss_gmm.append(value)
             pos_inds_gmm = torch.cat(pos_inds_gmm)
@@ -335,14 +376,16 @@ class PAAHead(ATSSHead):
             elif self.covariance_type == 'tied':
                 precisions_init = np.array([[1.0]])
             if skm is None:
-                raise ImportError('Please run "pip install sklearn" '
-                                  'to install sklearn first.')
+                raise ImportError(
+                    'Please run "pip install sklearn" ' 'to install sklearn first.',
+                )
             gmm = skm.GaussianMixture(
                 2,
                 weights_init=weights_init,
                 means_init=means_init,
                 precisions_init=precisions_init,
-                covariance_type=self.covariance_type)
+                covariance_type=self.covariance_type,
+            )
             gmm.fit(pos_loss_gmm)
             gmm_assignment = gmm.predict(pos_loss_gmm)
             scores = gmm.score_samples(pos_loss_gmm)
@@ -350,7 +393,10 @@ class PAAHead(ATSSHead):
             scores = torch.from_numpy(scores).to(device)
 
             pos_inds_temp, ignore_inds_temp = self.gmm_separation_scheme(
-                gmm_assignment, scores, pos_inds_gmm)
+                gmm_assignment,
+                scores,
+                pos_inds_gmm,
+            )
             pos_inds_after_paa.append(pos_inds_temp)
             ignore_inds_after_paa.append(ignore_inds_temp)
 
@@ -395,7 +441,7 @@ class PAAHead(ATSSHead):
         ignore_inds_temp = fgs.new_tensor([], dtype=torch.long)
         if fgs.nonzero().numel():
             _, pos_thr_ind = scores[fgs].topk(1)
-            pos_inds_temp = pos_inds_gmm[fgs][:pos_thr_ind + 1]
+            pos_inds_temp = pos_inds_gmm[fgs][: pos_thr_ind + 1]
             ignore_inds_temp = pos_inds_gmm.new_tensor([])
         return pos_inds_temp, ignore_inds_temp
 
@@ -474,39 +520,53 @@ class PAAHead(ATSSHead):
             gt_labels_list,
             img_metas,
             label_channels=label_channels,
-            unmap_outputs=unmap_outputs)
+            unmap_outputs=unmap_outputs,
+        )
 
-        (labels, label_weights, bbox_targets, bbox_weights, valid_pos_inds,
-         valid_neg_inds, sampling_result) = results
+        (
+            labels,
+            label_weights,
+            bbox_targets,
+            bbox_weights,
+            valid_pos_inds,
+            valid_neg_inds,
+            sampling_result,
+        ) = results
 
         # Due to valid flag of anchors, we have to calculate the real pos_inds
         # in origin anchor set.
         pos_inds = []
         for i, single_labels in enumerate(labels):
-            pos_mask = (0 <= single_labels) & (
-                single_labels < self.num_classes)
+            pos_mask = (0 <= single_labels) & (single_labels < self.num_classes)
             pos_inds.append(pos_mask.nonzero().view(-1))
 
         gt_inds = [item.pos_assigned_gt_inds for item in sampling_result]
-        return (labels, label_weights, bbox_targets, bbox_weights, pos_inds,
-                gt_inds)
+        return (
+            labels,
+            label_weights,
+            bbox_targets,
+            bbox_weights,
+            pos_inds,
+            gt_inds,
+        )
 
-    def _get_targets_single(self,
-                            flat_anchors,
-                            valid_flags,
-                            gt_bboxes,
-                            gt_bboxes_ignore,
-                            gt_labels,
-                            img_meta,
-                            label_channels=1,
-                            unmap_outputs=True):
+    def _get_targets_single(
+        self,
+        flat_anchors,
+        valid_flags,
+        gt_bboxes,
+        gt_bboxes_ignore,
+        gt_labels,
+        img_meta,
+        label_channels=1,
+        unmap_outputs=True,
+    ):
         """Compute regression and classification targets for anchors in a
         single image.
 
         This method is same as `AnchorHead._get_targets_single()`.
         """
-        assert unmap_outputs, 'We must map outputs back to the original' \
-                              'set of anchors in PAAhead'
+        assert unmap_outputs, 'We must map outputs back to the original' 'set of anchors in PAAhead'
         return super(ATSSHead, self)._get_targets_single(
             flat_anchors,
             valid_flags,
@@ -515,35 +575,42 @@ class PAAHead(ATSSHead):
             gt_labels,
             img_meta,
             label_channels=1,
-            unmap_outputs=True)
+            unmap_outputs=True,
+        )
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
-    def get_bboxes(self,
-                   cls_scores,
-                   bbox_preds,
-                   score_factors=None,
-                   img_metas=None,
-                   cfg=None,
-                   rescale=False,
-                   with_nms=True,
-                   **kwargs):
-        assert with_nms, 'PAA only supports "with_nms=True" now and it ' \
-                         'means PAAHead does not support ' \
-                         'test-time augmentation'
-        return super(ATSSHead, self).get_bboxes(cls_scores, bbox_preds,
-                                                score_factors, img_metas, cfg,
-                                                rescale, with_nms, **kwargs)
+    def get_bboxes(
+        self,
+        cls_scores,
+        bbox_preds,
+        score_factors=None,
+        img_metas=None,
+        cfg=None,
+        rescale=False,
+        with_nms=True,
+        **kwargs
+    ):
+        assert with_nms, (
+            'PAA only supports "with_nms=True" now and it '
+            'means PAAHead does not support '
+            'test-time augmentation'
+        )
+        return super(ATSSHead, self).get_bboxes(
+            cls_scores, bbox_preds, score_factors, img_metas, cfg, rescale, with_nms, **kwargs
+        )
 
-    def _get_bboxes_single(self,
-                           cls_score_list,
-                           bbox_pred_list,
-                           score_factor_list,
-                           mlvl_priors,
-                           img_meta,
-                           cfg,
-                           rescale=False,
-                           with_nms=True,
-                           **kwargs):
+    def _get_bboxes_single(
+        self,
+        cls_score_list,
+        bbox_pred_list,
+        score_factor_list,
+        mlvl_priors,
+        img_meta,
+        cfg,
+        rescale=False,
+        with_nms=True,
+        **kwargs
+    ):
         """Transform outputs of a single image into bbox predictions.
 
         Args:
@@ -588,19 +655,29 @@ class PAAHead(ATSSHead):
         mlvl_bboxes = []
         mlvl_scores = []
         mlvl_score_factors = []
-        for level_idx, (cls_score, bbox_pred, score_factor, priors) in \
-                enumerate(zip(cls_score_list, bbox_pred_list,
-                              score_factor_list, mlvl_priors)):
+        for level_idx, (cls_score, bbox_pred, score_factor, priors) in enumerate(
+            zip(
+                cls_score_list,
+                bbox_pred_list,
+                score_factor_list,
+                mlvl_priors,
+            ),
+        ):
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
 
-            scores = cls_score.permute(1, 2, 0).reshape(
-                -1, self.cls_out_channels).sigmoid()
+            scores = (
+                cls_score.permute(1, 2, 0)
+                .reshape(
+                    -1,
+                    self.cls_out_channels,
+                )
+                .sigmoid()
+            )
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             score_factor = score_factor.permute(1, 2, 0).reshape(-1).sigmoid()
 
             if 0 < nms_pre < scores.shape[0]:
-                max_scores, _ = (scores *
-                                 score_factor[:, None]).sqrt().max(dim=1)
+                max_scores, _ = (scores * score_factor[:, None]).sqrt().max(dim=1)
                 _, topk_inds = max_scores.topk(nms_pre)
                 priors = priors[topk_inds, :]
                 bbox_pred = bbox_pred[topk_inds, :]
@@ -608,24 +685,36 @@ class PAAHead(ATSSHead):
                 score_factor = score_factor[topk_inds]
 
             bboxes = self.bbox_coder.decode(
-                priors, bbox_pred, max_shape=img_shape)
+                priors,
+                bbox_pred,
+                max_shape=img_shape,
+            )
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
             mlvl_score_factors.append(score_factor)
 
-        return self._bbox_post_process(mlvl_scores, mlvl_bboxes,
-                                       img_meta['scale_factor'], cfg, rescale,
-                                       with_nms, mlvl_score_factors, **kwargs)
+        return self._bbox_post_process(
+            mlvl_scores,
+            mlvl_bboxes,
+            img_meta['scale_factor'],
+            cfg,
+            rescale,
+            with_nms,
+            mlvl_score_factors,
+            **kwargs
+        )
 
-    def _bbox_post_process(self,
-                           mlvl_scores,
-                           mlvl_bboxes,
-                           scale_factor,
-                           cfg,
-                           rescale=False,
-                           with_nms=True,
-                           mlvl_score_factors=None,
-                           **kwargs):
+    def _bbox_post_process(
+        self,
+        mlvl_scores,
+        mlvl_bboxes,
+        scale_factor,
+        cfg,
+        rescale=False,
+        with_nms=True,
+        mlvl_score_factors=None,
+        **kwargs
+    ):
         """bbox post-processing method.
 
         The boxes would be rescaled to the original image scale and do
@@ -681,17 +770,27 @@ class PAAHead(ATSSHead):
             cfg.score_thr,
             cfg.nms,
             cfg.max_per_img,
-            score_factors=None)
+            score_factors=None,
+        )
         if self.with_score_voting and len(det_bboxes) > 0:
-            det_bboxes, det_labels = self.score_voting(det_bboxes, det_labels,
-                                                       mlvl_bboxes,
-                                                       mlvl_nms_scores,
-                                                       cfg.score_thr)
+            det_bboxes, det_labels = self.score_voting(
+                det_bboxes,
+                det_labels,
+                mlvl_bboxes,
+                mlvl_nms_scores,
+                cfg.score_thr,
+            )
 
         return det_bboxes, det_labels
 
-    def score_voting(self, det_bboxes, det_labels, mlvl_bboxes,
-                     mlvl_nms_scores, score_thr):
+    def score_voting(
+        self,
+        det_bboxes,
+        det_labels,
+        mlvl_bboxes,
+        mlvl_nms_scores,
+        score_thr,
+    ):
         """Implementation of score voting method works on each remaining boxes
         after NMS procedure.
 
@@ -732,23 +831,31 @@ class PAAHead(ATSSHead):
             candidate_cls_bboxes = candidate_bboxes[candidate_cls_mask]
             det_cls_mask = det_labels == cls
             det_cls_bboxes = det_bboxes[det_cls_mask].view(
-                -1, det_bboxes.size(-1))
-            det_candidate_ious = bbox_overlaps(det_cls_bboxes[:, :4],
-                                               candidate_cls_bboxes)
+                -1,
+                det_bboxes.size(-1),
+            )
+            det_candidate_ious = bbox_overlaps(
+                det_cls_bboxes[:, :4],
+                candidate_cls_bboxes,
+            )
             for det_ind in range(len(det_cls_bboxes)):
                 single_det_ious = det_candidate_ious[det_ind]
                 pos_ious_mask = single_det_ious > 0.01
                 pos_ious = single_det_ious[pos_ious_mask]
                 pos_bboxes = candidate_cls_bboxes[pos_ious_mask]
                 pos_scores = candidate_cls_scores[pos_ious_mask]
-                pis = (torch.exp(-(1 - pos_ious)**2 / 0.025) *
-                       pos_scores)[:, None]
+                pis = (torch.exp(-((1 - pos_ious) ** 2) / 0.025) * pos_scores)[:, None]
                 voted_box = torch.sum(
-                    pis * pos_bboxes, dim=0) / torch.sum(
-                        pis, dim=0)
+                    pis * pos_bboxes,
+                    dim=0,
+                ) / torch.sum(
+                    pis,
+                    dim=0,
+                )
                 voted_score = det_cls_bboxes[det_ind][-1:][None, :]
                 det_bboxes_voted.append(
-                    torch.cat((voted_box[None, :], voted_score), dim=1))
+                    torch.cat((voted_box[None, :], voted_score), dim=1),
+                )
                 det_labels_voted.append(cls)
 
         det_bboxes_voted = torch.cat(det_bboxes_voted, dim=0)

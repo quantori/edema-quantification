@@ -4,7 +4,6 @@ import tempfile
 
 import mmcv
 import pytest
-
 from mmdet.datasets import CocoDataset
 
 
@@ -34,16 +33,18 @@ def _create_ids_error_coco_json(json_name):
         'iscrowd': 0,
     }
 
-    categories = [{
-        'id': 0,
-        'name': 'car',
-        'supercategory': 'car',
-    }]
+    categories = [
+        {
+            'id': 0,
+            'name': 'car',
+            'supercategory': 'car',
+        },
+    ]
 
     fake_json = {
         'images': [image],
         'annotations': [annotation_1, annotation_2],
-        'categories': categories
+        'categories': categories,
     }
     mmcv.dump(fake_json, json_name)
 
@@ -55,4 +56,4 @@ def test_coco_annotation_ids_unique():
 
     # test annotation ids not unique error
     with pytest.raises(AssertionError):
-        CocoDataset(ann_file=fake_json_file, classes=('car', ), pipeline=[])
+        CocoDataset(ann_file=fake_json_file, classes=('car',), pipeline=[])

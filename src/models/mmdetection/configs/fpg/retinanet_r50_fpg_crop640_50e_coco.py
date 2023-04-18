@@ -21,33 +21,40 @@ model = dict(
             padding=1,
             norm_cfg=norm_cfg,
             inplace=False,
-            order=('act', 'conv', 'norm')),
+            order=('act', 'conv', 'norm'),
+        ),
         across_lateral_trans=dict(
             type='conv',
             kernel_size=1,
             norm_cfg=norm_cfg,
             inplace=False,
-            order=('act', 'conv', 'norm')),
+            order=('act', 'conv', 'norm'),
+        ),
         across_down_trans=dict(
             type='interpolation_conv',
             mode='nearest',
             kernel_size=3,
             norm_cfg=norm_cfg,
             order=('act', 'conv', 'norm'),
-            inplace=False),
+            inplace=False,
+        ),
         across_up_trans=None,
         across_skip_trans=dict(
             type='conv',
             kernel_size=1,
             norm_cfg=norm_cfg,
             inplace=False,
-            order=('act', 'conv', 'norm')),
+            order=('act', 'conv', 'norm'),
+        ),
         output_trans=dict(
             type='last_conv',
             kernel_size=3,
             order=('act', 'conv', 'norm'),
-            inplace=False),
+            inplace=False,
+        ),
         norm_cfg=norm_cfg,
-        skip_inds=[(0, 1, 2, 3), (0, 1, 2), (0, 1), (0, ), ()]))
+        skip_inds=[(0, 1, 2, 3), (0, 1, 2), (0, 1), (0,), ()],
+    ),
+)
 
 evaluation = dict(interval=2)

@@ -49,31 +49,39 @@ class PanopticFPNHead(BaseSemanticHead):
         loss_seg (dict): the loss of the semantic head.
     """
 
-    def __init__(self,
-                 num_things_classes=80,
-                 num_stuff_classes=53,
-                 num_classes=None,
-                 in_channels=256,
-                 inner_channels=128,
-                 start_level=0,
-                 end_level=4,
-                 fg_range=None,
-                 bg_range=None,
-                 conv_cfg=None,
-                 norm_cfg=dict(type='GN', num_groups=32, requires_grad=True),
-                 init_cfg=None,
-                 loss_seg=dict(
-                     type='CrossEntropyLoss', ignore_index=-1,
-                     loss_weight=1.0)):
+    def __init__(
+        self,
+        num_things_classes=80,
+        num_stuff_classes=53,
+        num_classes=None,
+        in_channels=256,
+        inner_channels=128,
+        start_level=0,
+        end_level=4,
+        fg_range=None,
+        bg_range=None,
+        conv_cfg=None,
+        norm_cfg=dict(type='GN', num_groups=32, requires_grad=True),
+        init_cfg=None,
+        loss_seg=dict(
+            type='CrossEntropyLoss',
+            ignore_index=-1,
+            loss_weight=1.0,
+        ),
+    ):
         if num_classes is not None:
             warnings.warn(
                 '`num_classes` is deprecated now, please set '
                 '`num_stuff_classes` directly, the `num_classes` will be '
-                'set to `num_stuff_classes + 1`')
+                'set to `num_stuff_classes + 1`',
+            )
             # num_classes = num_stuff_classes + 1 for PanopticFPN.
             assert num_classes == num_stuff_classes + 1
-        super(PanopticFPNHead, self).__init__(num_stuff_classes + 1, init_cfg,
-                                              loss_seg)
+        super(PanopticFPNHead, self).__init__(
+            num_stuff_classes + 1,
+            init_cfg,
+            loss_seg,
+        )
         self.num_things_classes = num_things_classes
         self.num_stuff_classes = num_stuff_classes
         if fg_range is not None and bg_range is not None:
@@ -84,7 +92,8 @@ class PanopticFPNHead(BaseSemanticHead):
             warnings.warn(
                 '`fg_range` and `bg_range` are deprecated now, '
                 f'please use `num_things_classes`={self.num_things_classes} '
-                f'and `num_stuff_classes`={self.num_stuff_classes} instead.')
+                f'and `num_stuff_classes`={self.num_stuff_classes} instead.',
+            )
 
         # Used feature layers are [start_level, end_level)
         self.start_level = start_level
@@ -102,7 +111,8 @@ class PanopticFPNHead(BaseSemanticHead):
                     num_upsample=i if i > 0 else 0,
                     conv_cfg=conv_cfg,
                     norm_cfg=norm_cfg,
-                ))
+                ),
+            )
         self.conv_logits = nn.Conv2d(inner_channels, self.num_classes, 1)
 
     def _set_things_to_void(self, gt_semantic_seg):
@@ -115,15 +125,20 @@ class PanopticFPNHead(BaseSemanticHead):
         gt_semantic_seg = gt_semantic_seg.int()
         fg_mask = gt_semantic_seg < self.num_things_classes
         bg_mask = (gt_semantic_seg >= self.num_things_classes) * (
-            gt_semantic_seg < self.num_things_classes + self.num_stuff_classes)
+            gt_semantic_seg < self.num_things_classes + self.num_stuff_classes
+        )
 
         new_gt_seg = torch.clone(gt_semantic_seg)
-        new_gt_seg = torch.where(bg_mask,
-                                 gt_semantic_seg - self.num_things_classes,
-                                 new_gt_seg)
-        new_gt_seg = torch.where(fg_mask,
-                                 fg_mask.int() * self.num_stuff_classes,
-                                 new_gt_seg)
+        new_gt_seg = torch.where(
+            bg_mask,
+            gt_semantic_seg - self.num_things_classes,
+            new_gt_seg,
+        )
+        new_gt_seg = torch.where(
+            fg_mask,
+            fg_mask.int() * self.num_stuff_classes,
+            new_gt_seg,
+        )
         return new_gt_seg
 
     def loss(self, seg_preds, gt_semantic_seg):

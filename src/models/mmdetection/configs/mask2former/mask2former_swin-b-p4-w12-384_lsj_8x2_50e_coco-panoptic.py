@@ -9,8 +9,10 @@ model = dict(
         depths=depths,
         num_heads=[4, 8, 16, 32],
         window_size=12,
-        init_cfg=dict(type='Pretrained', checkpoint=pretrained)),
-    panoptic_head=dict(in_channels=[128, 256, 512, 1024]))
+        init_cfg=dict(type='Pretrained', checkpoint=pretrained),
+    ),
+    panoptic_head=dict(in_channels=[128, 256, 512, 1024]),
+)
 
 # set all layers in backbone to lr_mult=0.1
 # set all norm layers, position_embeding,
@@ -26,17 +28,22 @@ custom_keys = {
     'relative_position_bias_table': backbone_embed_multi,
     'query_embed': embed_multi,
     'query_feat': embed_multi,
-    'level_embed': embed_multi
+    'level_embed': embed_multi,
 }
-custom_keys.update({
-    f'backbone.stages.{stage_id}.blocks.{block_id}.norm': backbone_norm_multi
-    for stage_id, num_blocks in enumerate(depths)
-    for block_id in range(num_blocks)
-})
-custom_keys.update({
-    f'backbone.stages.{stage_id}.downsample.norm': backbone_norm_multi
-    for stage_id in range(len(depths) - 1)
-})
+custom_keys.update(
+    {
+        f'backbone.stages.{stage_id}.blocks.{block_id}.norm': backbone_norm_multi
+        for stage_id, num_blocks in enumerate(depths)
+        for block_id in range(num_blocks)
+    },
+)
+custom_keys.update(
+    {
+        f'backbone.stages.{stage_id}.downsample.norm': backbone_norm_multi
+        for stage_id in range(len(depths) - 1)
+    },
+)
 # optimizer
 optimizer = dict(
-    paramwise_cfg=dict(custom_keys=custom_keys, norm_decay_mult=0.0))
+    paramwise_cfg=dict(custom_keys=custom_keys, norm_decay_mult=0.0),
+)

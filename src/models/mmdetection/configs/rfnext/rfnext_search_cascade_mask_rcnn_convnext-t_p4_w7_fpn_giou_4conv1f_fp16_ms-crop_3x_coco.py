@@ -17,5 +17,8 @@ custom_hooks = [
                 mmin=1,
                 mmax=24,
                 num_branches=2,
-                skip_layer=[])))
+                skip_layer=[],
+            ),
+        ),
+    ),
 ]

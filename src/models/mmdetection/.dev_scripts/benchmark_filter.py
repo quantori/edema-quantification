@@ -9,49 +9,108 @@ def parse_args():
     parser.add_argument(
         '--basic-arch',
         action='store_true',
-        help='to train models in basic arch')
+        help='to train models in basic arch',
+    )
     parser.add_argument(
-        '--datasets', action='store_true', help='to train models in dataset')
+        '--datasets',
+        action='store_true',
+        help='to train models in dataset',
+    )
     parser.add_argument(
         '--data-pipeline',
         action='store_true',
-        help='to train models related to data pipeline, e.g. augmentations')
+        help='to train models related to data pipeline, e.g. augmentations',
+    )
     parser.add_argument(
         '--nn-module',
         action='store_true',
-        help='to train models related to neural network modules')
+        help='to train models related to neural network modules',
+    )
     parser.add_argument(
         '--model-options',
         nargs='+',
-        help='custom options to special model benchmark')
+        help='custom options to special model benchmark',
+    )
     parser.add_argument(
         '--out',
         type=str,
         default='batch_train_list.txt',
-        help='output path of gathered metrics to be stored')
+        help='output path of gathered metrics to be stored',
+    )
     args = parser.parse_args()
     return args
 
 
 basic_arch_root = [
-    'atss', 'autoassign', 'cascade_rcnn', 'cascade_rpn', 'centripetalnet',
-    'cornernet', 'detectors', 'deformable_detr', 'detr', 'double_heads',
-    'dynamic_rcnn', 'faster_rcnn', 'fcos', 'foveabox', 'fp16', 'free_anchor',
-    'fsaf', 'gfl', 'ghm', 'grid_rcnn', 'guided_anchoring', 'htc', 'ld',
-    'libra_rcnn', 'mask_rcnn', 'ms_rcnn', 'nas_fcos', 'paa', 'pisa',
-    'point_rend', 'reppoints', 'retinanet', 'rpn', 'sabl', 'ssd', 'tridentnet',
-    'vfnet', 'yolact', 'yolo', 'sparse_rcnn', 'scnet', 'yolof', 'centernet'
+    'atss',
+    'autoassign',
+    'cascade_rcnn',
+    'cascade_rpn',
+    'centripetalnet',
+    'cornernet',
+    'detectors',
+    'deformable_detr',
+    'detr',
+    'double_heads',
+    'dynamic_rcnn',
+    'faster_rcnn',
+    'fcos',
+    'foveabox',
+    'fp16',
+    'free_anchor',
+    'fsaf',
+    'gfl',
+    'ghm',
+    'grid_rcnn',
+    'guided_anchoring',
+    'htc',
+    'ld',
+    'libra_rcnn',
+    'mask_rcnn',
+    'ms_rcnn',
+    'nas_fcos',
+    'paa',
+    'pisa',
+    'point_rend',
+    'reppoints',
+    'retinanet',
+    'rpn',
+    'sabl',
+    'ssd',
+    'tridentnet',
+    'vfnet',
+    'yolact',
+    'yolo',
+    'sparse_rcnn',
+    'scnet',
+    'yolof',
+    'centernet',
 ]
 
 datasets_root = [
-    'wider_face', 'pascal_voc', 'cityscapes', 'lvis', 'deepfashion'
+    'wider_face',
+    'pascal_voc',
+    'cityscapes',
+    'lvis',
+    'deepfashion',
 ]
 
 data_pipeline_root = ['albu_example', 'instaboost']
 
 nn_module_root = [
-    'carafe', 'dcn', 'empirical_attention', 'gcnet', 'gn', 'gn+ws', 'hrnet',
-    'pafpn', 'nas_fpn', 'regnet', 'resnest', 'res2net', 'groie'
+    'carafe',
+    'dcn',
+    'empirical_attention',
+    'gcnet',
+    'gn',
+    'gn+ws',
+    'hrnet',
+    'pafpn',
+    'nas_fpn',
+    'regnet',
+    'resnest',
+    'res2net',
+    'groie',
 ]
 
 benchmark_pool = [
@@ -62,11 +121,9 @@ benchmark_pool = [
     'configs/cascade_rcnn/cascade_mask_rcnn_r50_fpn_1x_coco.py',
     'configs/cascade_rpn/crpn_faster_rcnn_r50_caffe_fpn_1x_coco.py',
     'configs/centernet/centernet_resnet18_dcnv2_140e_coco.py',
-    'configs/centripetalnet/'
-    'centripetalnet_hourglass104_mstest_16x6_210e_coco.py',
+    'configs/centripetalnet/' 'centripetalnet_hourglass104_mstest_16x6_210e_coco.py',
     'configs/cityscapes/mask_rcnn_r50_fpn_1x_cityscapes.py',
-    'configs/cornernet/'
-    'cornernet_hourglass104_mstest_8x6_210e_coco.py',
+    'configs/cornernet/' 'cornernet_hourglass104_mstest_8x6_210e_coco.py',
     'configs/dcn/mask_rcnn_r50_fpn_mdconv_c3-c5_1x_coco.py',
     'configs/dcn/faster_rcnn_r50_fpn_dpool_1x_coco.py',
     'configs/dcn/faster_rcnn_r50_fpn_mdpool_1x_coco.py',
@@ -113,8 +170,7 @@ benchmark_pool = [
     'configs/regnet/mask_rcnn_regnetx-3.2GF_fpn_1x_coco.py',
     'configs/reppoints/reppoints_moment_r50_fpn_gn-neck+head_1x_coco.py',
     'configs/res2net/faster_rcnn_r2_101_fpn_2x_coco.py',
-    'configs/resnest/'
-    'mask_rcnn_s50_fpn_syncbn-backbone+head_mstrain_1x_coco.py',
+    'configs/resnest/' 'mask_rcnn_s50_fpn_syncbn-backbone+head_mstrain_1x_coco.py',
     'configs/retinanet/retinanet_r50_caffe_fpn_1x_coco.py',
     'configs/rpn/rpn_r50_fpn_1x_coco.py',
     'configs/sabl/sabl_retinanet_r50_fpn_1x_coco.py',
@@ -153,8 +209,7 @@ def main():
         configs = os.scandir(cfg_dir)
         for cfg in configs:
             config_path = osp.join(cfg_dir, cfg.name)
-            if (config_path in benchmark_pool
-                    and config_path not in benchmark_configs):
+            if config_path in benchmark_pool and config_path not in benchmark_configs:
                 benchmark_configs.append(config_path)
 
     print(f'Totally found {len(benchmark_configs)} configs to benchmark')

@@ -28,8 +28,13 @@ def convert(in_file, out_file):
     for key, value in in_state_dict.items():
         if 'extra' in key:
             layer_idx = int(key.split('.')[2])
-            new_key = 'neck.extra_layers.{}.{}.conv.'.format(
-                layer_idx // 2, layer_idx % 2) + key.split('.')[-1]
+            new_key = (
+                'neck.extra_layers.{}.{}.conv.'.format(
+                    layer_idx // 2,
+                    layer_idx % 2,
+                )
+                + key.split('.')[-1]
+            )
         elif 'l2_norm' in key:
             new_key = 'neck.l2_norm.weight'
         elif 'bbox_head' in key:

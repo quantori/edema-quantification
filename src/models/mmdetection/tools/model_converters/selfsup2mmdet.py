@@ -30,7 +30,11 @@ def main():
     parser.add_argument('src', help='src detectron model path')
     parser.add_argument('dst', help='save path')
     parser.add_argument(
-        '--selfsup', type=str, choices=['moco', 'swav'], help='save path')
+        '--selfsup',
+        type=str,
+        choices=['moco', 'swav'],
+        help='save path',
+    )
     args = parser.parse_args()
     if args.selfsup == 'moco':
         moco_convert(args.src, args.dst)

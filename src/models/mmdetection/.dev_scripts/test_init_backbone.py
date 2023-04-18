@@ -7,7 +7,6 @@ from os.path import dirname, exists, join
 import pytest
 from mmcv import Config, ProgressBar
 from mmcv.runner import _load_checkpoint
-
 from mmdet.models import build_detector
 
 
@@ -19,6 +18,7 @@ def _get_config_directory():
     except NameError:
         # For IPython development when this __file__ is not defined
         import mmdet
+
         repo_dpath = dirname(dirname(mmdet.__file__))
     config_dpath = join(repo_dpath, 'configs')
     if not exists(config_dpath):
@@ -29,6 +29,7 @@ def _get_config_directory():
 def _get_config_module(fname):
     """Load a configuration as a python module."""
     from mmcv import Config
+
     config_dpath = _get_config_directory()
     config_fpath = join(config_dpath, fname)
     config_mod = Config.fromfile(config_fpath)
@@ -80,8 +81,7 @@ def _traversed_config_file():
             config_file = join(config_path, config_file_name)
             if os.path.isdir(config_file):
                 for config_sub_file in os.listdir(config_file):
-                    if config_sub_file.endswith('py') and \
-                            config_sub_file not in ignores_file:
+                    if config_sub_file.endswith('py') and config_sub_file not in ignores_file:
                         name = join(config_file, config_sub_file)
                         check_cfg_names.append(name)
     return check_cfg_names
@@ -129,7 +129,8 @@ def _check_backbone(config, print_cfg=True):
         model = build_detector(
             cfg.model,
             train_cfg=cfg.get('train_cfg'),
-            test_cfg=cfg.get('test_cfg'))
+            test_cfg=cfg.get('test_cfg'),
+        )
         model.init_weights()
 
         checkpoint_layers = state_dict.keys()
@@ -138,13 +139,15 @@ def _check_backbone(config, print_cfg=True):
                 assert value.equal(state_dict[name])
 
         if print_cfg:
-            print('-' * 10 + 'Successfully load checkpoint' + '-' * 10 +
-                  '\n', )
+            print(
+                '-' * 10 + 'Successfully load checkpoint' + '-' * 10 + '\n',
+            )
             return None
     else:
         if print_cfg:
-            print(config + '\n' + '-' * 10 +
-                  'config file do not have init_cfg' + '-' * 10 + '\n')
+            print(
+                config + '\n' + '-' * 10 + 'config file do not have init_cfg' + '-' * 10 + '\n',
+            )
             return config
 
 

@@ -8,17 +8,25 @@ from mmcv import Config
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Convert benchmark model list to script')
+        description='Convert benchmark model list to script',
+    )
     parser.add_argument('config', help='test config file path')
     parser.add_argument('--port', type=int, default=29666, help='dist port')
     parser.add_argument(
         '--work-dir',
         default='tools/batch_test',
-        help='the dir to save metric')
+        help='the dir to save metric',
+    )
     parser.add_argument(
-        '--run', action='store_true', help='run script directly')
+        '--run',
+        action='store_true',
+        help='run script directly',
+    )
     parser.add_argument(
-        '--out', type=str, help='path to save model benchmark script')
+        '--out',
+        type=str,
+        help='path to save model benchmark script',
+    )
 
     args = parser.parse_args()
     return args
@@ -40,11 +48,17 @@ def process_model_info(model_info, work_dir):
         job_name=job_name,
         work_dir=work_dir,
         checkpoint=checkpoint,
-        eval=eval)
+        eval=eval,
+    )
 
 
-def create_test_bash_info(commands, model_test_dict, port, script_name,
-                          partition):
+def create_test_bash_info(
+    commands,
+    model_test_dict,
+    port,
+    script_name,
+    partition,
+):
     config = model_test_dict['config']
     job_name = model_test_dict['job_name']
     checkpoint = model_test_dict['checkpoint']
@@ -55,8 +69,7 @@ def create_test_bash_info(commands, model_test_dict, port, script_name,
     commands.append(echo_info)
     commands.append('\n')
 
-    command_info = f'GPUS=8  GPUS_PER_NODE=8  ' \
-                   f'CPUS_PER_TASK=2 {script_name} '
+    command_info = f'GPUS=8  GPUS_PER_NODE=8  ' f'CPUS_PER_TASK=2 {script_name} '
 
     command_info += f'{partition} '
     command_info += f'{job_name} '
@@ -75,11 +88,13 @@ def main():
     args = parse_args()
     if args.out:
         out_suffix = args.out.split('.')[-1]
-        assert args.out.endswith('.sh'), \
-            f'Expected out file path suffix is .sh, but get .{out_suffix}'
-    assert args.out or args.run, \
-        ('Please specify at least one operation (save/run/ the '
-         'script) with the argument "--out" or "--run"')
+        assert args.out.endswith(
+            '.sh',
+        ), f'Expected out file path suffix is .sh, but get .{out_suffix}'
+    assert args.out or args.run, (
+        'Please specify at least one operation (save/run/ the '
+        'script) with the argument "--out" or "--run"'
+    )
 
     commands = []
     partition_name = 'PARTITION=$1 '
@@ -103,8 +118,13 @@ def main():
         for model_info in model_infos:
             print('processing: ', model_info['config'])
             model_test_dict = process_model_info(model_info, work_dir)
-            create_test_bash_info(commands, model_test_dict, port, script_name,
-                                  '$PARTITION')
+            create_test_bash_info(
+                commands,
+                model_test_dict,
+                port,
+                script_name,
+                '$PARTITION',
+            )
             port += 1
 
     command_str = ''.join(commands)

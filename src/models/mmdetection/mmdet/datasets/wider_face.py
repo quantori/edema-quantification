@@ -15,7 +15,8 @@ class WIDERFaceDataset(XMLDataset):
     Conversion scripts can be found in
     https://github.com/sovrasov/wider-face-pascal-voc-annotations
     """
-    CLASSES = ('face', )
+
+    CLASSES = ('face',)
 
     PALETTE = [(0, 255, 0)]
 
@@ -36,8 +37,11 @@ class WIDERFaceDataset(XMLDataset):
         img_ids = mmcv.list_from_file(ann_file)
         for img_id in img_ids:
             filename = f'{img_id}.jpg'
-            xml_path = osp.join(self.img_prefix, 'Annotations',
-                                f'{img_id}.xml')
+            xml_path = osp.join(
+                self.img_prefix,
+                'Annotations',
+                f'{img_id}.xml',
+            )
             tree = ET.parse(xml_path)
             root = tree.getroot()
             size = root.find('size')
@@ -49,6 +53,8 @@ class WIDERFaceDataset(XMLDataset):
                     id=img_id,
                     filename=osp.join(folder, filename),
                     width=width,
-                    height=height))
+                    height=height,
+                ),
+            )
 
         return data_infos

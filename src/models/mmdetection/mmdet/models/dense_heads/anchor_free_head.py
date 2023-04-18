@@ -6,9 +6,9 @@ import torch
 import torch.nn as nn
 from mmcv.cnn import ConvModule
 from mmcv.runner import force_fp32
-
 from mmdet.core import build_bbox_coder, multi_apply
 from mmdet.core.anchor.point_generator import MlvlPointGenerator
+
 from ..builder import HEADS, build_loss
 from .base_dense_head import BaseDenseHead
 from .dense_test_mixins import BBoxTestMixin
@@ -43,35 +43,40 @@ class AnchorFreeHead(BaseDenseHead, BBoxTestMixin):
 
     _version = 1
 
-    def __init__(self,
-                 num_classes,
-                 in_channels,
-                 feat_channels=256,
-                 stacked_convs=4,
-                 strides=(4, 8, 16, 32, 64),
-                 dcn_on_last_conv=False,
-                 conv_bias='auto',
-                 loss_cls=dict(
-                     type='FocalLoss',
-                     use_sigmoid=True,
-                     gamma=2.0,
-                     alpha=0.25,
-                     loss_weight=1.0),
-                 loss_bbox=dict(type='IoULoss', loss_weight=1.0),
-                 bbox_coder=dict(type='DistancePointBBoxCoder'),
-                 conv_cfg=None,
-                 norm_cfg=None,
-                 train_cfg=None,
-                 test_cfg=None,
-                 init_cfg=dict(
-                     type='Normal',
-                     layer='Conv2d',
-                     std=0.01,
-                     override=dict(
-                         type='Normal',
-                         name='conv_cls',
-                         std=0.01,
-                         bias_prob=0.01))):
+    def __init__(
+        self,
+        num_classes,
+        in_channels,
+        feat_channels=256,
+        stacked_convs=4,
+        strides=(4, 8, 16, 32, 64),
+        dcn_on_last_conv=False,
+        conv_bias='auto',
+        loss_cls=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.25,
+            loss_weight=1.0,
+        ),
+        loss_bbox=dict(type='IoULoss', loss_weight=1.0),
+        bbox_coder=dict(type='DistancePointBBoxCoder'),
+        conv_cfg=None,
+        norm_cfg=None,
+        train_cfg=None,
+        test_cfg=None,
+        init_cfg=dict(
+            type='Normal',
+            layer='Conv2d',
+            std=0.01,
+            override=dict(
+                type='Normal',
+                name='conv_cls',
+                std=0.01,
+                bias_prob=0.01,
+            ),
+        ),
+    ):
         super(AnchorFreeHead, self).__init__(init_cfg)
         self.num_classes = num_classes
         self.use_sigmoid_cls = loss_cls.get('use_sigmoid', False)
@@ -128,7 +133,9 @@ class AnchorFreeHead(BaseDenseHead, BBoxTestMixin):
                     padding=1,
                     conv_cfg=conv_cfg,
                     norm_cfg=self.norm_cfg,
-                    bias=self.conv_bias))
+                    bias=self.conv_bias,
+                ),
+            )
 
     def _init_reg_convs(self):
         """Initialize bbox regression conv layers of the head."""
@@ -148,25 +155,37 @@ class AnchorFreeHead(BaseDenseHead, BBoxTestMixin):
                     padding=1,
                     conv_cfg=conv_cfg,
                     norm_cfg=self.norm_cfg,
-                    bias=self.conv_bias))
+                    bias=self.conv_bias,
+                ),
+            )
 
     def _init_predictor(self):
         """Initialize predictor layers of the head."""
         self.conv_cls = nn.Conv2d(
-            self.feat_channels, self.cls_out_channels, 3, padding=1)
+            self.feat_channels,
+            self.cls_out_channels,
+            3,
+            padding=1,
+        )
         self.conv_reg = nn.Conv2d(self.feat_channels, 4, 3, padding=1)
 
-    def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
-                              missing_keys, unexpected_keys, error_msgs):
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ):
         """Hack some keys of the model state dict so that can load checkpoints
         of previous version."""
         version = local_metadata.get('version', None)
         if version is None:
             # the key is different in early versions
             # for example, 'fcos_cls' become 'conv_cls' now
-            bbox_head_keys = [
-                k for k in state_dict.keys() if k.startswith(prefix)
-            ]
+            bbox_head_keys = [k for k in state_dict.keys() if k.startswith(prefix)]
             ori_predictor_keys = []
             new_predictor_keys = []
             # e.g. 'fcos_cls' or 'fcos_reg'
@@ -189,10 +208,17 @@ class AnchorFreeHead(BaseDenseHead, BBoxTestMixin):
                     ori_predictor_keys.pop(-1)
             for i in range(len(new_predictor_keys)):
                 state_dict[new_predictor_keys[i]] = state_dict.pop(
-                    ori_predictor_keys[i])
-        super()._load_from_state_dict(state_dict, prefix, local_metadata,
-                                      strict, missing_keys, unexpected_keys,
-                                      error_msgs)
+                    ori_predictor_keys[i],
+                )
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
 
     def forward(self, feats):
         """Forward features from the upstream network.
@@ -237,13 +263,15 @@ class AnchorFreeHead(BaseDenseHead, BBoxTestMixin):
 
     @abstractmethod
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
-    def loss(self,
-             cls_scores,
-             bbox_preds,
-             gt_bboxes,
-             gt_labels,
-             img_metas,
-             gt_bboxes_ignore=None):
+    def loss(
+        self,
+        cls_scores,
+        bbox_preds,
+        gt_bboxes,
+        gt_labels,
+        img_metas,
+        gt_bboxes_ignore=None,
+    ):
         """Compute loss of the head.
 
         Args:
@@ -279,12 +307,14 @@ class AnchorFreeHead(BaseDenseHead, BBoxTestMixin):
         """
         raise NotImplementedError
 
-    def _get_points_single(self,
-                           featmap_size,
-                           stride,
-                           dtype,
-                           device,
-                           flatten=False):
+    def _get_points_single(
+        self,
+        featmap_size,
+        stride,
+        dtype,
+        device,
+        flatten=False,
+    ):
         """Get points of a single scale level.
 
         This function will be deprecated soon.
@@ -294,7 +324,8 @@ class AnchorFreeHead(BaseDenseHead, BBoxTestMixin):
             '`_get_points_single` in `AnchorFreeHead` will be '
             'deprecated soon, we support a multi level point generator now'
             'you can get points of a single level feature map '
-            'with `self.prior_generator.single_level_grid_priors` ')
+            'with `self.prior_generator.single_level_grid_priors` ',
+        )
 
         h, w = featmap_size
         # First create Range with the default dtype, than convert to
@@ -322,13 +353,20 @@ class AnchorFreeHead(BaseDenseHead, BBoxTestMixin):
             '`get_points` in `AnchorFreeHead` will be '
             'deprecated soon, we support a multi level point generator now'
             'you can get points of all levels '
-            'with `self.prior_generator.grid_priors` ')
+            'with `self.prior_generator.grid_priors` ',
+        )
 
         mlvl_points = []
         for i in range(len(featmap_sizes)):
             mlvl_points.append(
-                self._get_points_single(featmap_sizes[i], self.strides[i],
-                                        dtype, device, flatten))
+                self._get_points_single(
+                    featmap_sizes[i],
+                    self.strides[i],
+                    dtype,
+                    device,
+                    flatten,
+                ),
+            )
         return mlvl_points
 
     def aug_test(self, feats, img_metas, rescale=False):

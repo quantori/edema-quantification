@@ -6,11 +6,10 @@ import platform
 import shutil
 import sys
 import warnings
-from setuptools import find_packages, setup
 
 import torch
-from torch.utils.cpp_extension import (BuildExtension, CppExtension,
-                                       CUDAExtension)
+from setuptools import find_packages, setup
+from torch.utils.cpp_extension import BuildExtension, CppExtension, CUDAExtension
 
 
 def readme():
@@ -29,7 +28,6 @@ def get_version():
 
 
 def make_cuda_ext(name, module, sources, sources_cuda=[]):
-
     define_macros = []
     extra_compile_args = {'cxx': []}
 
@@ -50,7 +48,8 @@ def make_cuda_ext(name, module, sources, sources_cuda=[]):
         name=f'{module}.{name}',
         sources=[os.path.join(*module.split('.'), p) for p in sources],
         define_macros=define_macros,
-        extra_compile_args=extra_compile_args)
+        extra_compile_args=extra_compile_args,
+    )
 
 
 def parse_requirements(fname='requirements.txt', with_version=True):
@@ -70,6 +69,7 @@ def parse_requirements(fname='requirements.txt', with_version=True):
     import re
     import sys
     from os.path import exists
+
     require_fpath = fname
 
     def parse_line(line):
@@ -97,8 +97,10 @@ def parse_requirements(fname='requirements.txt', with_version=True):
                     if ';' in rest:
                         # Handle platform specific dependencies
                         # http://setuptools.readthedocs.io/en/latest/setuptools.html#declaring-platform-specific-dependencies
-                        version, platform_deps = map(str.strip,
-                                                     rest.split(';'))
+                        version, platform_deps = map(
+                            str.strip,
+                            rest.split(';'),
+                        )
                         info['platform_deps'] = platform_deps
                     else:
                         version = rest  # NOQA
@@ -217,4 +219,5 @@ if __name__ == '__main__':
         },
         ext_modules=[],
         cmdclass={'build_ext': BuildExtension},
-        zip_safe=False)
+        zip_safe=False,
+    )

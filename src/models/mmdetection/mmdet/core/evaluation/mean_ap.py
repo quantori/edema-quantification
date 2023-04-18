@@ -41,7 +41,8 @@ def average_precision(recalls, precisions, mode='area'):
         for i in range(num_scales):
             ind = np.where(mrec[i, 1:] != mrec[i, :-1])[0]
             ap[i] = np.sum(
-                (mrec[i, ind + 1] - mrec[i, ind]) * mpre[i, ind + 1])
+                (mrec[i, ind + 1] - mrec[i, ind]) * mpre[i, ind + 1],
+            )
     elif mode == '11points':
         for i in range(num_scales):
             for thr in np.arange(0, 1 + 1e-3, 0.1):
@@ -51,19 +52,22 @@ def average_precision(recalls, precisions, mode='area'):
         ap /= 11
     else:
         raise ValueError(
-            'Unrecognized mode, only "area" and "11points" are supported')
+            'Unrecognized mode, only "area" and "11points" are supported',
+        )
     if no_scale:
         ap = ap[0]
     return ap
 
 
-def tpfp_imagenet(det_bboxes,
-                  gt_bboxes,
-                  gt_bboxes_ignore=None,
-                  default_iou_thr=0.5,
-                  area_ranges=None,
-                  use_legacy_coordinate=False,
-                  **kwargs):
+def tpfp_imagenet(
+    det_bboxes,
+    gt_bboxes,
+    gt_bboxes_ignore=None,
+    default_iou_thr=0.5,
+    area_ranges=None,
+    use_legacy_coordinate=False,
+    **kwargs,
+):
     """Check if detected bboxes are true positive or false positive.
 
     Args:
@@ -87,14 +91,20 @@ def tpfp_imagenet(det_bboxes,
     """
 
     if not use_legacy_coordinate:
-        extra_length = 0.
+        extra_length = 0.0
     else:
-        extra_length = 1.
+        extra_length = 1.0
 
     # an indicator of ignored gts
     gt_ignore_inds = np.concatenate(
-        (np.zeros(gt_bboxes.shape[0],
-                  dtype=bool), np.ones(gt_bboxes_ignore.shape[0], dtype=bool)))
+        (
+            np.zeros(
+                gt_bboxes.shape[0],
+                dtype=bool,
+            ),
+            np.ones(gt_bboxes_ignore.shape[0], dtype=bool),
+        ),
+    )
     # stack gt_bboxes and gt_bboxes_ignore for convenience
     gt_bboxes = np.vstack((gt_bboxes, gt_bboxes_ignore))
 
@@ -111,18 +121,23 @@ def tpfp_imagenet(det_bboxes,
         if area_ranges == [(None, None)]:
             fp[...] = 1
         else:
-            det_areas = (
-                det_bboxes[:, 2] - det_bboxes[:, 0] + extra_length) * (
-                    det_bboxes[:, 3] - det_bboxes[:, 1] + extra_length)
+            det_areas = (det_bboxes[:, 2] - det_bboxes[:, 0] + extra_length) * (
+                det_bboxes[:, 3] - det_bboxes[:, 1] + extra_length
+            )
             for i, (min_area, max_area) in enumerate(area_ranges):
                 fp[i, (det_areas >= min_area) & (det_areas < max_area)] = 1
         return tp, fp
     ious = bbox_overlaps(
-        det_bboxes, gt_bboxes - 1, use_legacy_coordinate=use_legacy_coordinate)
+        det_bboxes,
+        gt_bboxes - 1,
+        use_legacy_coordinate=use_legacy_coordinate,
+    )
     gt_w = gt_bboxes[:, 2] - gt_bboxes[:, 0] + extra_length
     gt_h = gt_bboxes[:, 3] - gt_bboxes[:, 1] + extra_length
-    iou_thrs = np.minimum((gt_w * gt_h) / ((gt_w + 10.0) * (gt_h + 10.0)),
-                          default_iou_thr)
+    iou_thrs = np.minimum(
+        (gt_w * gt_h) / ((gt_w + 10.0) * (gt_h + 10.0)),
+        default_iou_thr,
+    )
     # sort all detections by scores in descending order
     sort_inds = np.argsort(-det_bboxes[:, -1])
     for k, (min_area, max_area) in enumerate(area_ranges):
@@ -152,27 +167,27 @@ def tpfp_imagenet(det_bboxes,
             # 4. it matches no gt but is beyond area range, tp = 0, fp = 0
             if matched_gt >= 0:
                 gt_covered[matched_gt] = 1
-                if not (gt_ignore_inds[matched_gt]
-                        or gt_area_ignore[matched_gt]):
+                if not (gt_ignore_inds[matched_gt] or gt_area_ignore[matched_gt]):
                     tp[k, i] = 1
             elif min_area is None:
                 fp[k, i] = 1
             else:
                 bbox = det_bboxes[i, :4]
-                area = (bbox[2] - bbox[0] + extra_length) * (
-                    bbox[3] - bbox[1] + extra_length)
+                area = (bbox[2] - bbox[0] + extra_length) * (bbox[3] - bbox[1] + extra_length)
                 if area >= min_area and area < max_area:
                     fp[k, i] = 1
     return tp, fp
 
 
-def tpfp_default(det_bboxes,
-                 gt_bboxes,
-                 gt_bboxes_ignore=None,
-                 iou_thr=0.5,
-                 area_ranges=None,
-                 use_legacy_coordinate=False,
-                 **kwargs):
+def tpfp_default(
+    det_bboxes,
+    gt_bboxes,
+    gt_bboxes_ignore=None,
+    iou_thr=0.5,
+    area_ranges=None,
+    use_legacy_coordinate=False,
+    **kwargs,
+):
     """Check if detected bboxes are true positive or false positive.
 
     Args:
@@ -196,14 +211,20 @@ def tpfp_default(det_bboxes,
     """
 
     if not use_legacy_coordinate:
-        extra_length = 0.
+        extra_length = 0.0
     else:
-        extra_length = 1.
+        extra_length = 1.0
 
     # an indicator of ignored gts
     gt_ignore_inds = np.concatenate(
-        (np.zeros(gt_bboxes.shape[0],
-                  dtype=bool), np.ones(gt_bboxes_ignore.shape[0], dtype=bool)))
+        (
+            np.zeros(
+                gt_bboxes.shape[0],
+                dtype=bool,
+            ),
+            np.ones(gt_bboxes_ignore.shape[0], dtype=bool),
+        ),
+    )
     # stack gt_bboxes and gt_bboxes_ignore for convenience
     gt_bboxes = np.vstack((gt_bboxes, gt_bboxes_ignore))
 
@@ -223,15 +244,18 @@ def tpfp_default(det_bboxes,
         if area_ranges == [(None, None)]:
             fp[...] = 1
         else:
-            det_areas = (
-                det_bboxes[:, 2] - det_bboxes[:, 0] + extra_length) * (
-                    det_bboxes[:, 3] - det_bboxes[:, 1] + extra_length)
+            det_areas = (det_bboxes[:, 2] - det_bboxes[:, 0] + extra_length) * (
+                det_bboxes[:, 3] - det_bboxes[:, 1] + extra_length
+            )
             for i, (min_area, max_area) in enumerate(area_ranges):
                 fp[i, (det_areas >= min_area) & (det_areas < max_area)] = 1
         return tp, fp
 
     ious = bbox_overlaps(
-        det_bboxes, gt_bboxes, use_legacy_coordinate=use_legacy_coordinate)
+        det_bboxes,
+        gt_bboxes,
+        use_legacy_coordinate=use_legacy_coordinate,
+    )
     # for each det, the max iou with all gts
     ious_max = ious.max(axis=1)
     # for each det, which gt overlaps most with it
@@ -245,13 +269,13 @@ def tpfp_default(det_bboxes,
             gt_area_ignore = np.zeros_like(gt_ignore_inds, dtype=bool)
         else:
             gt_areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0] + extra_length) * (
-                gt_bboxes[:, 3] - gt_bboxes[:, 1] + extra_length)
+                gt_bboxes[:, 3] - gt_bboxes[:, 1] + extra_length
+            )
             gt_area_ignore = (gt_areas < min_area) | (gt_areas >= max_area)
         for i in sort_inds:
             if ious_max[i] >= iou_thr:
                 matched_gt = ious_argmax[i]
-                if not (gt_ignore_inds[matched_gt]
-                        or gt_area_ignore[matched_gt]):
+                if not (gt_ignore_inds[matched_gt] or gt_area_ignore[matched_gt]):
                     if not gt_covered[matched_gt]:
                         gt_covered[matched_gt] = True
                         tp[k, i] = 1
@@ -262,23 +286,24 @@ def tpfp_default(det_bboxes,
                 fp[k, i] = 1
             else:
                 bbox = det_bboxes[i, :4]
-                area = (bbox[2] - bbox[0] + extra_length) * (
-                    bbox[3] - bbox[1] + extra_length)
+                area = (bbox[2] - bbox[0] + extra_length) * (bbox[3] - bbox[1] + extra_length)
                 if area >= min_area and area < max_area:
                     fp[k, i] = 1
     return tp, fp
 
 
-def tpfp_openimages(det_bboxes,
-                    gt_bboxes,
-                    gt_bboxes_ignore=None,
-                    iou_thr=0.5,
-                    area_ranges=None,
-                    use_legacy_coordinate=False,
-                    gt_bboxes_group_of=None,
-                    use_group_of=True,
-                    ioa_thr=0.5,
-                    **kwargs):
+def tpfp_openimages(
+    det_bboxes,
+    gt_bboxes,
+    gt_bboxes_ignore=None,
+    iou_thr=0.5,
+    area_ranges=None,
+    use_legacy_coordinate=False,
+    gt_bboxes_group_of=None,
+    use_group_of=True,
+    ioa_thr=0.5,
+    **kwargs,
+):
     """Check if detected bboxes are true positive or false positive.
 
     Args:
@@ -311,14 +336,20 @@ def tpfp_openimages(det_bboxes,
     """
 
     if not use_legacy_coordinate:
-        extra_length = 0.
+        extra_length = 0.0
     else:
-        extra_length = 1.
+        extra_length = 1.0
 
     # an indicator of ignored gts
     gt_ignore_inds = np.concatenate(
-        (np.zeros(gt_bboxes.shape[0],
-                  dtype=bool), np.ones(gt_bboxes_ignore.shape[0], dtype=bool)))
+        (
+            np.zeros(
+                gt_bboxes.shape[0],
+                dtype=bool,
+            ),
+            np.ones(gt_bboxes_ignore.shape[0], dtype=bool),
+        ),
+    )
     # stack gt_bboxes and gt_bboxes_ignore for convenience
     gt_bboxes = np.vstack((gt_bboxes, gt_bboxes_ignore))
 
@@ -338,9 +369,9 @@ def tpfp_openimages(det_bboxes,
         if area_ranges == [(None, None)]:
             fp[...] = 1
         else:
-            det_areas = (
-                det_bboxes[:, 2] - det_bboxes[:, 0] + extra_length) * (
-                    det_bboxes[:, 3] - det_bboxes[:, 1] + extra_length)
+            det_areas = (det_bboxes[:, 2] - det_bboxes[:, 0] + extra_length) * (
+                det_bboxes[:, 3] - det_bboxes[:, 1] + extra_length
+            )
             for i, (min_area, max_area) in enumerate(area_ranges):
                 fp[i, (det_areas >= min_area) & (det_areas < max_area)] = 1
         return tp, fp, det_bboxes
@@ -359,7 +390,10 @@ def tpfp_openimages(det_bboxes,
     else:
         # if not consider group-of boxes, only calculate ious through gt boxes
         ious = bbox_overlaps(
-            det_bboxes, gt_bboxes, use_legacy_coordinate=use_legacy_coordinate)
+            det_bboxes,
+            gt_bboxes,
+            use_legacy_coordinate=use_legacy_coordinate,
+        )
         ioas = None
 
     if ious.shape[1] > 0:
@@ -375,15 +409,14 @@ def tpfp_openimages(det_bboxes,
             if min_area is None:
                 gt_area_ignore = np.zeros_like(gt_ignore_inds, dtype=bool)
             else:
-                gt_areas = (
-                    gt_bboxes[:, 2] - gt_bboxes[:, 0] + extra_length) * (
-                        gt_bboxes[:, 3] - gt_bboxes[:, 1] + extra_length)
+                gt_areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0] + extra_length) * (
+                    gt_bboxes[:, 3] - gt_bboxes[:, 1] + extra_length
+                )
                 gt_area_ignore = (gt_areas < min_area) | (gt_areas >= max_area)
             for i in sort_inds:
                 if ious_max[i] >= iou_thr:
                     matched_gt = ious_argmax[i]
-                    if not (gt_ignore_inds[matched_gt]
-                            or gt_area_ignore[matched_gt]):
+                    if not (gt_ignore_inds[matched_gt] or gt_area_ignore[matched_gt]):
                         if not gt_covered[matched_gt]:
                             gt_covered[matched_gt] = True
                             tp[k, i] = 1
@@ -394,8 +427,7 @@ def tpfp_openimages(det_bboxes,
                     fp[k, i] = 1
                 else:
                     bbox = det_bboxes[i, :4]
-                    area = (bbox[2] - bbox[0] + extra_length) * (
-                        bbox[3] - bbox[1] + extra_length)
+                    area = (bbox[2] - bbox[0] + extra_length) * (bbox[3] - bbox[1] + extra_length)
                     if area >= min_area and area < max_area:
                         fp[k, i] = 1
     else:
@@ -405,9 +437,9 @@ def tpfp_openimages(det_bboxes,
         if area_ranges == [(None, None)]:
             fp[...] = 1
         else:
-            det_areas = (
-                det_bboxes[:, 2] - det_bboxes[:, 0] + extra_length) * (
-                    det_bboxes[:, 3] - det_bboxes[:, 1] + extra_length)
+            det_areas = (det_bboxes[:, 2] - det_bboxes[:, 0] + extra_length) * (
+                det_bboxes[:, 3] - det_bboxes[:, 1] + extra_length
+            )
             for i, (min_area, max_area) in enumerate(area_ranges):
                 fp[i, (det_areas >= min_area) & (det_areas < max_area)] = 1
 
@@ -421,7 +453,9 @@ def tpfp_openimages(det_bboxes,
         #    against group-of boxes and calculated group-of TP and FP.
         # Only used in OpenImages evaluation.
         det_bboxes_group = np.zeros(
-            (num_scales, ioas.shape[1], det_bboxes.shape[1]), dtype=float)
+            (num_scales, ioas.shape[1], det_bboxes.shape[1]),
+            dtype=float,
+        )
         match_group_of = np.zeros((num_scales, num_dets), dtype=bool)
         tp_group = np.zeros((num_scales, num_gts_group), dtype=np.float32)
         ioas_max = ioas.max(axis=1)
@@ -435,25 +469,21 @@ def tpfp_openimages(det_bboxes,
             if min_area is None:
                 gt_area_ignore = np.zeros_like(gt_ignore_inds, dtype=bool)
             else:
-                gt_areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0]) * (
-                    gt_bboxes[:, 3] - gt_bboxes[:, 1])
+                gt_areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0]) * (gt_bboxes[:, 3] - gt_bboxes[:, 1])
                 gt_area_ignore = (gt_areas < min_area) | (gt_areas >= max_area)
             for i in sort_inds:
                 matched_gt = ioas_argmax[i]
                 if not box_is_covered[i]:
                     if ioas_max[i] >= ioa_thr:
-                        if not (gt_ignore_inds[matched_gt]
-                                or gt_area_ignore[matched_gt]):
+                        if not (gt_ignore_inds[matched_gt] or gt_area_ignore[matched_gt]):
                             if not tp_group[k, matched_gt]:
                                 tp_group[k, matched_gt] = 1
                                 match_group_of[k, i] = True
                             else:
                                 match_group_of[k, i] = True
 
-                            if det_bboxes_group[k, matched_gt, -1] < \
-                                    det_bboxes[i, -1]:
-                                det_bboxes_group[k, matched_gt] = \
-                                    det_bboxes[i]
+                            if det_bboxes_group[k, matched_gt, -1] < det_bboxes[i, -1]:
+                                det_bboxes_group[k, matched_gt] = det_bboxes[i]
 
         fp_group = (tp_group <= 0).astype(float)
         tps = []
@@ -463,11 +493,14 @@ def tpfp_openimages(det_bboxes,
         # matched group of boxes respectively.
         for i in range(num_scales):
             tps.append(
-                np.concatenate((tp[i][~match_group_of[i]], tp_group[i])))
+                np.concatenate((tp[i][~match_group_of[i]], tp_group[i])),
+            )
             fps.append(
-                np.concatenate((fp[i][~match_group_of[i]], fp_group[i])))
+                np.concatenate((fp[i][~match_group_of[i]], fp_group[i])),
+            )
             det_bboxes = np.concatenate(
-                (det_bboxes[~match_group_of[i]], det_bboxes_group[i]))
+                (det_bboxes[~match_group_of[i]], det_bboxes_group[i]),
+            )
 
         tp = np.vstack(tps)
         fp = np.vstack(fps)
@@ -522,17 +555,19 @@ def get_cls_group_ofs(annotations, class_id):
     return gt_group_ofs
 
 
-def eval_map(det_results,
-             annotations,
-             scale_ranges=None,
-             iou_thr=0.5,
-             ioa_thr=None,
-             dataset=None,
-             logger=None,
-             tpfp_fn=None,
-             nproc=4,
-             use_legacy_coordinate=False,
-             use_group_of=False):
+def eval_map(
+    det_results,
+    annotations,
+    scale_ranges=None,
+    iou_thr=0.5,
+    ioa_thr=None,
+    dataset=None,
+    logger=None,
+    tpfp_fn=None,
+    nproc=4,
+    use_legacy_coordinate=False,
+    use_group_of=False,
+):
     """Evaluate mAP of a dataset.
 
     Args:
@@ -578,15 +613,16 @@ def eval_map(det_results,
     """
     assert len(det_results) == len(annotations)
     if not use_legacy_coordinate:
-        extra_length = 0.
+        extra_length = 0.0
     else:
-        extra_length = 1.
+        extra_length = 1.0
 
     num_imgs = len(det_results)
     num_scales = len(scale_ranges) if scale_ranges is not None else 1
     num_classes = len(det_results[0])  # positive class num
-    area_ranges = ([(rg[0]**2, rg[1]**2) for rg in scale_ranges]
-                   if scale_ranges is not None else None)
+    area_ranges = (
+        [(rg[0] ** 2, rg[1] ** 2) for rg in scale_ranges] if scale_ranges is not None else None
+    )
 
     # There is no need to use multi processes to process
     # when num_imgs = 1 .
@@ -599,19 +635,22 @@ def eval_map(det_results,
     for i in range(num_classes):
         # get gt and det bboxes of this class
         cls_dets, cls_gts, cls_gts_ignore = get_cls_results(
-            det_results, annotations, i)
+            det_results,
+            annotations,
+            i,
+        )
         # choose proper function according to datasets to compute tp and fp
         if tpfp_fn is None:
             if dataset in ['det', 'vid']:
                 tpfp_fn = tpfp_imagenet
-            elif dataset in ['oid_challenge', 'oid_v6'] \
-                    or use_group_of is True:
+            elif dataset in ['oid_challenge', 'oid_v6'] or use_group_of is True:
                 tpfp_fn = tpfp_openimages
             else:
                 tpfp_fn = tpfp_default
         if not callable(tpfp_fn):
             raise ValueError(
-                f'tpfp_fn has to be a function or None, but got {tpfp_fn}')
+                f'tpfp_fn has to be a function or None, but got {tpfp_fn}',
+            )
 
         if num_imgs > 1:
             # compute tp and fp for each image with multiple processes
@@ -626,10 +665,16 @@ def eval_map(det_results,
 
             tpfp = pool.starmap(
                 tpfp_fn,
-                zip(cls_dets, cls_gts, cls_gts_ignore,
+                zip(
+                    cls_dets,
+                    cls_gts,
+                    cls_gts_ignore,
                     [iou_thr for _ in range(num_imgs)],
                     [area_ranges for _ in range(num_imgs)],
-                    [use_legacy_coordinate for _ in range(num_imgs)], *args))
+                    [use_legacy_coordinate for _ in range(num_imgs)],
+                    *args,
+                ),
+            )
         else:
             tpfp = tpfp_fn(
                 cls_dets[0],
@@ -638,10 +683,10 @@ def eval_map(det_results,
                 iou_thr,
                 area_ranges,
                 use_legacy_coordinate,
-                gt_bboxes_group_of=(get_cls_group_ofs(annotations, i)[0]
-                                    if use_group_of else None),
+                gt_bboxes_group_of=(get_cls_group_ofs(annotations, i)[0] if use_group_of else None),
                 use_group_of=use_group_of,
-                ioa_thr=ioa_thr)
+                ioa_thr=ioa_thr,
+            )
             tpfp = [tpfp]
 
         if use_group_of:
@@ -656,10 +701,10 @@ def eval_map(det_results,
                 num_gts[0] += bbox.shape[0]
             else:
                 gt_areas = (bbox[:, 2] - bbox[:, 0] + extra_length) * (
-                    bbox[:, 3] - bbox[:, 1] + extra_length)
+                    bbox[:, 3] - bbox[:, 1] + extra_length
+                )
                 for k, (min_area, max_area) in enumerate(area_ranges):
-                    num_gts[k] += np.sum((gt_areas >= min_area)
-                                         & (gt_areas < max_area))
+                    num_gts[k] += np.sum((gt_areas >= min_area) & (gt_areas < max_area))
         # sort all det bboxes by score, also sort tp and fp
         cls_dets = np.vstack(cls_dets)
         num_dets = cls_dets.shape[0]
@@ -679,13 +724,15 @@ def eval_map(det_results,
             num_gts = num_gts.item()
         mode = 'area' if dataset != 'voc07' else '11points'
         ap = average_precision(recalls, precisions, mode)
-        eval_results.append({
-            'num_gts': num_gts,
-            'num_dets': num_dets,
-            'recall': recalls,
-            'precision': precisions,
-            'ap': ap
-        })
+        eval_results.append(
+            {
+                'num_gts': num_gts,
+                'num_dets': num_dets,
+                'recall': recalls,
+                'precision': precisions,
+                'ap': ap,
+            },
+        )
 
     if num_imgs > 1:
         pool.close()
@@ -694,7 +741,8 @@ def eval_map(det_results,
         # shape (num_classes, num_scales)
         all_ap = np.vstack([cls_result['ap'] for cls_result in eval_results])
         all_num_gts = np.vstack(
-            [cls_result['num_gts'] for cls_result in eval_results])
+            [cls_result['num_gts'] for cls_result in eval_results],
+        )
         mean_ap = []
         for i in range(num_scales):
             if np.any(all_num_gts[:, i] > 0):
@@ -709,16 +757,23 @@ def eval_map(det_results,
         mean_ap = np.array(aps).mean().item() if aps else 0.0
 
     print_map_summary(
-        mean_ap, eval_results, dataset, area_ranges, logger=logger)
+        mean_ap,
+        eval_results,
+        dataset,
+        area_ranges,
+        logger=logger,
+    )
 
     return mean_ap, eval_results
 
 
-def print_map_summary(mean_ap,
-                      results,
-                      dataset=None,
-                      scale_ranges=None,
-                      logger=None):
+def print_map_summary(
+    mean_ap,
+    results,
+    dataset=None,
+    scale_ranges=None,
+    logger=None,
+):
     """Print mAP and results of each class.
 
     A table will be printed to show the gts/dets/recall/AP of each class and
@@ -772,8 +827,11 @@ def print_map_summary(mean_ap,
         table_data = [header]
         for j in range(num_classes):
             row_data = [
-                label_names[j], num_gts[i, j], results[j]['num_dets'],
-                f'{recalls[i, j]:.3f}', f'{aps[i, j]:.3f}'
+                label_names[j],
+                num_gts[i, j],
+                results[j]['num_dets'],
+                f'{recalls[i, j]:.3f}',
+                f'{aps[i, j]:.3f}',
             ]
             table_data.append(row_data)
         table_data.append(['mAP', '', '', '', f'{mean_ap[i]:.3f}'])

@@ -15,19 +15,23 @@ class MemoryProfilerHook(Hook):
     def __init__(self, interval=50):
         try:
             from psutil import swap_memory, virtual_memory
+
             self._swap_memory = swap_memory
             self._virtual_memory = virtual_memory
         except ImportError:
-            raise ImportError('psutil is not installed, please install it by: '
-                              'pip install psutil')
+            raise ImportError(
+                'psutil is not installed, please install it by: ' 'pip install psutil',
+            )
 
         try:
             from memory_profiler import memory_usage
+
             self._memory_usage = memory_usage
         except ImportError:
             raise ImportError(
                 'memory_profiler is not installed, please install it by: '
-                'pip install memory_profiler')
+                'pip install memory_profiler',
+            )
 
         self.interval = interval
 
@@ -52,4 +56,5 @@ class MemoryProfilerHook(Hook):
                 f'used_swap_memory: {round(swap_memory.used / factor)} MB, '
                 f'swap_memory_utilization: {swap_memory.percent} %, '
                 'current_process_memory: '
-                f'{round(process_memory)} MB')
+                f'{round(process_memory)} MB',
+            )

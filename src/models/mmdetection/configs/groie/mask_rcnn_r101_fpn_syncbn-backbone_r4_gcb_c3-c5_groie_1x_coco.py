@@ -22,7 +22,9 @@ model = dict(
                 spatial_range=-1,
                 num_heads=6,
                 attention_type='0100',
-                kv_stride=2)),
+                kv_stride=2,
+            ),
+        ),
         mask_roi_extractor=dict(
             type='GenericRoIExtractor',
             roi_layer=dict(type='RoIAlign', output_size=14, sampling_ratio=2),
@@ -42,4 +44,8 @@ model = dict(
                 spatial_range=-1,
                 num_heads=6,
                 attention_type='0100',
-                kv_stride=2))))
+                kv_stride=2,
+            ),
+        ),
+    ),
+)

@@ -3,4 +3,6 @@ pretrained = 'https://github.com/SwinTransformer/storage/releases/download/v1.0.
 model = dict(
     backbone=dict(
         depths=[2, 2, 18, 2],
-        init_cfg=dict(type='Pretrained', checkpoint=pretrained)))
+        init_cfg=dict(type='Pretrained', checkpoint=pretrained),
+    ),
+)

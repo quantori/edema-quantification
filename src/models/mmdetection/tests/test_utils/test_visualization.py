@@ -7,18 +7,16 @@ import mmcv
 import numpy as np
 import pytest
 import torch
-
 from mmdet.core import visualization as vis
-from mmdet.datasets import (CityscapesDataset, CocoDataset,
-                            CocoPanopticDataset, VOCDataset)
+from mmdet.datasets import CityscapesDataset, CocoDataset, CocoPanopticDataset, VOCDataset
 
 
 def test_color():
-    assert vis.color_val_matplotlib(mmcv.Color.blue) == (0., 0., 1.)
-    assert vis.color_val_matplotlib('green') == (0., 1., 0.)
+    assert vis.color_val_matplotlib(mmcv.Color.blue) == (0.0, 0.0, 1.0)
+    assert vis.color_val_matplotlib('green') == (0.0, 1.0, 0.0)
     assert vis.color_val_matplotlib((1, 2, 3)) == (3 / 255, 2 / 255, 1 / 255)
     assert vis.color_val_matplotlib(100) == (100 / 255, 100 / 255, 100 / 255)
-    assert vis.color_val_matplotlib(np.zeros(3, dtype=np.int)) == (0., 0., 0.)
+    assert vis.color_val_matplotlib(np.zeros(3, dtype=np.int)) == (0.0, 0.0, 0.0)
     # forbid white color
     with pytest.raises(TypeError):
         vis.color_val_matplotlib([255, 255, 255])
@@ -31,13 +29,21 @@ def test_color():
 
 
 def test_imshow_det_bboxes():
-    tmp_filename = osp.join(tempfile.gettempdir(), 'det_bboxes_image',
-                            'image.jpg')
+    tmp_filename = osp.join(
+        tempfile.gettempdir(),
+        'det_bboxes_image',
+        'image.jpg',
+    )
     image = np.ones((10, 10, 3), np.uint8)
     bbox = np.array([[2, 1, 3, 3], [3, 4, 6, 6]])
     label = np.array([0, 1])
     out_image = vis.imshow_det_bboxes(
-        image, bbox, label, out_file=tmp_filename, show=False)
+        image,
+        bbox,
+        label,
+        out_file=tmp_filename,
+        show=False,
+    )
     assert osp.isfile(tmp_filename)
     assert image.shape == out_image.shape
     assert not np.allclose(image, out_image)
@@ -48,7 +54,12 @@ def test_imshow_det_bboxes():
     bbox = np.array([[2, 1, 3, 3], [3, 4, 6, 6]])
     label = np.array([0, 1])
     out_image = vis.imshow_det_bboxes(
-        image, bbox, label, out_file=tmp_filename, show=False)
+        image,
+        bbox,
+        label,
+        out_file=tmp_filename,
+        show=False,
+    )
     assert osp.isfile(tmp_filename)
     assert image.shape == out_image.shape[:2]
     os.remove(tmp_filename)
@@ -56,9 +67,14 @@ def test_imshow_det_bboxes():
     # test shaped (0,)
     image = np.ones((10, 10, 3), np.uint8)
     bbox = np.ones((0, 4))
-    label = np.ones((0, ))
+    label = np.ones((0,))
     vis.imshow_det_bboxes(
-        image, bbox, label, out_file=tmp_filename, show=False)
+        image,
+        bbox,
+        label,
+        out_file=tmp_filename,
+        show=False,
+    )
     assert osp.isfile(tmp_filename)
     os.remove(tmp_filename)
 
@@ -69,7 +85,13 @@ def test_imshow_det_bboxes():
     segms = np.random.random((2, 10, 10)) > 0.5
     segms = np.array(segms, np.int32)
     vis.imshow_det_bboxes(
-        image, bbox, label, segms, out_file=tmp_filename, show=False)
+        image,
+        bbox,
+        label,
+        segms,
+        out_file=tmp_filename,
+        show=False,
+    )
     assert osp.isfile(tmp_filename)
     os.remove(tmp_filename)
 
@@ -80,8 +102,11 @@ def test_imshow_det_bboxes():
 
 
 def test_imshow_gt_det_bboxes():
-    tmp_filename = osp.join(tempfile.gettempdir(), 'det_bboxes_image',
-                            'image.jpg')
+    tmp_filename = osp.join(
+        tempfile.gettempdir(),
+        'det_bboxes_image',
+        'image.jpg',
+    )
     image = np.ones((10, 10, 3), np.uint8)
     bbox = np.array([[2, 1, 3, 3], [3, 4, 6, 6]])
     label = np.array([0, 1])
@@ -89,7 +114,12 @@ def test_imshow_gt_det_bboxes():
     det_result = np.array([[2, 1, 3, 3, 0], [3, 4, 6, 6, 1]])
     result = [det_result]
     out_image = vis.imshow_gt_det_bboxes(
-        image, annotation, result, out_file=tmp_filename, show=False)
+        image,
+        annotation,
+        result,
+        out_file=tmp_filename,
+        show=False,
+    )
     assert osp.isfile(tmp_filename)
     assert image.shape == out_image.shape
     assert not np.allclose(image, out_image)
@@ -103,7 +133,12 @@ def test_imshow_gt_det_bboxes():
     det_result = np.array([[2, 1, 3, 3, 0], [3, 4, 6, 6, 1]])
     result = [det_result]
     vis.imshow_gt_det_bboxes(
-        image, annotation, result, out_file=tmp_filename, show=False)
+        image,
+        annotation,
+        result,
+        out_file=tmp_filename,
+        show=False,
+    )
     assert osp.isfile(tmp_filename)
     os.remove(tmp_filename)
 
@@ -111,7 +146,12 @@ def test_imshow_gt_det_bboxes():
     gt_mask = np.ones((2, 10, 10))
     annotation['gt_masks'] = gt_mask
     vis.imshow_gt_det_bboxes(
-        image, annotation, result, out_file=tmp_filename, show=False)
+        image,
+        annotation,
+        result,
+        out_file=tmp_filename,
+        show=False,
+    )
     assert osp.isfile(tmp_filename)
     os.remove(tmp_filename)
 
@@ -119,7 +159,12 @@ def test_imshow_gt_det_bboxes():
     gt_mask = torch.ones((2, 10, 10))
     annotation['gt_masks'] = gt_mask
     vis.imshow_gt_det_bboxes(
-        image, annotation, result, out_file=tmp_filename, show=False)
+        image,
+        annotation,
+        result,
+        out_file=tmp_filename,
+        show=False,
+    )
     assert osp.isfile(tmp_filename)
     os.remove(tmp_filename)
 

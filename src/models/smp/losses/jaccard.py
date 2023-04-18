@@ -1,23 +1,23 @@
-from typing import Optional, List
+from typing import List, Optional
 
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
+
 from ._functional import soft_jaccard_score, to_tensor
 from .constants import BINARY_MODE, MULTICLASS_MODE, MULTILABEL_MODE
 
-__all__ = ["JaccardLoss"]
+__all__ = ['JaccardLoss']
 
 
 class JaccardLoss(_Loss):
-
     def __init__(
         self,
         mode: str,
         classes: Optional[List[int]] = None,
         log_loss: bool = False,
         from_logits: bool = True,
-        smooth: float = 0.,
+        smooth: float = 0.0,
         eps: float = 1e-7,
     ):
         """Implementation of Jaccard loss for image segmentation task.
@@ -30,7 +30,7 @@ class JaccardLoss(_Loss):
             from_logits: If True, assumes input is raw logits
             smooth: Smoothness constant for dice coefficient
             ignore_index: Label that indicates ignored pixels (does not contribute to loss)
-            eps: A small epsilon for numerical stability to avoid zero division error 
+            eps: A small epsilon for numerical stability to avoid zero division error
                 (denominator will be always greater or equal to eps)
 
         Shape
@@ -45,7 +45,7 @@ class JaccardLoss(_Loss):
 
         self.mode = mode
         if classes is not None:
-            assert mode != BINARY_MODE, "Masking classes is not supported with mode=binary"
+            assert mode != BINARY_MODE, 'Masking classes is not supported with mode=binary'
             classes = to_tensor(classes, dtype=torch.long)
 
         self.classes = classes
@@ -55,7 +55,6 @@ class JaccardLoss(_Loss):
         self.log_loss = log_loss
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
-
         assert y_true.size(0) == y_pred.size(0)
 
         if self.from_logits:
@@ -86,7 +85,13 @@ class JaccardLoss(_Loss):
             y_true = y_true.view(bs, num_classes, -1)
             y_pred = y_pred.view(bs, num_classes, -1)
 
-        scores = soft_jaccard_score(y_pred, y_true.type(y_pred.dtype), smooth=self.smooth, eps=self.eps, dims=dims)
+        scores = soft_jaccard_score(
+            y_pred,
+            y_true.type(y_pred.dtype),
+            smooth=self.smooth,
+            eps=self.eps,
+            dims=dims,
+        )
 
         if self.log_loss:
             loss = -torch.log(scores.clamp_min(self.eps))

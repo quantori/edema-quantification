@@ -2,15 +2,17 @@
 import torch
 
 
-def mask_matrix_nms(masks,
-                    labels,
-                    scores,
-                    filter_thr=-1,
-                    nms_pre=-1,
-                    max_num=-1,
-                    kernel='gaussian',
-                    sigma=2.0,
-                    mask_area=None):
+def mask_matrix_nms(
+    masks,
+    labels,
+    scores,
+    filter_thr=-1,
+    nms_pre=-1,
+    max_num=-1,
+    kernel='gaussian',
+    sigma=2.0,
+    mask_area=None,
+):
     """Matrix NMS for multi-class masks.
 
     Args:
@@ -42,8 +44,12 @@ def mask_matrix_nms(masks,
     """
     assert len(labels) == len(masks) == len(scores)
     if len(labels) == 0:
-        return scores.new_zeros(0), labels.new_zeros(0), masks.new_zeros(
-            0, *masks.shape[-2:]), labels.new_zeros(0)
+        return (
+            scores.new_zeros(0),
+            labels.new_zeros(0),
+            masks.new_zeros(0, *masks.shape[-2:]),
+            labels.new_zeros(0),
+        )
     if mask_area is None:
         mask_area = masks.sum((1, 2)).float()
     else:
@@ -67,19 +73,26 @@ def mask_matrix_nms(masks,
     inter_matrix = torch.mm(flatten_masks, flatten_masks.transpose(1, 0))
     expanded_mask_area = mask_area.expand(num_masks, num_masks)
     # Upper triangle iou matrix.
-    iou_matrix = (inter_matrix /
-                  (expanded_mask_area + expanded_mask_area.transpose(1, 0) -
-                   inter_matrix)).triu(diagonal=1)
+    iou_matrix = (
+        inter_matrix / (expanded_mask_area + expanded_mask_area.transpose(1, 0) - inter_matrix)
+    ).triu(diagonal=1)
     # label_specific matrix.
     expanded_labels = labels.expand(num_masks, num_masks)
     # Upper triangle label matrix.
-    label_matrix = (expanded_labels == expanded_labels.transpose(
-        1, 0)).triu(diagonal=1)
+    label_matrix = (
+        expanded_labels
+        == expanded_labels.transpose(
+            1,
+            0,
+        )
+    ).triu(diagonal=1)
 
     # IoU compensation
     compensate_iou, _ = (iou_matrix * label_matrix).max(0)
-    compensate_iou = compensate_iou.expand(num_masks,
-                                           num_masks).transpose(1, 0)
+    compensate_iou = compensate_iou.expand(
+        num_masks,
+        num_masks,
+    ).transpose(1, 0)
 
     # IoU decay
     decay_iou = iou_matrix * label_matrix
@@ -94,7 +107,8 @@ def mask_matrix_nms(masks,
         decay_coefficient, _ = decay_matrix.min(0)
     else:
         raise NotImplementedError(
-            f'{kernel} kernel is not supported in matrix nms!')
+            f'{kernel} kernel is not supported in matrix nms!',
+        )
     # update the score.
     scores = scores * decay_coefficient
 
@@ -102,8 +116,12 @@ def mask_matrix_nms(masks,
         keep = scores >= filter_thr
         keep_inds = keep_inds[keep]
         if not keep.any():
-            return scores.new_zeros(0), labels.new_zeros(0), masks.new_zeros(
-                0, *masks.shape[-2:]), labels.new_zeros(0)
+            return (
+                scores.new_zeros(0),
+                labels.new_zeros(0),
+                masks.new_zeros(0, *masks.shape[-2:]),
+                labels.new_zeros(0),
+            )
         masks = masks[keep]
         scores = scores[keep]
         labels = labels[keep]

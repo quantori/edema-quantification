@@ -7,11 +7,11 @@ import warnings
 import cv2
 import mmcv
 import numpy as np
-from numpy import random
-
 from mmdet.core import BitmapMasks, PolygonMasks, find_inside_bboxes
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from mmdet.utils import log_img_scale
+from numpy import random
+
 from ..builder import PIPELINES
 
 try:
@@ -73,15 +73,17 @@ class Resize:
             Defaults to False.
     """
 
-    def __init__(self,
-                 img_scale=None,
-                 multiscale_mode='range',
-                 ratio_range=None,
-                 keep_ratio=True,
-                 bbox_clip_border=True,
-                 backend='cv2',
-                 interpolation='bilinear',
-                 override=False):
+    def __init__(
+        self,
+        img_scale=None,
+        multiscale_mode='range',
+        ratio_range=None,
+        keep_ratio=True,
+        bbox_clip_border=True,
+        backend='cv2',
+        interpolation='bilinear',
+        override=False,
+    ):
         if img_scale is None:
             self.img_scale = None
         else:
@@ -145,10 +147,12 @@ class Resize:
         img_scale_short = [min(s) for s in img_scales]
         long_edge = np.random.randint(
             min(img_scale_long),
-            max(img_scale_long) + 1)
+            max(img_scale_long) + 1,
+        )
         short_edge = np.random.randint(
             min(img_scale_short),
-            max(img_scale_short) + 1)
+            max(img_scale_short) + 1,
+        )
         img_scale = (long_edge, short_edge)
         return img_scale, None
 
@@ -199,7 +203,9 @@ class Resize:
 
         if self.ratio_range is not None:
             scale, scale_idx = self.random_sample_ratio(
-                self.img_scale[0], self.ratio_range)
+                self.img_scale[0],
+                self.ratio_range,
+            )
         elif len(self.img_scale) == 1:
             scale, scale_idx = self.img_scale[0], 0
         elif self.multiscale_mode == 'range':
@@ -221,7 +227,8 @@ class Resize:
                     results['scale'],
                     return_scale=True,
                     interpolation=self.interpolation,
-                    backend=self.backend)
+                    backend=self.backend,
+                )
                 # the w_scale and h_scale has minor difference
                 # a real fix should be done in the mmcv.imrescale in the future
                 new_h, new_w = img.shape[:2]
@@ -234,11 +241,14 @@ class Resize:
                     results['scale'],
                     return_scale=True,
                     interpolation=self.interpolation,
-                    backend=self.backend)
+                    backend=self.backend,
+                )
             results[key] = img
 
-            scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
-                                    dtype=np.float32)
+            scale_factor = np.array(
+                [w_scale, h_scale, w_scale, h_scale],
+                dtype=np.float32,
+            )
             results['img_shape'] = img.shape
             # in case that there is no padding
             results['pad_shape'] = img.shape
@@ -273,13 +283,15 @@ class Resize:
                     results[key],
                     results['scale'],
                     interpolation='nearest',
-                    backend=self.backend)
+                    backend=self.backend,
+                )
             else:
                 gt_seg = mmcv.imresize(
                     results[key],
                     results['scale'],
                     interpolation='nearest',
-                    backend=self.backend)
+                    backend=self.backend,
+                )
             results[key] = gt_seg
 
     def __call__(self, results):
@@ -300,13 +312,13 @@ class Resize:
                 scale_factor = results['scale_factor']
                 assert isinstance(scale_factor, float)
                 results['scale'] = tuple(
-                    [int(x * scale_factor) for x in img_shape][::-1])
+                    [int(x * scale_factor) for x in img_shape][::-1],
+                )
             else:
                 self._random_scale(results)
         else:
             if not self.override:
-                assert 'scale_factor' not in results, (
-                    'scale and scale_factor cannot be both set.')
+                assert 'scale_factor' not in results, 'scale and scale_factor cannot be both set.'
             else:
                 results.pop('scale')
                 if 'scale_factor' in results:
@@ -376,8 +388,9 @@ class RandomFlip:
         elif flip_ratio is None:
             pass
         else:
-            raise ValueError('flip_ratios must be None, float, '
-                             'or list of float')
+            raise ValueError(
+                'flip_ratios must be None, float, ' 'or list of float',
+            )
         self.flip_ratio = flip_ratio
 
         valid_directions = ['horizontal', 'vertical', 'diagonal']
@@ -454,8 +467,7 @@ class RandomFlip:
                 non_flip_ratio = 1 - self.flip_ratio
                 # exclude non-flip
                 single_ratio = self.flip_ratio / (len(direction_list) - 1)
-                flip_ratio_list = [single_ratio] * (len(direction_list) -
-                                                    1) + [non_flip_ratio]
+                flip_ratio_list = [single_ratio] * (len(direction_list) - 1) + [non_flip_ratio]
 
             cur_dir = np.random.choice(direction_list, p=flip_ratio_list)
 
@@ -466,12 +478,16 @@ class RandomFlip:
             # flip image
             for key in results.get('img_fields', ['img']):
                 results[key] = mmcv.imflip(
-                    results[key], direction=results['flip_direction'])
+                    results[key],
+                    direction=results['flip_direction'],
+                )
             # flip bboxes
             for key in results.get('bbox_fields', []):
-                results[key] = self.bbox_flip(results[key],
-                                              results['img_shape'],
-                                              results['flip_direction'])
+                results[key] = self.bbox_flip(
+                    results[key],
+                    results['img_shape'],
+                    results['flip_direction'],
+                )
             # flip masks
             for key in results.get('mask_fields', []):
                 results[key] = results[key].flip(results['flip_direction'])
@@ -479,7 +495,9 @@ class RandomFlip:
             # flip segs
             for key in results.get('seg_fields', []):
                 results[key] = mmcv.imflip(
-                    results[key], direction=results['flip_direction'])
+                    results[key],
+                    direction=results['flip_direction'],
+                )
         return results
 
     def __repr__(self):
@@ -507,7 +525,7 @@ class RandomShift:
         # The key correspondence from bboxes to labels.
         self.bbox2label = {
             'gt_bboxes': 'gt_labels',
-            'gt_bboxes_ignore': 'gt_labels_ignore'
+            'gt_bboxes_ignore': 'gt_labels_ignore',
         }
 
     def __call__(self, results):
@@ -522,10 +540,14 @@ class RandomShift:
         if random.random() < self.shift_ratio:
             img_shape = results['img'].shape[:2]
 
-            random_shift_x = random.randint(-self.max_shift_px,
-                                            self.max_shift_px)
-            random_shift_y = random.randint(-self.max_shift_px,
-                                            self.max_shift_px)
+            random_shift_x = random.randint(
+                -self.max_shift_px,
+                self.max_shift_px,
+            )
+            random_shift_y = random.randint(
+                -self.max_shift_px,
+                self.max_shift_px,
+            )
             new_x = max(0, random_shift_x)
             ori_x = max(0, -random_shift_x)
             new_y = max(0, random_shift_y)
@@ -544,8 +566,7 @@ class RandomShift:
                 # remove invalid bboxes
                 bbox_w = bboxes[..., 2] - bboxes[..., 0]
                 bbox_h = bboxes[..., 3] - bboxes[..., 1]
-                valid_inds = (bbox_w > self.filter_thr_px) & (
-                    bbox_h > self.filter_thr_px)
+                valid_inds = (bbox_w > self.filter_thr_px) & (bbox_h > self.filter_thr_px)
                 # If the shift does not contain any gt-bbox area, skip this
                 # image.
                 if key == 'gt_bboxes' and not valid_inds.any():
@@ -564,8 +585,9 @@ class RandomShift:
                 img_h, img_w = img.shape[:2]
                 new_h = img_h - np.abs(random_shift_y)
                 new_w = img_w - np.abs(random_shift_x)
-                new_img[new_y:new_y + new_h, new_x:new_x + new_w] \
-                    = img[ori_y:ori_y + new_h, ori_x:ori_x + new_w]
+                new_img[new_y : new_y + new_h, new_x : new_x + new_w] = img[
+                    ori_y : ori_y + new_h, ori_x : ori_x + new_w
+                ]
                 results[key] = new_img
 
         return results
@@ -593,30 +615,35 @@ class Pad:
             value is `dict(img=0, masks=0, seg=255)`.
     """
 
-    def __init__(self,
-                 size=None,
-                 size_divisor=None,
-                 pad_to_square=False,
-                 pad_val=dict(img=0, masks=0, seg=255)):
+    def __init__(
+        self,
+        size=None,
+        size_divisor=None,
+        pad_to_square=False,
+        pad_val=dict(img=0, masks=0, seg=255),
+    ):
         self.size = size
         self.size_divisor = size_divisor
         if isinstance(pad_val, float) or isinstance(pad_val, int):
             warnings.warn(
                 'pad_val of float type is deprecated now, '
                 f'please use pad_val=dict(img={pad_val}, '
-                f'masks={pad_val}, seg=255) instead.', DeprecationWarning)
+                f'masks={pad_val}, seg=255) instead.',
+                DeprecationWarning,
+            )
             pad_val = dict(img=pad_val, masks=pad_val, seg=255)
         assert isinstance(pad_val, dict)
         self.pad_val = pad_val
         self.pad_to_square = pad_to_square
 
         if pad_to_square:
-            assert size is None and size_divisor is None, \
-                'The size and size_divisor must be None ' \
-                'when pad2square is True'
+            assert size is None and size_divisor is None, (
+                'The size and size_divisor must be None ' 'when pad2square is True'
+            )
         else:
-            assert size is not None or size_divisor is not None, \
-                'only one of size and size_divisor should be valid'
+            assert (
+                size is not None or size_divisor is not None
+            ), 'only one of size and size_divisor should be valid'
             assert size is None or size_divisor is None
 
     def _pad_img(self, results):
@@ -628,10 +655,16 @@ class Pad:
                 self.size = (max_size, max_size)
             if self.size is not None:
                 padded_img = mmcv.impad(
-                    results[key], shape=self.size, pad_val=pad_val)
+                    results[key],
+                    shape=self.size,
+                    pad_val=pad_val,
+                )
             elif self.size_divisor is not None:
                 padded_img = mmcv.impad_to_multiple(
-                    results[key], self.size_divisor, pad_val=pad_val)
+                    results[key],
+                    self.size_divisor,
+                    pad_val=pad_val,
+                )
             results[key] = padded_img
         results['pad_shape'] = padded_img.shape
         results['pad_fixed_size'] = self.size
@@ -650,7 +683,10 @@ class Pad:
         pad_val = self.pad_val.get('seg', 255)
         for key in results.get('seg_fields', []):
             results[key] = mmcv.impad(
-                results[key], shape=results['pad_shape'][:2], pad_val=pad_val)
+                results[key],
+                shape=results['pad_shape'][:2],
+                pad_val=pad_val,
+            )
 
     def __call__(self, results):
         """Call function to pad images, masks, semantic segmentation maps.
@@ -704,10 +740,17 @@ class Normalize:
                 result dict.
         """
         for key in results.get('img_fields', ['img']):
-            results[key] = mmcv.imnormalize(results[key], self.mean, self.std,
-                                            self.to_rgb)
+            results[key] = mmcv.imnormalize(
+                results[key],
+                self.mean,
+                self.std,
+                self.to_rgb,
+            )
         results['img_norm_cfg'] = dict(
-            mean=self.mean, std=self.std, to_rgb=self.to_rgb)
+            mean=self.mean,
+            std=self.std,
+            to_rgb=self.to_rgb,
+        )
         return results
 
     def __repr__(self):
@@ -753,20 +796,27 @@ class RandomCrop:
           `allow_negative_crop` is set to False, skip this image.
     """
 
-    def __init__(self,
-                 crop_size,
-                 crop_type='absolute',
-                 allow_negative_crop=False,
-                 recompute_bbox=False,
-                 bbox_clip_border=True):
+    def __init__(
+        self,
+        crop_size,
+        crop_type='absolute',
+        allow_negative_crop=False,
+        recompute_bbox=False,
+        bbox_clip_border=True,
+    ):
         if crop_type not in [
-                'relative_range', 'relative', 'absolute', 'absolute_range'
+            'relative_range',
+            'relative',
+            'absolute',
+            'absolute_range',
         ]:
             raise ValueError(f'Invalid crop_type {crop_type}.')
         if crop_type in ['absolute', 'absolute_range']:
             assert crop_size[0] > 0 and crop_size[1] > 0
             assert isinstance(crop_size[0], int) and isinstance(
-                crop_size[1], int)
+                crop_size[1],
+                int,
+            )
         else:
             assert 0 < crop_size[0] <= 1 and 0 < crop_size[1] <= 1
         self.crop_size = crop_size
@@ -777,11 +827,11 @@ class RandomCrop:
         # The key correspondence from bboxes to labels and masks.
         self.bbox2label = {
             'gt_bboxes': 'gt_labels',
-            'gt_bboxes_ignore': 'gt_labels_ignore'
+            'gt_bboxes_ignore': 'gt_labels_ignore',
         }
         self.bbox2mask = {
             'gt_bboxes': 'gt_masks',
-            'gt_bboxes_ignore': 'gt_masks_ignore'
+            'gt_bboxes_ignore': 'gt_masks_ignore',
         }
 
     def _crop_data(self, results, crop_size, allow_negative_crop):
@@ -817,18 +867,18 @@ class RandomCrop:
         # crop bboxes accordingly and clip to the image boundary
         for key in results.get('bbox_fields', []):
             # e.g. gt_bboxes and gt_bboxes_ignore
-            bbox_offset = np.array([offset_w, offset_h, offset_w, offset_h],
-                                   dtype=np.float32)
+            bbox_offset = np.array(
+                [offset_w, offset_h, offset_w, offset_h],
+                dtype=np.float32,
+            )
             bboxes = results[key] - bbox_offset
             if self.bbox_clip_border:
                 bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1])
                 bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0])
-            valid_inds = (bboxes[:, 2] > bboxes[:, 0]) & (
-                bboxes[:, 3] > bboxes[:, 1])
+            valid_inds = (bboxes[:, 2] > bboxes[:, 0]) & (bboxes[:, 3] > bboxes[:, 1])
             # If the crop does not contain any gt-bbox area and
             # allow_negative_crop is False, skip this image.
-            if (key == 'gt_bboxes' and not valid_inds.any()
-                    and not allow_negative_crop):
+            if key == 'gt_bboxes' and not valid_inds.any() and not allow_negative_crop:
                 return None
             results[key] = bboxes[valid_inds, :]
             # label fields. e.g. gt_labels and gt_labels_ignore
@@ -839,9 +889,9 @@ class RandomCrop:
             # mask fields, e.g. gt_masks and gt_masks_ignore
             mask_key = self.bbox2mask.get(key)
             if mask_key in results:
-                results[mask_key] = results[mask_key][
-                    valid_inds.nonzero()[0]].crop(
-                        np.asarray([crop_x1, crop_y1, crop_x2, crop_y2]))
+                results[mask_key] = results[mask_key][valid_inds.nonzero()[0]].crop(
+                    np.asarray([crop_x1, crop_y1, crop_x2, crop_y2]),
+                )
                 if self.recompute_bbox:
                     results[key] = results[mask_key].get_bboxes()
 
@@ -868,10 +918,12 @@ class RandomCrop:
             assert self.crop_size[0] <= self.crop_size[1]
             crop_h = np.random.randint(
                 min(h, self.crop_size[0]),
-                min(h, self.crop_size[1]) + 1)
+                min(h, self.crop_size[1]) + 1,
+            )
             crop_w = np.random.randint(
                 min(w, self.crop_size[0]),
-                min(w, self.crop_size[1]) + 1)
+                min(w, self.crop_size[1]) + 1,
+            )
             return crop_h, crop_w
         elif self.crop_type == 'relative':
             crop_h, crop_w = self.crop_size
@@ -937,7 +989,8 @@ class SegRescale:
                     results[key],
                     self.scale_factor,
                     interpolation='nearest',
-                    backend=self.backend)
+                    backend=self.backend,
+                )
         return results
 
     def __repr__(self):
@@ -966,11 +1019,13 @@ class PhotoMetricDistortion:
         hue_delta (int): delta of hue.
     """
 
-    def __init__(self,
-                 brightness_delta=32,
-                 contrast_range=(0.5, 1.5),
-                 saturation_range=(0.5, 1.5),
-                 hue_delta=18):
+    def __init__(
+        self,
+        brightness_delta=32,
+        contrast_range=(0.5, 1.5),
+        saturation_range=(0.5, 1.5),
+        hue_delta=18,
+    ):
         self.brightness_delta = brightness_delta
         self.contrast_lower, self.contrast_upper = contrast_range
         self.saturation_lower, self.saturation_upper = saturation_range
@@ -987,14 +1042,15 @@ class PhotoMetricDistortion:
         """
 
         if 'img_fields' in results:
-            assert results['img_fields'] == ['img'], \
-                'Only single img_fields is allowed'
+            assert results['img_fields'] == ['img'], 'Only single img_fields is allowed'
         img = results['img']
         img = img.astype(np.float32)
         # random brightness
         if random.randint(2):
-            delta = random.uniform(-self.brightness_delta,
-                                   self.brightness_delta)
+            delta = random.uniform(
+                -self.brightness_delta,
+                self.brightness_delta,
+            )
             img += delta
 
         # mode == 0 --> do random contrast first
@@ -1002,8 +1058,10 @@ class PhotoMetricDistortion:
         mode = random.randint(2)
         if mode == 1:
             if random.randint(2):
-                alpha = random.uniform(self.contrast_lower,
-                                       self.contrast_upper)
+                alpha = random.uniform(
+                    self.contrast_lower,
+                    self.contrast_upper,
+                )
                 img *= alpha
 
         # convert color from BGR to HSV
@@ -1011,8 +1069,10 @@ class PhotoMetricDistortion:
 
         # random saturation
         if random.randint(2):
-            img[..., 1] *= random.uniform(self.saturation_lower,
-                                          self.saturation_upper)
+            img[..., 1] *= random.uniform(
+                self.saturation_lower,
+                self.saturation_upper,
+            )
 
         # random hue
         if random.randint(2):
@@ -1026,8 +1086,10 @@ class PhotoMetricDistortion:
         # random contrast
         if mode == 0:
             if random.randint(2):
-                alpha = random.uniform(self.contrast_lower,
-                                       self.contrast_upper)
+                alpha = random.uniform(
+                    self.contrast_lower,
+                    self.contrast_upper,
+                )
                 img *= alpha
 
         # randomly swap channels
@@ -1062,12 +1124,14 @@ class Expand:
         prob (float): probability of applying this transformation
     """
 
-    def __init__(self,
-                 mean=(0, 0, 0),
-                 to_rgb=True,
-                 ratio_range=(1, 4),
-                 seg_ignore_label=None,
-                 prob=0.5):
+    def __init__(
+        self,
+        mean=(0, 0, 0),
+        to_rgb=True,
+        ratio_range=(1, 4),
+        seg_ignore_label=None,
+        prob=0.5,
+    ):
         self.to_rgb = to_rgb
         self.ratio_range = ratio_range
         if to_rgb:
@@ -1092,43 +1156,54 @@ class Expand:
             return results
 
         if 'img_fields' in results:
-            assert results['img_fields'] == ['img'], \
-                'Only single img_fields is allowed'
+            assert results['img_fields'] == ['img'], 'Only single img_fields is allowed'
         img = results['img']
 
         h, w, c = img.shape
         ratio = random.uniform(self.min_ratio, self.max_ratio)
         # speedup expand when meets large image
         if np.all(self.mean == self.mean[0]):
-            expand_img = np.empty((int(h * ratio), int(w * ratio), c),
-                                  img.dtype)
+            expand_img = np.empty(
+                (int(h * ratio), int(w * ratio), c),
+                img.dtype,
+            )
             expand_img.fill(self.mean[0])
         else:
-            expand_img = np.full((int(h * ratio), int(w * ratio), c),
-                                 self.mean,
-                                 dtype=img.dtype)
+            expand_img = np.full(
+                (int(h * ratio), int(w * ratio), c),
+                self.mean,
+                dtype=img.dtype,
+            )
         left = int(random.uniform(0, w * ratio - w))
         top = int(random.uniform(0, h * ratio - h))
-        expand_img[top:top + h, left:left + w] = img
+        expand_img[top : top + h, left : left + w] = img
 
         results['img'] = expand_img
         # expand bboxes
         for key in results.get('bbox_fields', []):
             results[key] = results[key] + np.tile(
-                (left, top), 2).astype(results[key].dtype)
+                (left, top),
+                2,
+            ).astype(results[key].dtype)
 
         # expand masks
         for key in results.get('mask_fields', []):
             results[key] = results[key].expand(
-                int(h * ratio), int(w * ratio), top, left)
+                int(h * ratio),
+                int(w * ratio),
+                top,
+                left,
+            )
 
         # expand segs
         for key in results.get('seg_fields', []):
             gt_seg = results[key]
-            expand_gt_seg = np.full((int(h * ratio), int(w * ratio)),
-                                    self.seg_ignore_label,
-                                    dtype=gt_seg.dtype)
-            expand_gt_seg[top:top + h, left:left + w] = gt_seg
+            expand_gt_seg = np.full(
+                (int(h * ratio), int(w * ratio)),
+                self.seg_ignore_label,
+                dtype=gt_seg.dtype,
+            )
+            expand_gt_seg[top : top + h, left : left + w] = gt_seg
             results[key] = expand_gt_seg
         return results
 
@@ -1160,10 +1235,12 @@ class MinIoURandomCrop:
         `gt_bboxes_ignore` to `gt_labels_ignore` and `gt_masks_ignore`.
     """
 
-    def __init__(self,
-                 min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
-                 min_crop_size=0.3,
-                 bbox_clip_border=True):
+    def __init__(
+        self,
+        min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
+        min_crop_size=0.3,
+        bbox_clip_border=True,
+    ):
         # 1: return ori img
         self.min_ious = min_ious
         self.sample_mode = (1, *min_ious, 0)
@@ -1171,11 +1248,11 @@ class MinIoURandomCrop:
         self.bbox_clip_border = bbox_clip_border
         self.bbox2label = {
             'gt_bboxes': 'gt_labels',
-            'gt_bboxes_ignore': 'gt_labels_ignore'
+            'gt_bboxes_ignore': 'gt_labels_ignore',
         }
         self.bbox2mask = {
             'gt_bboxes': 'gt_masks',
-            'gt_bboxes_ignore': 'gt_masks_ignore'
+            'gt_bboxes_ignore': 'gt_masks_ignore',
         }
 
     def __call__(self, results):
@@ -1191,8 +1268,7 @@ class MinIoURandomCrop:
         """
 
         if 'img_fields' in results:
-            assert results['img_fields'] == ['img'], \
-                'Only single img_fields is allowed'
+            assert results['img_fields'] == ['img'], 'Only single img_fields is allowed'
         img = results['img']
         assert 'bbox_fields' in results
         boxes = [results[key] for key in results['bbox_fields']]
@@ -1217,12 +1293,15 @@ class MinIoURandomCrop:
                 top = random.uniform(h - new_h)
 
                 patch = np.array(
-                    (int(left), int(top), int(left + new_w), int(top + new_h)))
+                    (int(left), int(top), int(left + new_w), int(top + new_h)),
+                )
                 # Line or point crop is not allowed
                 if patch[2] == patch[0] or patch[3] == patch[1]:
                     continue
                 overlaps = bbox_overlaps(
-                    patch.reshape(-1, 4), boxes.reshape(-1, 4)).reshape(-1)
+                    patch.reshape(-1, 4),
+                    boxes.reshape(-1, 4),
+                ).reshape(-1)
                 if len(overlaps) > 0 and overlaps.min() < min_iou:
                     continue
 
@@ -1232,10 +1311,12 @@ class MinIoURandomCrop:
                     # adjust boxes
                     def is_center_of_bboxes_in_patch(boxes, patch):
                         center = (boxes[:, :2] + boxes[:, 2:]) / 2
-                        mask = ((center[:, 0] > patch[0]) *
-                                (center[:, 1] > patch[1]) *
-                                (center[:, 0] < patch[2]) *
-                                (center[:, 1] < patch[3]))
+                        mask = (
+                            (center[:, 0] > patch[0])
+                            * (center[:, 1] > patch[1])
+                            * (center[:, 0] < patch[2])
+                            * (center[:, 1] < patch[3])
+                        )
                         return mask
 
                     mask = is_center_of_bboxes_in_patch(boxes, patch)
@@ -1259,17 +1340,15 @@ class MinIoURandomCrop:
                         # mask fields
                         mask_key = self.bbox2mask.get(key)
                         if mask_key in results:
-                            results[mask_key] = results[mask_key][
-                                mask.nonzero()[0]].crop(patch)
+                            results[mask_key] = results[mask_key][mask.nonzero()[0]].crop(patch)
                 # adjust the img no matter whether the gt is empty before crop
-                img = img[patch[1]:patch[3], patch[0]:patch[2]]
+                img = img[patch[1] : patch[3], patch[0] : patch[2]]
                 results['img'] = img
                 results['img_shape'] = img.shape
 
                 # seg fields
                 for key in results.get('seg_fields', []):
-                    results[key] = results[key][patch[1]:patch[3],
-                                                patch[0]:patch[2]]
+                    results[key] = results[key][patch[1] : patch[3], patch[0] : patch[2]]
                 return results
 
     def __repr__(self):
@@ -1309,12 +1388,12 @@ class Corrupt:
         if corrupt is None:
             raise RuntimeError('imagecorruptions is not installed')
         if 'img_fields' in results:
-            assert results['img_fields'] == ['img'], \
-                'Only single img_fields is allowed'
+            assert results['img_fields'] == ['img'], 'Only single img_fields is allowed'
         results['img'] = corrupt(
             results['img'].astype(np.uint8),
             corruption_name=self.corruption,
-            severity=self.severity)
+            severity=self.severity,
+        )
         return results
 
     def __repr__(self):
@@ -1367,12 +1446,14 @@ class Albu:
             after aug
     """
 
-    def __init__(self,
-                 transforms,
-                 bbox_params=None,
-                 keymap=None,
-                 update_pad_shape=False,
-                 skip_img_without_anno=False):
+    def __init__(
+        self,
+        transforms,
+        bbox_params=None,
+        keymap=None,
+        update_pad_shape=False,
+        skip_img_without_anno=False,
+    ):
         if Compose is None:
             raise RuntimeError('albumentations is not installed')
 
@@ -1388,23 +1469,27 @@ class Albu:
         self.skip_img_without_anno = skip_img_without_anno
 
         # A simple workaround to remove masks without boxes
-        if (isinstance(bbox_params, dict) and 'label_fields' in bbox_params
-                and 'filter_lost_elements' in bbox_params):
+        if (
+            isinstance(bbox_params, dict)
+            and 'label_fields' in bbox_params
+            and 'filter_lost_elements' in bbox_params
+        ):
             self.filter_lost_elements = True
             self.origin_label_fields = bbox_params['label_fields']
             bbox_params['label_fields'] = ['idx_mapper']
             del bbox_params['filter_lost_elements']
 
-        self.bbox_params = (
-            self.albu_builder(bbox_params) if bbox_params else None)
-        self.aug = Compose([self.albu_builder(t) for t in self.transforms],
-                           bbox_params=self.bbox_params)
+        self.bbox_params = self.albu_builder(bbox_params) if bbox_params else None
+        self.aug = Compose(
+            [self.albu_builder(t) for t in self.transforms],
+            bbox_params=self.bbox_params,
+        )
 
         if not keymap:
             self.keymap_to_albu = {
                 'img': 'image',
                 'gt_masks': 'masks',
-                'gt_bboxes': 'bboxes'
+                'gt_bboxes': 'bboxes',
             }
         else:
             self.keymap_to_albu = keymap
@@ -1434,13 +1519,11 @@ class Albu:
             obj_cls = obj_type
         else:
             raise TypeError(
-                f'type must be a str or valid type, but got {type(obj_type)}')
+                f'type must be a str or valid type, but got {type(obj_type)}',
+            )
 
         if 'transforms' in args:
-            args['transforms'] = [
-                self.albu_builder(transform)
-                for transform in args['transforms']
-            ]
+            args['transforms'] = [self.albu_builder(transform) for transform in args['transforms']]
 
         return obj_cls(**args)
 
@@ -1477,7 +1560,8 @@ class Albu:
         if 'masks' in results:
             if isinstance(results['masks'], PolygonMasks):
                 raise NotImplementedError(
-                    'Albu only supports BitMap masks now')
+                    'Albu only supports BitMap masks now',
+                )
             ori_masks = results['masks']
             if albumentations.__version__ < '0.5':
                 results['masks'] = results['masks'].masks
@@ -1489,24 +1573,28 @@ class Albu:
         if 'bboxes' in results:
             if isinstance(results['bboxes'], list):
                 results['bboxes'] = np.array(
-                    results['bboxes'], dtype=np.float32)
+                    results['bboxes'],
+                    dtype=np.float32,
+                )
             results['bboxes'] = results['bboxes'].reshape(-1, 4)
 
             # filter label_fields
             if self.filter_lost_elements:
-
                 for label in self.origin_label_fields:
                     results[label] = np.array(
-                        [results[label][i] for i in results['idx_mapper']])
+                        [results[label][i] for i in results['idx_mapper']],
+                    )
                 if 'masks' in results:
                     results['masks'] = np.array(
-                        [results['masks'][i] for i in results['idx_mapper']])
+                        [results['masks'][i] for i in results['idx_mapper']],
+                    )
                     results['masks'] = ori_masks.__class__(
-                        results['masks'], results['image'].shape[0],
-                        results['image'].shape[1])
+                        results['masks'],
+                        results['image'].shape[0],
+                        results['image'].shape[1],
+                    )
 
-                if (not len(results['idx_mapper'])
-                        and self.skip_img_without_anno):
+                if not len(results['idx_mapper']) and self.skip_img_without_anno:
                     return None
 
         if 'gt_labels' in results:
@@ -1617,17 +1705,19 @@ class RandomCenterCropPad:
             the border of the image. Defaults to True.
     """
 
-    def __init__(self,
-                 crop_size=None,
-                 ratios=(0.9, 1.0, 1.1),
-                 border=128,
-                 mean=None,
-                 std=None,
-                 to_rgb=None,
-                 test_mode=False,
-                 test_pad_mode=('logical_or', 127),
-                 test_pad_add_pix=0,
-                 bbox_clip_border=True):
+    def __init__(
+        self,
+        crop_size=None,
+        ratios=(0.9, 1.0, 1.1),
+        border=128,
+        mean=None,
+        std=None,
+        to_rgb=None,
+        test_mode=False,
+        test_pad_mode=('logical_or', 127),
+        test_pad_add_pix=0,
+        bbox_clip_border=True,
+    ):
         if test_mode:
             assert crop_size is None, 'crop_size must be None in test mode'
             assert ratios is None, 'ratios must be None in test mode'
@@ -1636,11 +1726,9 @@ class RandomCenterCropPad:
             assert test_pad_mode[0] in ['logical_or', 'size_divisor']
         else:
             assert isinstance(crop_size, (list, tuple))
-            assert crop_size[0] > 0 and crop_size[1] > 0, (
-                'crop_size must > 0 in train mode')
+            assert crop_size[0] > 0 and crop_size[1] > 0, 'crop_size must > 0 in train mode'
             assert isinstance(ratios, (list, tuple))
-            assert test_pad_mode is None, (
-                'test_pad_mode must be None in train mode')
+            assert test_pad_mode is None, 'test_pad_mode must be None in train mode'
 
         self.crop_size = crop_size
         self.ratios = ratios
@@ -1693,9 +1781,12 @@ class RandomCenterCropPad:
             mask (numpy array, (N,)): Each box is inside or outside the patch.
         """
         center = (boxes[:, :2] + boxes[:, 2:]) / 2
-        mask = (center[:, 0] > patch[0]) * (center[:, 1] > patch[1]) * (
-            center[:, 0] < patch[2]) * (
-                center[:, 1] < patch[3])
+        mask = (
+            (center[:, 0] > patch[0])
+            * (center[:, 1] > patch[1])
+            * (center[:, 0] < patch[2])
+            * (center[:, 1] < patch[3])
+        )
         return mask
 
     def _crop_image_and_paste(self, image, center, size):
@@ -1741,11 +1832,15 @@ class RandomCenterCropPad:
         x_slice = slice(cropped_center_x - left, cropped_center_x + right)
         cropped_img[y_slice, x_slice, :] = image[y0:y1, x0:x1, :]
 
-        border = np.array([
-            cropped_center_y - top, cropped_center_y + bottom,
-            cropped_center_x - left, cropped_center_x + right
-        ],
-                          dtype=np.float32)
+        border = np.array(
+            [
+                cropped_center_y - top,
+                cropped_center_y + bottom,
+                cropped_center_x - left,
+                cropped_center_x + right,
+            ],
+            dtype=np.float32,
+        )
 
         return cropped_img, border, patch
 
@@ -1773,7 +1868,10 @@ class RandomCenterCropPad:
                 center_y = random.randint(low=h_border, high=h - h_border)
 
                 cropped_img, border, patch = self._crop_image_and_paste(
-                    img, [center_y, center_x], [new_h, new_w])
+                    img,
+                    [center_y, center_x],
+                    [new_h, new_w],
+                )
 
                 mask = self._filter_boxes(patch, boxes)
                 # if image do not have valid bbox, any crop patch is valid.
@@ -1798,8 +1896,7 @@ class RandomCenterCropPad:
                     if self.bbox_clip_border:
                         bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, new_w)
                         bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, new_h)
-                    keep = (bboxes[:, 2] > bboxes[:, 0]) & (
-                        bboxes[:, 3] > bboxes[:, 1])
+                    keep = (bboxes[:, 2] > bboxes[:, 0]) & (bboxes[:, 3] > bboxes[:, 1])
                     bboxes = bboxes[keep]
                     results[key] = bboxes
                     if key in ['gt_bboxes']:
@@ -1809,12 +1906,14 @@ class RandomCenterCropPad:
                             results['gt_labels'] = labels
                         if 'gt_masks' in results:
                             raise NotImplementedError(
-                                'RandomCenterCropPad only supports bbox.')
+                                'RandomCenterCropPad only supports bbox.',
+                            )
 
                 # crop semantic seg
                 for key in results.get('seg_fields', []):
                     raise NotImplementedError(
-                        'RandomCenterCropPad only supports bbox.')
+                        'RandomCenterCropPad only supports bbox.',
+                    )
                 return results
 
     def _test_aug(self, results):
@@ -1842,10 +1941,14 @@ class RandomCenterCropPad:
         else:
             raise NotImplementedError(
                 'RandomCenterCropPad only support two testing pad mode:'
-                'logical-or and size_divisor.')
+                'logical-or and size_divisor.',
+            )
 
         cropped_img, border, _ = self._crop_image_and_paste(
-            img, [h // 2, w // 2], [target_h, target_w])
+            img,
+            [h // 2, w // 2],
+            [target_h, target_w],
+        )
         results['img'] = cropped_img
         results['pad_shape'] = cropped_img.shape
         results['border'] = border
@@ -1855,7 +1958,8 @@ class RandomCenterCropPad:
         img = results['img']
         assert img.dtype == np.float32, (
             'RandomCenterCropPad needs the input image of dtype np.float32,'
-            ' please set "to_float32=True" in "LoadImageFromFile" pipeline')
+            ' please set "to_float32=True" in "LoadImageFromFile" pipeline'
+        )
         h, w, c = img.shape
         assert c == len(self.mean)
         if self.test_mode:
@@ -1901,16 +2005,17 @@ class CutOut:
             of pixel to fill in the dropped regions. Default: (0, 0, 0).
     """
 
-    def __init__(self,
-                 n_holes,
-                 cutout_shape=None,
-                 cutout_ratio=None,
-                 fill_in=(0, 0, 0)):
-
-        assert (cutout_shape is None) ^ (cutout_ratio is None), \
-            'Either cutout_shape or cutout_ratio should be specified.'
-        assert (isinstance(cutout_shape, (list, tuple))
-                or isinstance(cutout_ratio, (list, tuple)))
+    def __init__(
+        self,
+        n_holes,
+        cutout_shape=None,
+        cutout_ratio=None,
+        fill_in=(0, 0, 0),
+    ):
+        assert (cutout_shape is None) ^ (
+            cutout_ratio is None
+        ), 'Either cutout_shape or cutout_ratio should be specified.'
+        assert isinstance(cutout_shape, (list, tuple)) or isinstance(cutout_ratio, (list, tuple))
         if isinstance(n_holes, tuple):
             assert len(n_holes) == 2 and 0 <= n_holes[0] < n_holes[1]
         else:
@@ -1945,8 +2050,11 @@ class CutOut:
     def __repr__(self):
         repr_str = self.__class__.__name__
         repr_str += f'(n_holes={self.n_holes}, '
-        repr_str += (f'cutout_ratio={self.candidates}, ' if self.with_ratio
-                     else f'cutout_shape={self.candidates}, ')
+        repr_str += (
+            f'cutout_ratio={self.candidates}, '
+            if self.with_ratio
+            else f'cutout_shape={self.candidates}, '
+        )
         repr_str += f'fill_in={self.fill_in})'
         return repr_str
 
@@ -2005,17 +2113,18 @@ class Mosaic:
             Default to 1.0.
     """
 
-    def __init__(self,
-                 img_scale=(640, 640),
-                 center_ratio_range=(0.5, 1.5),
-                 min_bbox_size=0,
-                 bbox_clip_border=True,
-                 skip_filter=True,
-                 pad_val=114,
-                 prob=1.0):
+    def __init__(
+        self,
+        img_scale=(640, 640),
+        center_ratio_range=(0.5, 1.5),
+        min_bbox_size=0,
+        bbox_clip_border=True,
+        skip_filter=True,
+        pad_val=114,
+        prob=1.0,
+    ):
         assert isinstance(img_scale, tuple)
-        assert 0 <= prob <= 1.0, 'The probability should be in range [0,1]. '\
-            f'got {prob}.'
+        assert 0 <= prob <= 1.0, 'The probability should be in range [0,1]. ' f'got {prob}.'
 
         log_img_scale(img_scale, skip_square=True)
         self.img_scale = img_scale
@@ -2072,18 +2181,22 @@ class Mosaic:
             mosaic_img = np.full(
                 (int(self.img_scale[0] * 2), int(self.img_scale[1] * 2), 3),
                 self.pad_val,
-                dtype=results['img'].dtype)
+                dtype=results['img'].dtype,
+            )
         else:
             mosaic_img = np.full(
                 (int(self.img_scale[0] * 2), int(self.img_scale[1] * 2)),
                 self.pad_val,
-                dtype=results['img'].dtype)
+                dtype=results['img'].dtype,
+            )
 
         # mosaic center x, y
         center_x = int(
-            random.uniform(*self.center_ratio_range) * self.img_scale[1])
+            random.uniform(*self.center_ratio_range) * self.img_scale[1],
+        )
         center_y = int(
-            random.uniform(*self.center_ratio_range) * self.img_scale[0])
+            random.uniform(*self.center_ratio_range) * self.img_scale[0],
+        )
         center_position = (center_x, center_y)
 
         loc_strs = ('top_left', 'top_right', 'bottom_left', 'bottom_right')
@@ -2096,14 +2209,21 @@ class Mosaic:
             img_i = results_patch['img']
             h_i, w_i = img_i.shape[:2]
             # keep_ratio resize
-            scale_ratio_i = min(self.img_scale[0] / h_i,
-                                self.img_scale[1] / w_i)
+            scale_ratio_i = min(
+                self.img_scale[0] / h_i,
+                self.img_scale[1] / w_i,
+            )
             img_i = mmcv.imresize(
-                img_i, (int(w_i * scale_ratio_i), int(h_i * scale_ratio_i)))
+                img_i,
+                (int(w_i * scale_ratio_i), int(h_i * scale_ratio_i)),
+            )
 
             # compute the combine parameters
             paste_coord, crop_coord = self._mosaic_combine(
-                loc, center_position, img_i.shape[:2][::-1])
+                loc,
+                center_position,
+                img_i.shape[:2][::-1],
+            )
             x1_p, y1_p, x2_p, y2_p = paste_coord
             x1_c, y1_c, x2_c, y2_c = crop_coord
 
@@ -2117,10 +2237,8 @@ class Mosaic:
             if gt_bboxes_i.shape[0] > 0:
                 padw = x1_p - x1_c
                 padh = y1_p - y1_c
-                gt_bboxes_i[:, 0::2] = \
-                    scale_ratio_i * gt_bboxes_i[:, 0::2] + padw
-                gt_bboxes_i[:, 1::2] = \
-                    scale_ratio_i * gt_bboxes_i[:, 1::2] + padh
+                gt_bboxes_i[:, 0::2] = scale_ratio_i * gt_bboxes_i[:, 0::2] + padw
+                gt_bboxes_i[:, 1::2] = scale_ratio_i * gt_bboxes_i[:, 1::2] + padh
 
             mosaic_bboxes.append(gt_bboxes_i)
             mosaic_labels.append(gt_labels_i)
@@ -2130,18 +2248,29 @@ class Mosaic:
             mosaic_labels = np.concatenate(mosaic_labels, 0)
 
             if self.bbox_clip_border:
-                mosaic_bboxes[:, 0::2] = np.clip(mosaic_bboxes[:, 0::2], 0,
-                                                 2 * self.img_scale[1])
-                mosaic_bboxes[:, 1::2] = np.clip(mosaic_bboxes[:, 1::2], 0,
-                                                 2 * self.img_scale[0])
+                mosaic_bboxes[:, 0::2] = np.clip(
+                    mosaic_bboxes[:, 0::2],
+                    0,
+                    2 * self.img_scale[1],
+                )
+                mosaic_bboxes[:, 1::2] = np.clip(
+                    mosaic_bboxes[:, 1::2],
+                    0,
+                    2 * self.img_scale[0],
+                )
 
             if not self.skip_filter:
-                mosaic_bboxes, mosaic_labels = \
-                    self._filter_box_candidates(mosaic_bboxes, mosaic_labels)
+                mosaic_bboxes, mosaic_labels = self._filter_box_candidates(
+                    mosaic_bboxes,
+                    mosaic_labels,
+                )
 
         # remove outside bboxes
-        inside_inds = find_inside_bboxes(mosaic_bboxes, 2 * self.img_scale[0],
-                                         2 * self.img_scale[1])
+        inside_inds = find_inside_bboxes(
+            mosaic_bboxes,
+            2 * self.img_scale[0],
+            2 * self.img_scale[1],
+        )
         mosaic_bboxes = mosaic_bboxes[inside_inds]
         mosaic_labels = mosaic_labels[inside_inds]
 
@@ -2172,43 +2301,84 @@ class Mosaic:
         assert loc in ('top_left', 'top_right', 'bottom_left', 'bottom_right')
         if loc == 'top_left':
             # index0 to top left part of image
-            x1, y1, x2, y2 = max(center_position_xy[0] - img_shape_wh[0], 0), \
-                             max(center_position_xy[1] - img_shape_wh[1], 0), \
-                             center_position_xy[0], \
-                             center_position_xy[1]
-            crop_coord = img_shape_wh[0] - (x2 - x1), img_shape_wh[1] - (
-                y2 - y1), img_shape_wh[0], img_shape_wh[1]
+            x1, y1, x2, y2 = (
+                max(center_position_xy[0] - img_shape_wh[0], 0),
+                max(center_position_xy[1] - img_shape_wh[1], 0),
+                center_position_xy[0],
+                center_position_xy[1],
+            )
+            crop_coord = (
+                img_shape_wh[0] - (x2 - x1),
+                img_shape_wh[1] - (y2 - y1),
+                img_shape_wh[0],
+                img_shape_wh[1],
+            )
 
         elif loc == 'top_right':
             # index1 to top right part of image
-            x1, y1, x2, y2 = center_position_xy[0], \
-                             max(center_position_xy[1] - img_shape_wh[1], 0), \
-                             min(center_position_xy[0] + img_shape_wh[0],
-                                 self.img_scale[1] * 2), \
-                             center_position_xy[1]
-            crop_coord = 0, img_shape_wh[1] - (y2 - y1), min(
-                img_shape_wh[0], x2 - x1), img_shape_wh[1]
+            x1, y1, x2, y2 = (
+                center_position_xy[0],
+                max(center_position_xy[1] - img_shape_wh[1], 0),
+                min(
+                    center_position_xy[0] + img_shape_wh[0],
+                    self.img_scale[1] * 2,
+                ),
+                center_position_xy[1],
+            )
+            crop_coord = (
+                0,
+                img_shape_wh[1] - (y2 - y1),
+                min(
+                    img_shape_wh[0],
+                    x2 - x1,
+                ),
+                img_shape_wh[1],
+            )
 
         elif loc == 'bottom_left':
             # index2 to bottom left part of image
-            x1, y1, x2, y2 = max(center_position_xy[0] - img_shape_wh[0], 0), \
-                             center_position_xy[1], \
-                             center_position_xy[0], \
-                             min(self.img_scale[0] * 2, center_position_xy[1] +
-                                 img_shape_wh[1])
-            crop_coord = img_shape_wh[0] - (x2 - x1), 0, img_shape_wh[0], min(
-                y2 - y1, img_shape_wh[1])
+            x1, y1, x2, y2 = (
+                max(center_position_xy[0] - img_shape_wh[0], 0),
+                center_position_xy[1],
+                center_position_xy[0],
+                min(
+                    self.img_scale[0] * 2,
+                    center_position_xy[1] + img_shape_wh[1],
+                ),
+            )
+            crop_coord = (
+                img_shape_wh[0] - (x2 - x1),
+                0,
+                img_shape_wh[0],
+                min(
+                    y2 - y1,
+                    img_shape_wh[1],
+                ),
+            )
 
         else:
             # index3 to bottom right part of image
-            x1, y1, x2, y2 = center_position_xy[0], \
-                             center_position_xy[1], \
-                             min(center_position_xy[0] + img_shape_wh[0],
-                                 self.img_scale[1] * 2), \
-                             min(self.img_scale[0] * 2, center_position_xy[1] +
-                                 img_shape_wh[1])
-            crop_coord = 0, 0, min(img_shape_wh[0],
-                                   x2 - x1), min(y2 - y1, img_shape_wh[1])
+            x1, y1, x2, y2 = (
+                center_position_xy[0],
+                center_position_xy[1],
+                min(
+                    center_position_xy[0] + img_shape_wh[0],
+                    self.img_scale[1] * 2,
+                ),
+                min(
+                    self.img_scale[0] * 2,
+                    center_position_xy[1] + img_shape_wh[1],
+                ),
+            )
+            crop_coord = (
+                0,
+                0,
+                min(
+                    img_shape_wh[0],
+                    x2 - x1,
+                ),
+                min(y2 - y1, img_shape_wh[1]),
+            )
 
         paste_coord = x1, y1, x2, y2
         return paste_coord, crop_coord
@@ -2217,8 +2387,7 @@ class Mosaic:
         """Filter out bboxes too small after Mosaic."""
         bbox_w = bboxes[:, 2] - bboxes[:, 0]
         bbox_h = bboxes[:, 3] - bboxes[:, 1]
-        valid_inds = (bbox_w > self.min_bbox_size) & \
-                     (bbox_h > self.min_bbox_size)
+        valid_inds = (bbox_w > self.min_bbox_size) & (bbox_h > self.min_bbox_size)
         valid_inds = np.nonzero(valid_inds)[0]
         return bboxes[valid_inds], labels[valid_inds]
 
@@ -2289,17 +2458,19 @@ class MixUp:
             is invalid. Default to True.
     """
 
-    def __init__(self,
-                 img_scale=(640, 640),
-                 ratio_range=(0.5, 1.5),
-                 flip_ratio=0.5,
-                 pad_val=114,
-                 max_iters=15,
-                 min_bbox_size=5,
-                 min_area_ratio=0.2,
-                 max_aspect_ratio=20,
-                 bbox_clip_border=True,
-                 skip_filter=True):
+    def __init__(
+        self,
+        img_scale=(640, 640),
+        ratio_range=(0.5, 1.5),
+        flip_ratio=0.5,
+        pad_val=114,
+        max_iters=15,
+        min_bbox_size=5,
+        min_area_ratio=0.2,
+        max_aspect_ratio=20,
+        bbox_clip_border=True,
+        skip_filter=True,
+    ):
         assert isinstance(img_scale, tuple)
         log_img_scale(img_scale, skip_square=True)
         self.dynamic_scale = img_scale
@@ -2355,8 +2526,12 @@ class MixUp:
         """
 
         assert 'mix_results' in results
-        assert len(
-            results['mix_results']) == 1, 'MixUp only support 2 images now !'
+        assert (
+            len(
+                results['mix_results'],
+            )
+            == 1
+        ), 'MixUp only support 2 images now !'
 
         if results['mix_results'][0]['gt_bboxes'].shape[0] == 0:
             # empty bbox
@@ -2369,27 +2544,47 @@ class MixUp:
         is_filp = random.uniform(0, 1) < self.flip_ratio
 
         if len(retrieve_img.shape) == 3:
-            out_img = np.ones(
-                (self.dynamic_scale[0], self.dynamic_scale[1], 3),
-                dtype=retrieve_img.dtype) * self.pad_val
+            out_img = (
+                np.ones(
+                    (self.dynamic_scale[0], self.dynamic_scale[1], 3),
+                    dtype=retrieve_img.dtype,
+                )
+                * self.pad_val
+            )
         else:
-            out_img = np.ones(
-                self.dynamic_scale, dtype=retrieve_img.dtype) * self.pad_val
+            out_img = (
+                np.ones(
+                    self.dynamic_scale,
+                    dtype=retrieve_img.dtype,
+                )
+                * self.pad_val
+            )
 
         # 1. keep_ratio resize
-        scale_ratio = min(self.dynamic_scale[0] / retrieve_img.shape[0],
-                          self.dynamic_scale[1] / retrieve_img.shape[1])
+        scale_ratio = min(
+            self.dynamic_scale[0] / retrieve_img.shape[0],
+            self.dynamic_scale[1] / retrieve_img.shape[1],
+        )
         retrieve_img = mmcv.imresize(
-            retrieve_img, (int(retrieve_img.shape[1] * scale_ratio),
-                           int(retrieve_img.shape[0] * scale_ratio)))
+            retrieve_img,
+            (
+                int(retrieve_img.shape[1] * scale_ratio),
+                int(retrieve_img.shape[0] * scale_ratio),
+            ),
+        )
 
         # 2. paste
-        out_img[:retrieve_img.shape[0], :retrieve_img.shape[1]] = retrieve_img
+        out_img[: retrieve_img.shape[0], : retrieve_img.shape[1]] = retrieve_img
 
         # 3. scale jit
         scale_ratio *= jit_factor
-        out_img = mmcv.imresize(out_img, (int(out_img.shape[1] * jit_factor),
-                                          int(out_img.shape[0] * jit_factor)))
+        out_img = mmcv.imresize(
+            out_img,
+            (
+                int(out_img.shape[1] * jit_factor),
+                int(out_img.shape[0] * jit_factor),
+            ),
+        )
 
         # 4. flip
         if is_filp:
@@ -2400,8 +2595,15 @@ class MixUp:
         origin_h, origin_w = out_img.shape[:2]
         target_h, target_w = ori_img.shape[:2]
         padded_img = np.zeros(
-            (max(origin_h, target_h), max(origin_w,
-                                          target_w), 3)).astype(np.uint8)
+            (
+                max(origin_h, target_h),
+                max(
+                    origin_w,
+                    target_w,
+                ),
+                3,
+            ),
+        ).astype(np.uint8)
         padded_img[:origin_h, :origin_w] = out_img
 
         x_offset, y_offset = 0, 0
@@ -2409,34 +2611,44 @@ class MixUp:
             y_offset = random.randint(0, padded_img.shape[0] - target_h)
         if padded_img.shape[1] > target_w:
             x_offset = random.randint(0, padded_img.shape[1] - target_w)
-        padded_cropped_img = padded_img[y_offset:y_offset + target_h,
-                                        x_offset:x_offset + target_w]
+        padded_cropped_img = padded_img[
+            y_offset : y_offset + target_h, x_offset : x_offset + target_w
+        ]
 
         # 6. adjust bbox
         retrieve_gt_bboxes = retrieve_results['gt_bboxes']
         retrieve_gt_bboxes[:, 0::2] = retrieve_gt_bboxes[:, 0::2] * scale_ratio
         retrieve_gt_bboxes[:, 1::2] = retrieve_gt_bboxes[:, 1::2] * scale_ratio
         if self.bbox_clip_border:
-            retrieve_gt_bboxes[:, 0::2] = np.clip(retrieve_gt_bboxes[:, 0::2],
-                                                  0, origin_w)
-            retrieve_gt_bboxes[:, 1::2] = np.clip(retrieve_gt_bboxes[:, 1::2],
-                                                  0, origin_h)
+            retrieve_gt_bboxes[:, 0::2] = np.clip(
+                retrieve_gt_bboxes[:, 0::2],
+                0,
+                origin_w,
+            )
+            retrieve_gt_bboxes[:, 1::2] = np.clip(
+                retrieve_gt_bboxes[:, 1::2],
+                0,
+                origin_h,
+            )
 
         if is_filp:
-            retrieve_gt_bboxes[:, 0::2] = (
-                origin_w - retrieve_gt_bboxes[:, 0::2][:, ::-1])
+            retrieve_gt_bboxes[:, 0::2] = origin_w - retrieve_gt_bboxes[:, 0::2][:, ::-1]
 
         # 7. filter
         cp_retrieve_gt_bboxes = retrieve_gt_bboxes.copy()
-        cp_retrieve_gt_bboxes[:, 0::2] = \
-            cp_retrieve_gt_bboxes[:, 0::2] - x_offset
-        cp_retrieve_gt_bboxes[:, 1::2] = \
-            cp_retrieve_gt_bboxes[:, 1::2] - y_offset
+        cp_retrieve_gt_bboxes[:, 0::2] = cp_retrieve_gt_bboxes[:, 0::2] - x_offset
+        cp_retrieve_gt_bboxes[:, 1::2] = cp_retrieve_gt_bboxes[:, 1::2] - y_offset
         if self.bbox_clip_border:
             cp_retrieve_gt_bboxes[:, 0::2] = np.clip(
-                cp_retrieve_gt_bboxes[:, 0::2], 0, target_w)
+                cp_retrieve_gt_bboxes[:, 0::2],
+                0,
+                target_w,
+            )
             cp_retrieve_gt_bboxes[:, 1::2] = np.clip(
-                cp_retrieve_gt_bboxes[:, 1::2], 0, target_h)
+                cp_retrieve_gt_bboxes[:, 1::2],
+                0,
+                target_h,
+            )
 
         # 8. mix up
         ori_img = ori_img.astype(np.float32)
@@ -2444,16 +2656,22 @@ class MixUp:
 
         retrieve_gt_labels = retrieve_results['gt_labels']
         if not self.skip_filter:
-            keep_list = self._filter_box_candidates(retrieve_gt_bboxes.T,
-                                                    cp_retrieve_gt_bboxes.T)
+            keep_list = self._filter_box_candidates(
+                retrieve_gt_bboxes.T,
+                cp_retrieve_gt_bboxes.T,
+            )
 
             retrieve_gt_labels = retrieve_gt_labels[keep_list]
             cp_retrieve_gt_bboxes = cp_retrieve_gt_bboxes[keep_list]
 
         mixup_gt_bboxes = np.concatenate(
-            (results['gt_bboxes'], cp_retrieve_gt_bboxes), axis=0)
+            (results['gt_bboxes'], cp_retrieve_gt_bboxes),
+            axis=0,
+        )
         mixup_gt_labels = np.concatenate(
-            (results['gt_labels'], retrieve_gt_labels), axis=0)
+            (results['gt_labels'], retrieve_gt_labels),
+            axis=0,
+        )
 
         # remove outside bbox
         inside_inds = find_inside_bboxes(mixup_gt_bboxes, target_h, target_w)
@@ -2477,10 +2695,12 @@ class MixUp:
         w1, h1 = bbox1[2] - bbox1[0], bbox1[3] - bbox1[1]
         w2, h2 = bbox2[2] - bbox2[0], bbox2[3] - bbox2[1]
         ar = np.maximum(w2 / (h2 + 1e-16), h2 / (w2 + 1e-16))
-        return ((w2 > self.min_bbox_size)
-                & (h2 > self.min_bbox_size)
-                & (w2 * h2 / (w1 * h1 + 1e-16) > self.min_area_ratio)
-                & (ar < self.max_aspect_ratio))
+        return (
+            (w2 > self.min_bbox_size)
+            & (h2 > self.min_bbox_size)
+            & (w2 * h2 / (w1 * h1 + 1e-16) > self.min_area_ratio)
+            & (ar < self.max_aspect_ratio)
+        )
 
     def __repr__(self):
         repr_str = self.__class__.__name__
@@ -2536,18 +2756,20 @@ class RandomAffine:
             is invalid. Default to True.
     """
 
-    def __init__(self,
-                 max_rotate_degree=10.0,
-                 max_translate_ratio=0.1,
-                 scaling_ratio_range=(0.5, 1.5),
-                 max_shear_degree=2.0,
-                 border=(0, 0),
-                 border_val=(114, 114, 114),
-                 min_bbox_size=2,
-                 min_area_ratio=0.2,
-                 max_aspect_ratio=20,
-                 bbox_clip_border=True,
-                 skip_filter=True):
+    def __init__(
+        self,
+        max_rotate_degree=10.0,
+        max_translate_ratio=0.1,
+        scaling_ratio_range=(0.5, 1.5),
+        max_shear_degree=2.0,
+        border=(0, 0),
+        border_val=(114, 114, 114),
+        min_bbox_size=2,
+        min_area_ratio=0.2,
+        max_aspect_ratio=20,
+        bbox_clip_border=True,
+        skip_filter=True,
+    ):
         assert 0 <= max_translate_ratio <= 1
         assert scaling_ratio_range[0] <= scaling_ratio_range[1]
         assert scaling_ratio_range[0] > 0
@@ -2569,37 +2791,55 @@ class RandomAffine:
         width = img.shape[1] + self.border[1] * 2
 
         # Rotation
-        rotation_degree = random.uniform(-self.max_rotate_degree,
-                                         self.max_rotate_degree)
+        rotation_degree = random.uniform(
+            -self.max_rotate_degree,
+            self.max_rotate_degree,
+        )
         rotation_matrix = self._get_rotation_matrix(rotation_degree)
 
         # Scaling
-        scaling_ratio = random.uniform(self.scaling_ratio_range[0],
-                                       self.scaling_ratio_range[1])
+        scaling_ratio = random.uniform(
+            self.scaling_ratio_range[0],
+            self.scaling_ratio_range[1],
+        )
         scaling_matrix = self._get_scaling_matrix(scaling_ratio)
 
         # Shear
-        x_degree = random.uniform(-self.max_shear_degree,
-                                  self.max_shear_degree)
-        y_degree = random.uniform(-self.max_shear_degree,
-                                  self.max_shear_degree)
+        x_degree = random.uniform(
+            -self.max_shear_degree,
+            self.max_shear_degree,
+        )
+        y_degree = random.uniform(
+            -self.max_shear_degree,
+            self.max_shear_degree,
+        )
         shear_matrix = self._get_shear_matrix(x_degree, y_degree)
 
         # Translation
-        trans_x = random.uniform(-self.max_translate_ratio,
-                                 self.max_translate_ratio) * width
-        trans_y = random.uniform(-self.max_translate_ratio,
-                                 self.max_translate_ratio) * height
+        trans_x = (
+            random.uniform(
+                -self.max_translate_ratio,
+                self.max_translate_ratio,
+            )
+            * width
+        )
+        trans_y = (
+            random.uniform(
+                -self.max_translate_ratio,
+                self.max_translate_ratio,
+            )
+            * height
+        )
         translate_matrix = self._get_translation_matrix(trans_x, trans_y)
 
-        warp_matrix = (
-            translate_matrix @ shear_matrix @ rotation_matrix @ scaling_matrix)
+        warp_matrix = translate_matrix @ shear_matrix @ rotation_matrix @ scaling_matrix
 
         img = cv2.warpPerspective(
             img,
             warp_matrix,
             dsize=(width, height),
-            borderValue=self.border_val)
+            borderValue=self.border_val,
+        )
         results['img'] = img
         results['img_shape'] = img.shape
 
@@ -2619,31 +2859,32 @@ class RandomAffine:
                 ys = warp_points[1].reshape(num_bboxes, 4)
 
                 warp_bboxes = np.vstack(
-                    (xs.min(1), ys.min(1), xs.max(1), ys.max(1))).T
+                    (xs.min(1), ys.min(1), xs.max(1), ys.max(1)),
+                ).T
 
                 if self.bbox_clip_border:
-                    warp_bboxes[:, [0, 2]] = \
-                        warp_bboxes[:, [0, 2]].clip(0, width)
-                    warp_bboxes[:, [1, 3]] = \
-                        warp_bboxes[:, [1, 3]].clip(0, height)
+                    warp_bboxes[:, [0, 2]] = warp_bboxes[:, [0, 2]].clip(0, width)
+                    warp_bboxes[:, [1, 3]] = warp_bboxes[:, [1, 3]].clip(0, height)
 
                 # remove outside bbox
                 valid_index = find_inside_bboxes(warp_bboxes, height, width)
                 if not self.skip_filter:
                     # filter bboxes
                     filter_index = self.filter_gt_bboxes(
-                        bboxes * scaling_ratio, warp_bboxes)
+                        bboxes * scaling_ratio,
+                        warp_bboxes,
+                    )
                     valid_index = valid_index & filter_index
 
                 results[key] = warp_bboxes[valid_index]
                 if key in ['gt_bboxes']:
                     if 'gt_labels' in results:
-                        results['gt_labels'] = results['gt_labels'][
-                            valid_index]
+                        results['gt_labels'] = results['gt_labels'][valid_index]
 
                 if 'gt_masks' in results:
                     raise NotImplementedError(
-                        'RandomAffine only supports bbox.')
+                        'RandomAffine only supports bbox.',
+                    )
         return results
 
     def filter_gt_bboxes(self, origin_bboxes, wrapped_bboxes):
@@ -2651,13 +2892,13 @@ class RandomAffine:
         origin_h = origin_bboxes[:, 3] - origin_bboxes[:, 1]
         wrapped_w = wrapped_bboxes[:, 2] - wrapped_bboxes[:, 0]
         wrapped_h = wrapped_bboxes[:, 3] - wrapped_bboxes[:, 1]
-        aspect_ratio = np.maximum(wrapped_w / (wrapped_h + 1e-16),
-                                  wrapped_h / (wrapped_w + 1e-16))
+        aspect_ratio = np.maximum(
+            wrapped_w / (wrapped_h + 1e-16),
+            wrapped_h / (wrapped_w + 1e-16),
+        )
 
-        wh_valid_idx = (wrapped_w > self.min_bbox_size) & \
-                       (wrapped_h > self.min_bbox_size)
-        area_valid_idx = wrapped_w * wrapped_h / (origin_w * origin_h +
-                                                  1e-16) > self.min_area_ratio
+        wh_valid_idx = (wrapped_w > self.min_bbox_size) & (wrapped_h > self.min_bbox_size)
+        area_valid_idx = wrapped_w * wrapped_h / (origin_w * origin_h + 1e-16) > self.min_area_ratio
         aspect_ratio_valid_idx = aspect_ratio < self.max_aspect_ratio
         return wh_valid_idx & area_valid_idx & aspect_ratio_valid_idx
 
@@ -2679,38 +2920,51 @@ class RandomAffine:
     def _get_rotation_matrix(rotate_degrees):
         radian = math.radians(rotate_degrees)
         rotation_matrix = np.array(
-            [[np.cos(radian), -np.sin(radian), 0.],
-             [np.sin(radian), np.cos(radian), 0.], [0., 0., 1.]],
-            dtype=np.float32)
+            [
+                [np.cos(radian), -np.sin(radian), 0.0],
+                [np.sin(radian), np.cos(radian), 0.0],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
         return rotation_matrix
 
     @staticmethod
     def _get_scaling_matrix(scale_ratio):
         scaling_matrix = np.array(
-            [[scale_ratio, 0., 0.], [0., scale_ratio, 0.], [0., 0., 1.]],
-            dtype=np.float32)
+            [[scale_ratio, 0.0, 0.0], [0.0, scale_ratio, 0.0], [0.0, 0.0, 1.0]],
+            dtype=np.float32,
+        )
         return scaling_matrix
 
     @staticmethod
     def _get_share_matrix(scale_ratio):
         scaling_matrix = np.array(
-            [[scale_ratio, 0., 0.], [0., scale_ratio, 0.], [0., 0., 1.]],
-            dtype=np.float32)
+            [[scale_ratio, 0.0, 0.0], [0.0, scale_ratio, 0.0], [0.0, 0.0, 1.0]],
+            dtype=np.float32,
+        )
         return scaling_matrix
 
     @staticmethod
     def _get_shear_matrix(x_shear_degrees, y_shear_degrees):
         x_radian = math.radians(x_shear_degrees)
         y_radian = math.radians(y_shear_degrees)
-        shear_matrix = np.array([[1, np.tan(x_radian), 0.],
-                                 [np.tan(y_radian), 1, 0.], [0., 0., 1.]],
-                                dtype=np.float32)
+        shear_matrix = np.array(
+            [
+                [1, np.tan(x_radian), 0.0],
+                [np.tan(y_radian), 1, 0.0],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
         return shear_matrix
 
     @staticmethod
     def _get_translation_matrix(x, y):
-        translation_matrix = np.array([[1, 0., x], [0., 1, y], [0., 0., 1.]],
-                                      dtype=np.float32)
+        translation_matrix = np.array(
+            [[1, 0.0, x], [0.0, 1, y], [0.0, 0.0, 1.0]],
+            dtype=np.float32,
+        )
         return translation_matrix
 
 
@@ -2734,7 +2988,9 @@ class YOLOXHSVRandomAug:
     def __call__(self, results):
         img = results['img']
         hsv_gains = np.random.uniform(-1, 1, 3) * [
-            self.hue_delta, self.saturation_delta, self.value_delta
+            self.hue_delta,
+            self.saturation_delta,
+            self.value_delta,
         ]
         # random selection of h, s, v
         hsv_gains *= np.random.randint(0, 2, 3)
@@ -2829,9 +3085,7 @@ class CopyPaste:
         xmax, ymax = bboxes[:, 2:3], bboxes[:, 3:4]
         gt_masks = np.zeros((len(bboxes), img_h, img_w), dtype=np.uint8)
         for i in range(len(bboxes)):
-            gt_masks[i,
-                     int(ymin[i]):int(ymax[i]),
-                     int(xmin[i]):int(xmax[i])] = 1
+            gt_masks[i, int(ymin[i]) : int(ymax[i]), int(xmin[i]) : int(xmax[i])] = 1
         return BitmapMasks(gt_masks, img_h, img_w)
 
     def get_gt_masks(self, results):
@@ -2848,7 +3102,9 @@ class CopyPaste:
             return results['gt_masks']
         else:
             return self.gen_masks_from_bboxes(
-                results.get('gt_bboxes', []), results['img'].shape)
+                results.get('gt_bboxes', []),
+                results['img'].shape,
+            )
 
     def __call__(self, results):
         """Call function to make a copy-paste of image.
@@ -2861,14 +3117,14 @@ class CopyPaste:
 
         assert 'mix_results' in results
         num_images = len(results['mix_results'])
-        assert num_images == 1, \
-            f'CopyPaste only supports processing 2 images, got {num_images}'
+        assert num_images == 1, f'CopyPaste only supports processing 2 images, got {num_images}'
 
         # Get gt_masks originally or generated based on bboxes.
         results['gt_masks'] = self.get_gt_masks(results)
         # only one mix picture
         results['mix_results'][0]['gt_masks'] = self.get_gt_masks(
-            results['mix_results'][0])
+            results['mix_results'][0],
+        )
 
         if self.selected:
             selected_results = self._select_object(results['mix_results'][0])
@@ -2884,7 +3140,10 @@ class CopyPaste:
         max_num_pasted = min(bboxes.shape[0] + 1, self.max_num_pasted)
         num_pasted = np.random.randint(0, max_num_pasted)
         selected_inds = np.random.choice(
-            bboxes.shape[0], size=num_pasted, replace=False)
+            bboxes.shape[0],
+            size=num_pasted,
+            replace=False,
+        )
 
         selected_bboxes = bboxes[selected_inds]
         selected_labels = labels[selected_inds]
@@ -2928,19 +3187,29 @@ class CopyPaste:
         # filter totally occluded objects
         bboxes_inds = np.all(
             np.abs(
-                (updated_dst_bboxes - dst_bboxes)) <= self.bbox_occluded_thr,
-            axis=-1)
-        masks_inds = updated_dst_masks.masks.sum(
-            axis=(1, 2)) > self.mask_occluded_thr
+                (updated_dst_bboxes - dst_bboxes),
+            )
+            <= self.bbox_occluded_thr,
+            axis=-1,
+        )
+        masks_inds = (
+            updated_dst_masks.masks.sum(
+                axis=(1, 2),
+            )
+            > self.mask_occluded_thr
+        )
         valid_inds = bboxes_inds | masks_inds
 
         # Paste source objects to destination image directly
-        img = dst_img * (1 - composed_mask[..., np.newaxis]
-                         ) + src_img * composed_mask[..., np.newaxis]
+        img = (
+            dst_img * (1 - composed_mask[..., np.newaxis])
+            + src_img * composed_mask[..., np.newaxis]
+        )
         bboxes = np.concatenate([updated_dst_bboxes[valid_inds], src_bboxes])
         labels = np.concatenate([dst_labels[valid_inds], src_labels])
         masks = np.concatenate(
-            [updated_dst_masks.masks[valid_inds], src_masks.masks])
+            [updated_dst_masks.masks[valid_inds], src_masks.masks],
+        )
 
         dst_results['img'] = img
         dst_results['gt_bboxes'] = bboxes
@@ -2948,14 +3217,18 @@ class CopyPaste:
         if self.paste_by_box:
             dst_results.pop('gt_masks')
         else:
-            dst_results['gt_masks'] = BitmapMasks(masks, masks.shape[1],
-                                                  masks.shape[2])
+            dst_results['gt_masks'] = BitmapMasks(
+                masks,
+                masks.shape[1],
+                masks.shape[2],
+            )
 
         return dst_results
 
     def get_updated_masks(self, masks, composed_mask):
-        assert masks.masks.shape[-2:] == composed_mask.shape[-2:], \
-            'Cannot compare two arrays of different size'
+        assert (
+            masks.masks.shape[-2:] == composed_mask.shape[-2:]
+        ), 'Cannot compare two arrays of different size'
         masks.masks = np.where(composed_mask, 0, masks.masks)
         return masks
 

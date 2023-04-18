@@ -1,14 +1,16 @@
 _base_ = [
     '../_base_/models/cascade_rcnn_r50_fpn.py',
     '../_base_/datasets/coco_detection.py',
-    '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
+    '../_base_/schedules/schedule_1x.py',
+    '../_base_/default_runtime.py',
 ]
 
 model = dict(
     backbone=dict(
         type='DetectoRS_ResNet',
         conv_cfg=dict(type='ConvAWS'),
-        output_img=True),
+        output_img=True,
+    ),
     neck=dict(
         type='RFP',
         rfp_steps=2,
@@ -25,4 +27,7 @@ model = dict(
             norm_eval=True,
             conv_cfg=dict(type='ConvAWS'),
             pretrained='torchvision://resnet50',
-            style='pytorch')))
+            style='pytorch',
+        ),
+    ),
+)

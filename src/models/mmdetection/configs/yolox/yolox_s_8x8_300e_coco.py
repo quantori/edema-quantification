@@ -13,13 +13,19 @@ model = dict(
         type='YOLOXPAFPN',
         in_channels=[128, 256, 512],
         out_channels=128,
-        num_csp_blocks=1),
+        num_csp_blocks=1,
+    ),
     bbox_head=dict(
-        type='YOLOXHead', num_classes=80, in_channels=128, feat_channels=128),
+        type='YOLOXHead',
+        num_classes=80,
+        in_channels=128,
+        feat_channels=128,
+    ),
     train_cfg=dict(assigner=dict(type='SimOTAAssigner', center_radius=2.5)),
     # In order to align the source code, the threshold of the val phase is
     # 0.01, and the threshold of the test phase is 0.001.
-    test_cfg=dict(score_thr=0.01, nms=dict(type='nms', iou_threshold=0.65)))
+    test_cfg=dict(score_thr=0.01, nms=dict(type='nms', iou_threshold=0.65)),
+)
 
 # dataset settings
 data_root = 'data/coco/'
@@ -30,12 +36,14 @@ train_pipeline = [
     dict(
         type='RandomAffine',
         scaling_ratio_range=(0.1, 2),
-        border=(-img_scale[0] // 2, -img_scale[1] // 2)),
+        border=(-img_scale[0] // 2, -img_scale[1] // 2),
+    ),
     dict(
         type='MixUp',
         img_scale=img_scale,
         ratio_range=(0.8, 1.6),
-        pad_val=114.0),
+        pad_val=114.0,
+    ),
     dict(type='YOLOXHSVRandomAug'),
     dict(type='RandomFlip', flip_ratio=0.5),
     # According to the official implementation, multi-scale
@@ -47,10 +55,11 @@ train_pipeline = [
         pad_to_square=True,
         # If the image is three-channel, the pad value needs
         # to be set separately for each channel.
-        pad_val=dict(img=(114.0, 114.0, 114.0))),
+        pad_val=dict(img=(114.0, 114.0, 114.0)),
+    ),
     dict(type='FilterAnnotations', min_gt_bbox_wh=(1, 1), keep_empty=False),
     dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
 ]
 
 train_dataset = dict(
@@ -61,11 +70,12 @@ train_dataset = dict(
         img_prefix=data_root + 'train2017/',
         pipeline=[
             dict(type='LoadImageFromFile'),
-            dict(type='LoadAnnotations', with_bbox=True)
+            dict(type='LoadAnnotations', with_bbox=True),
         ],
         filter_empty_gt=False,
     ),
-    pipeline=train_pipeline)
+    pipeline=train_pipeline,
+)
 
 test_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -79,10 +89,12 @@ test_pipeline = [
             dict(
                 type='Pad',
                 pad_to_square=True,
-                pad_val=dict(img=(114.0, 114.0, 114.0))),
+                pad_val=dict(img=(114.0, 114.0, 114.0)),
+            ),
             dict(type='DefaultFormatBundle'),
-            dict(type='Collect', keys=['img'])
-        ])
+            dict(type='Collect', keys=['img']),
+        ],
+    ),
 ]
 
 data = dict(
@@ -94,12 +106,15 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+    ),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+    ),
+)
 
 # optimizer
 # default 8 gpu
@@ -109,7 +124,8 @@ optimizer = dict(
     momentum=0.9,
     weight_decay=5e-4,
     nesterov=True,
-    paramwise_cfg=dict(norm_decay_mult=0., bias_decay_mult=0.))
+    paramwise_cfg=dict(norm_decay_mult=0.0, bias_decay_mult=0.0),
+)
 optimizer_config = dict(grad_clip=None)
 
 max_epochs = 300
@@ -127,7 +143,8 @@ lr_config = dict(
     warmup_ratio=1,
     warmup_iters=5,  # 5 epoch
     num_last_epochs=num_last_epochs,
-    min_lr_ratio=0.05)
+    min_lr_ratio=0.05,
+)
 
 runner = dict(type='EpochBasedRunner', max_epochs=max_epochs)
 
@@ -135,17 +152,20 @@ custom_hooks = [
     dict(
         type='YOLOXModeSwitchHook',
         num_last_epochs=num_last_epochs,
-        priority=48),
+        priority=48,
+    ),
     dict(
         type='SyncNormHook',
         num_last_epochs=num_last_epochs,
         interval=interval,
-        priority=48),
+        priority=48,
+    ),
     dict(
         type='ExpMomentumEMAHook',
         resume_from=resume_from,
         momentum=0.0001,
-        priority=49)
+        priority=49,
+    ),
 ]
 checkpoint_config = dict(interval=interval)
 evaluation = dict(
@@ -156,7 +176,8 @@ evaluation = dict(
     # or equal to ‘max_epochs - num_last_epochs’.
     interval=interval,
     dynamic_intervals=[(max_epochs - num_last_epochs, 1)],
-    metric='bbox')
+    metric='bbox',
+)
 log_config = dict(interval=50)
 
 # NOTE: `auto_scale_lr` is for automatically scaling LR,

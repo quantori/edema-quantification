@@ -39,24 +39,29 @@ def merge_aug_proposals(aug_proposals, img_metas, cfg):
             'nms_thr has been moved to a dict named nms as '
             'iou_threshold, max_num has been renamed as max_per_img, '
             'name of original arguments and the way to specify '
-            'iou_threshold of NMS will be deprecated.')
+            'iou_threshold of NMS will be deprecated.',
+        )
     if 'nms' not in cfg:
         cfg.nms = ConfigDict(dict(type='nms', iou_threshold=cfg.nms_thr))
     if 'max_num' in cfg:
         if 'max_per_img' in cfg:
-            assert cfg.max_num == cfg.max_per_img, f'You set max_num and ' \
-                f'max_per_img at the same time, but get {cfg.max_num} ' \
-                f'and {cfg.max_per_img} respectively' \
+            assert cfg.max_num == cfg.max_per_img, (
+                f'You set max_num and '
+                f'max_per_img at the same time, but get {cfg.max_num} '
+                f'and {cfg.max_per_img} respectively'
                 f'Please delete max_num which will be deprecated.'
+            )
         else:
             cfg.max_per_img = cfg.max_num
     if 'nms_thr' in cfg:
-        assert cfg.nms.iou_threshold == cfg.nms_thr, f'You set ' \
-            f'iou_threshold in nms and ' \
-            f'nms_thr at the same time, but get ' \
-            f'{cfg.nms.iou_threshold} and {cfg.nms_thr}' \
-            f' respectively. Please delete the nms_thr ' \
+        assert cfg.nms.iou_threshold == cfg.nms_thr, (
+            f'You set '
+            f'iou_threshold in nms and '
+            f'nms_thr at the same time, but get '
+            f'{cfg.nms.iou_threshold} and {cfg.nms_thr}'
+            f' respectively. Please delete the nms_thr '
             f'which will be deprecated.'
+        )
 
     recovered_proposals = []
     for proposals, img_info in zip(aug_proposals, img_metas):
@@ -65,14 +70,20 @@ def merge_aug_proposals(aug_proposals, img_metas, cfg):
         flip = img_info['flip']
         flip_direction = img_info['flip_direction']
         _proposals = proposals.clone()
-        _proposals[:, :4] = bbox_mapping_back(_proposals[:, :4], img_shape,
-                                              scale_factor, flip,
-                                              flip_direction)
+        _proposals[:, :4] = bbox_mapping_back(
+            _proposals[:, :4],
+            img_shape,
+            scale_factor,
+            flip,
+            flip_direction,
+        )
         recovered_proposals.append(_proposals)
     aug_proposals = torch.cat(recovered_proposals, dim=0)
-    merged_proposals, _ = nms(aug_proposals[:, :4].contiguous(),
-                              aug_proposals[:, -1].contiguous(),
-                              cfg.nms.iou_threshold)
+    merged_proposals, _ = nms(
+        aug_proposals[:, :4].contiguous(),
+        aug_proposals[:, -1].contiguous(),
+        cfg.nms.iou_threshold,
+    )
     scores = merged_proposals[:, 4]
     _, order = scores.sort(0, descending=True)
     num = min(cfg.max_per_img, merged_proposals.shape[0])
@@ -99,8 +110,13 @@ def merge_aug_bboxes(aug_bboxes, aug_scores, img_metas, rcnn_test_cfg):
         scale_factor = img_info[0]['scale_factor']
         flip = img_info[0]['flip']
         flip_direction = img_info[0]['flip_direction']
-        bboxes = bbox_mapping_back(bboxes, img_shape, scale_factor, flip,
-                                   flip_direction)
+        bboxes = bbox_mapping_back(
+            bboxes,
+            img_shape,
+            scale_factor,
+            flip,
+            flip_direction,
+        )
         recovered_bboxes.append(bboxes)
     bboxes = torch.stack(recovered_bboxes).mean(dim=0)
     if aug_scores is None:
@@ -143,12 +159,16 @@ def merge_aug_masks(aug_masks, img_metas, rcnn_test_cfg, weights=None):
                 mask = mask[:, :, ::-1, :]
             else:
                 raise ValueError(
-                    f"Invalid flipping direction '{flip_direction}'")
+                    f"Invalid flipping direction '{flip_direction}'",
+                )
         recovered_masks.append(mask)
 
     if weights is None:
         merged_masks = np.mean(recovered_masks, axis=0)
     else:
         merged_masks = np.average(
-            np.array(recovered_masks), axis=0, weights=np.array(weights))
+            np.array(recovered_masks),
+            axis=0,
+            weights=np.array(weights),
+        )
     return merged_masks

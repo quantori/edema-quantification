@@ -10,7 +10,11 @@ model = dict(
         frozen_stages=1,
         style='pytorch',
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://resnext101_32x4d')))
+            type='Pretrained',
+            checkpoint='open-mmlab://resnext101_32x4d',
+        ),
+    ),
+)
 # optimizer
 optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
@@ -20,5 +24,6 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=3665,
     warmup_ratio=1.0 / 80,
-    step=[17, 23])
+    step=[17, 23],
+)
 runner = dict(type='EpochBasedRunner', max_epochs=25)

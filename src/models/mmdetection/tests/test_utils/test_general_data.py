@@ -3,7 +3,6 @@ import copy
 import numpy as np
 import pytest
 import torch
-
 from mmdet.core import GeneralData, InstanceData
 
 
@@ -15,18 +14,19 @@ def _equal(a, b):
 
 
 def test_general_data():
-
     # test init
     meta_info = dict(
         img_size=[256, 256],
         path='dadfaff',
         scale_factor=np.array([1.5, 1.5]),
-        img_shape=torch.rand(4))
+        img_shape=torch.rand(4),
+    )
 
     data = dict(
         bboxes=torch.rand(4, 4),
         labels=torch.rand(4),
-        masks=np.random.rand(4, 2, 2))
+        masks=np.random.rand(4, 2, 2),
+    )
 
     instance_data = GeneralData(meta_info=meta_info)
     assert 'img_size' in instance_data
@@ -51,7 +51,9 @@ def test_general_data():
             assert '[1.5 1.5]' in line
 
     instance_data = GeneralData(
-        meta_info=meta_info, data=dict(bboxes=torch.rand(5)))
+        meta_info=meta_info,
+        data=dict(bboxes=torch.rand(5)),
+    )
     assert 'bboxes' in instance_data
     assert len(instance_data.bboxes) == 5
 
@@ -150,6 +152,7 @@ def test_general_data():
     instance_data = GeneralData(meta_info, data=dict(bboxes=10))
     # torch 1.3 eq() can not compare str and tensor
     from mmdet import digit_version
+
     if digit_version(torch.__version__) >= [1, 4]:
         assert 'dadfaff' in instance_data.meta_info_values()
     assert len(instance_data.meta_info_values()) == len(meta_info)
@@ -281,7 +284,8 @@ def test_general_data():
 
     # test values
     assert len(list(new_instance_data.keys())) == len(
-        list(new_instance_data.values()))
+        list(new_instance_data.values()),
+    )
     mask = new_instance_data.mask
     has_flag = False
     for value in new_instance_data.values():
@@ -291,7 +295,8 @@ def test_general_data():
 
     # test items
     assert len(list(new_instance_data.keys())) == len(
-        list(new_instance_data.items()))
+        list(new_instance_data.items()),
+    )
     mask = new_instance_data.mask
     has_flag = False
     for key, value in new_instance_data.items():
@@ -414,13 +419,15 @@ def test_instance_data():
     meta_info = dict(
         img_size=(256, 256),
         path='dadfaff',
-        scale_factor=np.array([1.5, 1.5, 1, 1]))
+        scale_factor=np.array([1.5, 1.5, 1, 1]),
+    )
 
     data = dict(
         bboxes=torch.rand(4, 4),
         masks=torch.rand(4, 2, 2),
         labels=np.random.rand(4),
-        size=[(i, i) for i in range(4)])
+        size=[(i, i) for i in range(4)],
+    )
 
     # test init
     instance_data = InstanceData(meta_info)
@@ -526,13 +533,12 @@ def test_instance_data():
         assert len(v) == 10
 
     # test Longtensor
-    long_tensor = torch.randint(100, (50, ))
+    long_tensor = torch.randint(100, (50,))
     long_index_instance_data = new_instance_data[long_tensor]
     assert len(long_index_instance_data) == len(long_tensor)
     for key, value in long_index_instance_data.items():
         if not isinstance(value, list):
-            assert (long_index_instance_data[key] == new_instance_data[key]
-                    [long_tensor]).all()
+            assert (long_index_instance_data[key] == new_instance_data[key][long_tensor]).all()
         else:
             len(long_tensor) == len(value)
 
@@ -542,8 +548,7 @@ def test_instance_data():
     assert len(bool_index_instance_data) == bool_tensor.sum()
     for key, value in bool_index_instance_data.items():
         if not isinstance(value, list):
-            assert (bool_index_instance_data[key] == new_instance_data[key]
-                    [bool_tensor]).all()
+            assert (bool_index_instance_data[key] == new_instance_data[key][bool_tensor]).all()
         else:
             assert len(value) == bool_tensor.sum()
 

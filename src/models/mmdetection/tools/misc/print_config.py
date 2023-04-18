@@ -3,7 +3,6 @@ import argparse
 import warnings
 
 from mmcv import Config, DictAction
-
 from mmdet.utils import replace_cfg_vals, update_data_root
 
 
@@ -16,7 +15,8 @@ def parse_args():
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
         'in xxx=yyy format will be merged into config file (deprecate), '
-        'change to --cfg-options instead.')
+        'change to --cfg-options instead.',
+    )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -26,13 +26,15 @@ def parse_args():
         'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
         'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
         'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+        'is allowed.',
+    )
     args = parser.parse_args()
 
     if args.options and args.cfg_options:
         raise ValueError(
             '--options and --cfg-options cannot be both '
-            'specified, --options is deprecated in favor of --cfg-options')
+            'specified, --options is deprecated in favor of --cfg-options',
+        )
     if args.options:
         warnings.warn('--options is deprecated in favor of --cfg-options')
         args.cfg_options = args.options

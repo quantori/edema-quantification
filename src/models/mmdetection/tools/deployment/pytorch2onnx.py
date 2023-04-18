@@ -8,36 +8,38 @@ import numpy as np
 import onnx
 import torch
 from mmcv import Config, DictAction
-
 from mmdet.core.export import build_model_from_cfg, preprocess_example_input
 from mmdet.core.export.model_wrappers import ONNXRuntimeDetector
 
 
-def pytorch2onnx(model,
-                 input_img,
-                 input_shape,
-                 normalize_cfg,
-                 opset_version=11,
-                 show=False,
-                 output_file='tmp.onnx',
-                 verify=False,
-                 test_img=None,
-                 do_simplify=False,
-                 dynamic_export=None,
-                 skip_postprocess=False):
-
+def pytorch2onnx(
+    model,
+    input_img,
+    input_shape,
+    normalize_cfg,
+    opset_version=11,
+    show=False,
+    output_file='tmp.onnx',
+    verify=False,
+    test_img=None,
+    do_simplify=False,
+    dynamic_export=None,
+    skip_postprocess=False,
+):
     input_config = {
         'input_shape': input_shape,
         'input_path': input_img,
-        'normalize_cfg': normalize_cfg
+        'normalize_cfg': normalize_cfg,
     }
     # prepare input
     one_img, one_meta = preprocess_example_input(input_config)
     img_list, img_meta_list = [one_img], [[one_meta]]
 
     if skip_postprocess:
-        warnings.warn('Not all models support export onnx without post '
-                      'process, especially two stage detectors!')
+        warnings.warn(
+            'Not all models support export onnx without post '
+            'process, especially two stage detectors!',
+        )
         model.forward = model.forward_dummy
         torch.onnx.export(
             model,
@@ -48,10 +50,12 @@ def pytorch2onnx(model,
             keep_initializers_as_inputs=True,
             do_constant_folding=True,
             verbose=show,
-            opset_version=opset_version)
+            opset_version=opset_version,
+        )
 
-        print(f'Successfully exported ONNX model without '
-              f'post process: {output_file}')
+        print(
+            f'Successfully exported ONNX model without ' f'post process: {output_file}',
+        )
         return
 
     # replace original forward function
@@ -60,7 +64,8 @@ def pytorch2onnx(model,
         model.forward,
         img_metas=img_meta_list,
         return_loss=False,
-        rescale=False)
+        rescale=False,
+    )
 
     output_names = ['dets', 'labels']
     if model.with_mask:
@@ -72,7 +77,7 @@ def pytorch2onnx(model,
             input_name: {
                 0: 'batch',
                 2: 'height',
-                3: 'width'
+                3: 'width',
             },
             'dets': {
                 0: 'batch',
@@ -97,18 +102,18 @@ def pytorch2onnx(model,
         do_constant_folding=True,
         verbose=show,
         opset_version=opset_version,
-        dynamic_axes=dynamic_axes)
+        dynamic_axes=dynamic_axes,
+    )
 
     model.forward = origin_forward
 
     if do_simplify:
         import onnxsim
-
         from mmdet import digit_version
 
         min_required_version = '0.4.0'
         assert digit_version(onnxsim.__version__) >= digit_version(
-            min_required_version
+            min_required_version,
         ), f'Requires to install onnxsim>={min_required_version}'
 
         model_opt, check_ok = onnxsim.simplify(output_file)
@@ -145,7 +150,8 @@ def pytorch2onnx(model,
                 img_list,
                 img_metas=img_meta_list,
                 return_loss=False,
-                rescale=True)[0]
+                rescale=True,
+            )[0]
 
         img_list = [_.cuda().contiguous() for _ in img_list]
         if dynamic_export:
@@ -153,7 +159,10 @@ def pytorch2onnx(model,
             img_meta_list = img_meta_list * 2
         # get onnx output
         onnx_results = onnx_model(
-            img_list, img_metas=img_meta_list, return_loss=False)[0]
+            img_list,
+            img_metas=img_meta_list,
+            return_loss=False,
+        )[0]
         # visualize predictions
         score_thr = 0.3
         if show:
@@ -168,28 +177,37 @@ def pytorch2onnx(model,
             score_thr=score_thr,
             show=True,
             win_name='PyTorch',
-            out_file=out_file_pt)
+            out_file=out_file_pt,
+        )
         onnx_model.show_result(
             show_img,
             onnx_results,
             score_thr=score_thr,
             show=True,
             win_name='ONNXRuntime',
-            out_file=out_file_ort)
+            out_file=out_file_ort,
+        )
 
         # compare a part of result
         if model.with_mask:
             compare_pairs = list(zip(onnx_results, pytorch_results))
         else:
             compare_pairs = [(onnx_results, pytorch_results)]
-        err_msg = 'The numerical values are different between Pytorch' + \
-                  ' and ONNX, but it does not necessarily mean the' + \
-                  ' exported ONNX model is problematic.'
+        err_msg = (
+            'The numerical values are different between Pytorch'
+            + ' and ONNX, but it does not necessarily mean the'
+            + ' exported ONNX model is problematic.'
+        )
         # check the numerical value
         for onnx_res, pytorch_res in compare_pairs:
             for o_res, p_res in zip(onnx_res, pytorch_res):
                 np.testing.assert_allclose(
-                    o_res, p_res, rtol=1e-03, atol=1e-05, err_msg=err_msg)
+                    o_res,
+                    p_res,
+                    rtol=1e-03,
+                    atol=1e-05,
+                    err_msg=err_msg,
+                )
         print('The numerical values are the same between Pytorch and ONNX')
 
 
@@ -208,52 +226,64 @@ def parse_normalize_cfg(test_pipeline):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Convert MMDetection models to ONNX')
+        description='Convert MMDetection models to ONNX',
+    )
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--input-img', type=str, help='Images for input')
     parser.add_argument(
         '--show',
         action='store_true',
-        help='Show onnx graph and detection outputs')
+        help='Show onnx graph and detection outputs',
+    )
     parser.add_argument('--output-file', type=str, default='tmp.onnx')
     parser.add_argument('--opset-version', type=int, default=11)
     parser.add_argument(
-        '--test-img', type=str, default=None, help='Images for test')
+        '--test-img',
+        type=str,
+        default=None,
+        help='Images for test',
+    )
     parser.add_argument(
         '--dataset',
         type=str,
         default='coco',
         help='Dataset name. This argument is deprecated and will be removed \
-        in future releases.')
+        in future releases.',
+    )
     parser.add_argument(
         '--verify',
         action='store_true',
-        help='verify the onnx model output against pytorch output')
+        help='verify the onnx model output against pytorch output',
+    )
     parser.add_argument(
         '--simplify',
         action='store_true',
-        help='Whether to simplify onnx model.')
+        help='Whether to simplify onnx model.',
+    )
     parser.add_argument(
         '--shape',
         type=int,
         nargs='+',
         default=[800, 1216],
-        help='input image size')
+        help='input image size',
+    )
     parser.add_argument(
         '--mean',
         type=float,
         nargs='+',
         default=[123.675, 116.28, 103.53],
         help='mean value used for preprocess input data.This argument \
-        is deprecated and will be removed in future releases.')
+        is deprecated and will be removed in future releases.',
+    )
     parser.add_argument(
         '--std',
         type=float,
         nargs='+',
         default=[58.395, 57.12, 57.375],
         help='variance value used for preprocess input data. '
-        'This argument is deprecated and will be removed in future releases.')
+        'This argument is deprecated and will be removed in future releases.',
+    )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -263,26 +293,31 @@ def parse_args():
         'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
         'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
         'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+        'is allowed.',
+    )
     parser.add_argument(
         '--dynamic-export',
         action='store_true',
-        help='Whether to export onnx with dynamic axis.')
+        help='Whether to export onnx with dynamic axis.',
+    )
     parser.add_argument(
         '--skip-postprocess',
         action='store_true',
         help='Whether to export model without post process. Experimental '
         'option. We do not guarantee the correctness of the exported '
-        'model.')
+        'model.',
+    )
     args = parser.parse_args()
     return args
 
 
 if __name__ == '__main__':
     args = parse_args()
-    warnings.warn('Arguments like `--mean`, `--std`, `--dataset` would be \
+    warnings.warn(
+        'Arguments like `--mean`, `--std`, `--dataset` would be \
         parsed directly from config file and are deprecated and \
-        will be removed in future releases.')
+        will be removed in future releases.',
+    )
 
     assert args.opset_version == 11, 'MMDet only support opset 11 now'
 
@@ -307,8 +342,11 @@ if __name__ == '__main__':
         raise ValueError('invalid input shape')
 
     # build the model and load checkpoint
-    model = build_model_from_cfg(args.config, args.checkpoint,
-                                 args.cfg_options)
+    model = build_model_from_cfg(
+        args.config,
+        args.checkpoint,
+        args.cfg_options,
+    )
 
     if not args.input_img:
         args.input_img = osp.join(osp.dirname(__file__), '../../demo/demo.jpg')
@@ -328,7 +366,8 @@ if __name__ == '__main__':
         test_img=args.test_img,
         do_simplify=args.simplify,
         dynamic_export=args.dynamic_export,
-        skip_postprocess=args.skip_postprocess)
+        skip_postprocess=args.skip_postprocess,
+    )
 
     # Following strings of text style are from colorama package
     bright_style, reset_style = '\x1b[1m', '\x1b[0m'

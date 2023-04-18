@@ -1,16 +1,16 @@
-from typing import Optional, List
+from typing import List, Optional
 
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
+
 from ._functional import soft_dice_score, to_tensor
 from .constants import BINARY_MODE, MULTICLASS_MODE, MULTILABEL_MODE
 
-__all__ = ["DiceLoss"]
+__all__ = ['DiceLoss']
 
 
 class DiceLoss(_Loss):
-
     def __init__(
         self,
         mode: str,
@@ -31,7 +31,7 @@ class DiceLoss(_Loss):
             from_logits: If True, assumes input is raw logits
             smooth: Smoothness constant for dice coefficient (a)
             ignore_index: Label that indicates ignored pixels (does not contribute to loss)
-            eps: A small epsilon for numerical stability to avoid zero division error 
+            eps: A small epsilon for numerical stability to avoid zero division error
                 (denominator will be always greater or equal to eps)
 
         Shape
@@ -45,7 +45,7 @@ class DiceLoss(_Loss):
         super(DiceLoss, self).__init__()
         self.mode = mode
         if classes is not None:
-            assert mode != BINARY_MODE, "Masking classes is not supported with mode=binary"
+            assert mode != BINARY_MODE, 'Masking classes is not supported with mode=binary'
             classes = to_tensor(classes, dtype=torch.long)
 
         self.classes = classes
@@ -56,7 +56,6 @@ class DiceLoss(_Loss):
         self.ignore_index = ignore_index
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
-
         assert y_true.size(0) == y_pred.size(0)
 
         if self.from_logits:
@@ -104,7 +103,13 @@ class DiceLoss(_Loss):
                 y_pred = y_pred * mask
                 y_true = y_true * mask
 
-        scores = soft_dice_score(y_pred, y_true.type_as(y_pred), smooth=self.smooth, eps=self.eps, dims=dims)
+        scores = soft_dice_score(
+            y_pred,
+            y_true.type_as(y_pred),
+            smooth=self.smooth,
+            eps=self.eps,
+            dims=dims,
+        )
 
         if self.log_loss:
             loss = -torch.log(scores.clamp_min(self.eps))

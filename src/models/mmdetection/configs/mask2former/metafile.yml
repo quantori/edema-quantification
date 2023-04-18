@@ -1,20 +1,20 @@
 Collections:
-  - Name: Mask2Former
-    Metadata:
-      Training Data: COCO
-      Training Techniques:
-        - AdamW
-        - Weight Decay
-      Training Resources: 8x A100 GPUs
-      Architecture:
-        - Mask2Former
-    Paper:
-      URL: https://arxiv.org/pdf/2112.01527
-      Title: 'Masked-attention Mask Transformer for Universal Image Segmentation'
-    README: configs/mask2former/README.md
-    Code:
-      URL: https://github.com/open-mmlab/mmdetection/blob/v2.23.0/mmdet/models/detectors/mask2former.py#L7
-      Version: v2.23.0
+- Name: Mask2Former
+  Metadata:
+    Training Data: COCO
+    Training Techniques:
+    - AdamW
+    - Weight Decay
+    Training Resources: 8x A100 GPUs
+    Architecture:
+    - Mask2Former
+  Paper:
+    URL: https://arxiv.org/pdf/2112.01527
+    Title: 'Masked-attention Mask Transformer for Universal Image Segmentation'
+  README: configs/mask2former/README.md
+  Code:
+    URL: https://github.com/open-mmlab/mmdetection/blob/v2.23.0/mmdet/models/detectors/mask2former.py#L7
+    Version: v2.23.0
 
 Models:
 - Name: mask2former_swin-s-p4-w7-224_lsj_8x2_50e_coco-panoptic

@@ -95,8 +95,16 @@ def combine_metadata(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Combine metadata')
-    parser.add_argument('--metadata_csv', default='data/raw/mimic-cxr-2.0.0-metadata.csv.gz', type=str)
-    parser.add_argument('--findings_csv', default='data/raw/mimic-cxr-2.0.0-chexpert.csv.gz', type=str)
+    parser.add_argument(
+        '--metadata_csv',
+        default='data/raw/mimic-cxr-2.0.0-metadata.csv.gz',
+        type=str,
+    )
+    parser.add_argument(
+        '--findings_csv',
+        default='data/raw/mimic-cxr-2.0.0-chexpert.csv.gz',
+        type=str,
+    )
     parser.add_argument('--split_csv', default='data/raw/mimic-cxr-2.0.0-split.csv.gz', type=str)
     parser.add_argument('--dataset_dir', default=None, type=str)
     parser.add_argument('--save_dir', default='data/raw', type=str)

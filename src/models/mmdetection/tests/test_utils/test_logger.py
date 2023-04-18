@@ -1,6 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import pytest
-
 from mmdet.utils import get_caller_name, log_img_scale
 
 
@@ -10,7 +9,6 @@ def callee_func():
 
 
 class CallerClassForTest:
-
     def __init__(self):
         self.caller_name = callee_func()
 

@@ -2,7 +2,10 @@
 dataset_type = 'OpenImagesDataset'
 data_root = 'data/OpenImages/'
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[123.675, 116.28, 103.53],
+    std=[58.395, 57.12, 57.375],
+    to_rgb=True,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True, denorm_bbox=True),
@@ -37,29 +40,30 @@ data = dict(
         ann_file=data_root + 'annotations/oidv6-train-annotations-bbox.csv',
         img_prefix=data_root + 'OpenImages/train/',
         label_file=data_root + 'annotations/class-descriptions-boxable.csv',
-        hierarchy_file=data_root +
-        'annotations/bbox_labels_600_hierarchy.json',
-        pipeline=train_pipeline),
+        hierarchy_file=data_root + 'annotations/bbox_labels_600_hierarchy.json',
+        pipeline=train_pipeline,
+    ),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/validation-annotations-bbox.csv',
         img_prefix=data_root + 'OpenImages/validation/',
         label_file=data_root + 'annotations/class-descriptions-boxable.csv',
-        hierarchy_file=data_root +
-        'annotations/bbox_labels_600_hierarchy.json',
+        hierarchy_file=data_root + 'annotations/bbox_labels_600_hierarchy.json',
         meta_file=data_root + 'annotations/validation-image-metas.pkl',
-        image_level_ann_file=data_root +
-        'annotations/validation-annotations-human-imagelabels-boxable.csv',
-        pipeline=test_pipeline),
+        image_level_ann_file=data_root
+        + 'annotations/validation-annotations-human-imagelabels-boxable.csv',
+        pipeline=test_pipeline,
+    ),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/validation-annotations-bbox.csv',
         img_prefix=data_root + 'OpenImages/validation/',
         label_file=data_root + 'annotations/class-descriptions-boxable.csv',
-        hierarchy_file=data_root +
-        'annotations/bbox_labels_600_hierarchy.json',
+        hierarchy_file=data_root + 'annotations/bbox_labels_600_hierarchy.json',
         meta_file=data_root + 'annotations/validation-image-metas.pkl',
-        image_level_ann_file=data_root +
-        'annotations/validation-annotations-human-imagelabels-boxable.csv',
-        pipeline=test_pipeline))
+        image_level_ann_file=data_root
+        + 'annotations/validation-annotations-human-imagelabels-boxable.csv',
+        pipeline=test_pipeline,
+    ),
+)
 evaluation = dict(interval=1, metric='mAP')

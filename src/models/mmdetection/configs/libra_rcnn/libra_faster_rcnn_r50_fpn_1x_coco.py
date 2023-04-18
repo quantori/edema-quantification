@@ -6,13 +6,15 @@ model = dict(
             type='FPN',
             in_channels=[256, 512, 1024, 2048],
             out_channels=256,
-            num_outs=5),
+            num_outs=5,
+        ),
         dict(
             type='BFP',
             in_channels=256,
             num_levels=5,
             refine_level=2,
-            refine_type='non_local')
+            refine_type='non_local',
+        ),
     ],
     roi_head=dict(
         bbox_head=dict(
@@ -22,7 +24,10 @@ model = dict(
                 alpha=0.5,
                 gamma=1.5,
                 beta=1.0,
-                loss_weight=1.0))),
+                loss_weight=1.0,
+            ),
+        ),
+    ),
     # model training and testing settings
     train_cfg=dict(
         rpn=dict(sampler=dict(neg_pos_ub=5), allowed_border=-1),
@@ -38,4 +43,9 @@ model = dict(
                     type='IoUBalancedNegSampler',
                     floor_thr=-1,
                     floor_fraction=0,
-                    num_bins=3)))))
+                    num_bins=3,
+                ),
+            ),
+        ),
+    ),
+)

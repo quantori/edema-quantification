@@ -3,5 +3,9 @@ model = dict(
     backbone=dict(
         stem_channels=128,
         depth=101,
-        init_cfg=dict(type='Pretrained',
-                      checkpoint='open-mmlab://resnest101')))
+        init_cfg=dict(
+            type='Pretrained',
+            checkpoint='open-mmlab://resnest101',
+        ),
+    ),
+)

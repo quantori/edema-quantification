@@ -17,18 +17,21 @@ from mmcv.utils import get_logger
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Goes through all the inline-links '
-        'in markdown files and reports the breakages')
+        'in markdown files and reports the breakages',
+    )
     parser.add_argument(
         '--num-threads',
         type=int,
         default=100,
-        help='Number of processes to confirm the link')
+        help='Number of processes to confirm the link',
+    )
     parser.add_argument('--https-proxy', type=str, help='https proxy')
     parser.add_argument(
         '--out',
         type=str,
         default='link_reports.txt',
-        help='output path of reports')
+        help='output path of reports',
+    )
     args = parser.parse_args()
     return args
 
@@ -51,9 +54,10 @@ class MatchTuple(NamedTuple):
 
 
 def check_link(
-        match_tuple: MatchTuple,
-        http_session: requests.Session,
-        logger: logging = None) -> Tuple[MatchTuple, bool, Optional[str]]:
+    match_tuple: MatchTuple,
+    http_session: requests.Session,
+    logger: logging = None,
+) -> Tuple[MatchTuple, bool, Optional[str]]:
     reason: Optional[str] = None
     if match_tuple.link.startswith('http'):
         result_ok, reason = check_url(match_tuple, http_session)
@@ -66,12 +70,17 @@ def check_link(
     return match_tuple, result_ok, reason
 
 
-def check_url(match_tuple: MatchTuple,
-              http_session: requests.Session) -> Tuple[bool, str]:
+def check_url(
+    match_tuple: MatchTuple,
+    http_session: requests.Session,
+) -> Tuple[bool, str]:
     """Check if a URL is reachable."""
     try:
         result = http_session.head(
-            match_tuple.link, timeout=5, allow_redirects=True)
+            match_tuple.link,
+            timeout=5,
+            allow_redirects=True,
+        )
         return (
             result.ok or result.status_code in OK_STATUS_CODES,
             f'status code = {result.status_code}',
@@ -84,7 +93,9 @@ def check_path(match_tuple: MatchTuple) -> bool:
     """Check if a file in this repository exists."""
     relative_path = match_tuple.link.split('#')[0]
     full_path = os.path.join(
-        os.path.dirname(str(match_tuple.source)), relative_path)
+        os.path.dirname(str(match_tuple.source)),
+        relative_path,
+    )
     return os.path.exists(full_path)
 
 
@@ -106,7 +117,8 @@ def main():
             requests.adapters.HTTPAdapter(
                 max_retries=5,
                 pool_connections=20,
-                pool_maxsize=args.num_threads),
+                pool_maxsize=args.num_threads,
+            ),
         )
 
     logger.info('Finding all markdown files in the current directory...')
@@ -126,19 +138,23 @@ def main():
                             MatchTuple(
                                 source=str(markdown_file),
                                 name=name,
-                                link=link))
+                                link=link,
+                            ),
+                        )
 
     logger.info(f'  {len(all_matches)} markdown files found')
     logger.info('Checking to make sure we can retrieve each link...')
 
     with Pool(processes=args.num_threads) as pool:
-        results = pool.starmap(check_link, [(match, http_session, logger)
-                                            for match in list(all_matches)])
+        results = pool.starmap(
+            check_link,
+            [(match, http_session, logger) for match in list(all_matches)],
+        )
 
     # collect unreachable results
-    unreachable_results = [(match_tuple, reason)
-                           for match_tuple, success, reason in results
-                           if not success]
+    unreachable_results = [
+        (match_tuple, reason) for match_tuple, success, reason in results if not success
+    ]
 
     if unreachable_results:
         logger.info('================================================')

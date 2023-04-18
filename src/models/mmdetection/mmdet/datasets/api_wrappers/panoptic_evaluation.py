@@ -20,13 +20,15 @@ except ImportError:
     OFFSET = 256 * 256 * 256
 
 
-def pq_compute_single_core(proc_id,
-                           annotation_set,
-                           gt_folder,
-                           pred_folder,
-                           categories,
-                           file_client=None,
-                           print_log=False):
+def pq_compute_single_core(
+    proc_id,
+    annotation_set,
+    gt_folder,
+    pred_folder,
+    categories,
+    file_client=None,
+    print_log=False,
+):
     """The single core function to evaluate the metric of Panoptic
     Segmentation.
 
@@ -46,7 +48,8 @@ def pq_compute_single_core(proc_id,
         raise RuntimeError(
             'panopticapi is not installed, please install it by: '
             'pip install git+https://github.com/cocodataset/'
-            'panopticapi.git.')
+            'panopticapi.git.',
+        )
 
     if file_client is None:
         file_client_args = dict(backend='disk')
@@ -57,13 +60,19 @@ def pq_compute_single_core(proc_id,
     idx = 0
     for gt_ann, pred_ann in annotation_set:
         if print_log and idx % 100 == 0:
-            print('Core: {}, {} from {} images processed'.format(
-                proc_id, idx, len(annotation_set)))
+            print(
+                'Core: {}, {} from {} images processed'.format(
+                    proc_id,
+                    idx,
+                    len(annotation_set),
+                ),
+            )
         idx += 1
         # The gt images can be on the local disk or `ceph`, so we use
         # file_client here.
         img_bytes = file_client.get(
-            os.path.join(gt_folder, gt_ann['file_name']))
+            os.path.join(gt_folder, gt_ann['file_name']),
+        )
         pan_gt = mmcv.imfrombytes(img_bytes, flag='color', channel_order='rgb')
         pan_gt = rgb2id(pan_gt)
 
@@ -71,7 +80,8 @@ def pq_compute_single_core(proc_id,
         pan_pred = mmcv.imread(
             os.path.join(pred_folder, pred_ann['file_name']),
             flag='color',
-            channel_order='rgb')
+            channel_order='rgb',
+        )
         pan_pred = rgb2id(pan_pred)
 
         gt_segms = {el['id']: el for el in gt_ann['segments_info']}
@@ -87,24 +97,34 @@ def pq_compute_single_core(proc_id,
                 raise KeyError(
                     'In the image with ID {} segment with ID {} is '
                     'presented in PNG and not presented in JSON.'.format(
-                        gt_ann['image_id'], label))
+                        gt_ann['image_id'],
+                        label,
+                    ),
+                )
             pred_segms[label]['area'] = label_cnt
             pred_labels_set.remove(label)
             if pred_segms[label]['category_id'] not in categories:
                 raise KeyError(
                     'In the image with ID {} segment with ID {} has '
                     'unknown category_id {}.'.format(
-                        gt_ann['image_id'], label,
-                        pred_segms[label]['category_id']))
+                        gt_ann['image_id'],
+                        label,
+                        pred_segms[label]['category_id'],
+                    ),
+                )
         if len(pred_labels_set) != 0:
             raise KeyError(
                 'In the image with ID {} the following segment IDs {} '
                 'are presented in JSON and not presented in PNG.'.format(
-                    gt_ann['image_id'], list(pred_labels_set)))
+                    gt_ann['image_id'],
+                    list(pred_labels_set),
+                ),
+            )
 
         # confusion matrix calculation
         pan_gt_pred = pan_gt.astype(np.uint64) * OFFSET + pan_pred.astype(
-            np.uint64)
+            np.uint64,
+        )
         gt_pred_map = {}
         labels, labels_cnt = np.unique(pan_gt_pred, return_counts=True)
         for label, intersection in zip(labels, labels_cnt):
@@ -123,12 +143,15 @@ def pq_compute_single_core(proc_id,
                 continue
             if gt_segms[gt_label]['iscrowd'] == 1:
                 continue
-            if gt_segms[gt_label]['category_id'] != pred_segms[pred_label][
-                    'category_id']:
+            if gt_segms[gt_label]['category_id'] != pred_segms[pred_label]['category_id']:
                 continue
 
-            union = pred_segms[pred_label]['area'] + gt_segms[gt_label][
-                'area'] - intersection - gt_pred_map.get((VOID, pred_label), 0)
+            union = (
+                pred_segms[pred_label]['area']
+                + gt_segms[gt_label]['area']
+                - intersection
+                - gt_pred_map.get((VOID, pred_label), 0)
+            )
             iou = intersection / union
             if iou > 0.5:
                 pq_stat[gt_segms[gt_label]['category_id']].tp += 1
@@ -157,7 +180,8 @@ def pq_compute_single_core(proc_id,
             if pred_info['category_id'] in crowd_labels_dict:
                 intersection += gt_pred_map.get(
                     (crowd_labels_dict[pred_info['category_id']], pred_label),
-                    0)
+                    0,
+                )
             # predicted segment is ignored if more than half of
             # the segment correspond to VOID and CROWD regions
             if intersection / pred_info['area'] > 0.5:
@@ -165,17 +189,23 @@ def pq_compute_single_core(proc_id,
             pq_stat[pred_info['category_id']].fp += 1
 
     if print_log:
-        print('Core: {}, all {} images processed'.format(
-            proc_id, len(annotation_set)))
+        print(
+            'Core: {}, all {} images processed'.format(
+                proc_id,
+                len(annotation_set),
+            ),
+        )
     return pq_stat
 
 
-def pq_compute_multi_core(matched_annotations_list,
-                          gt_folder,
-                          pred_folder,
-                          categories,
-                          file_client=None,
-                          nproc=32):
+def pq_compute_multi_core(
+    matched_annotations_list,
+    gt_folder,
+    pred_folder,
+    categories,
+    file_client=None,
+    nproc=32,
+):
     """Evaluate the metrics of Panoptic Segmentation with multithreading.
 
     Same as the function with the same name in `panopticapi`.
@@ -197,7 +227,8 @@ def pq_compute_multi_core(matched_annotations_list,
         raise RuntimeError(
             'panopticapi is not installed, please install it by: '
             'pip install git+https://github.com/cocodataset/'
-            'panopticapi.git.')
+            'panopticapi.git.',
+        )
 
     if file_client is None:
         file_client_args = dict(backend='disk')
@@ -206,14 +237,26 @@ def pq_compute_multi_core(matched_annotations_list,
     cpu_num = min(nproc, multiprocessing.cpu_count())
 
     annotations_split = np.array_split(matched_annotations_list, cpu_num)
-    print('Number of cores: {}, images per core: {}'.format(
-        cpu_num, len(annotations_split[0])))
+    print(
+        'Number of cores: {}, images per core: {}'.format(
+            cpu_num,
+            len(annotations_split[0]),
+        ),
+    )
     workers = multiprocessing.Pool(processes=cpu_num)
     processes = []
     for proc_id, annotation_set in enumerate(annotations_split):
-        p = workers.apply_async(pq_compute_single_core,
-                                (proc_id, annotation_set, gt_folder,
-                                 pred_folder, categories, file_client))
+        p = workers.apply_async(
+            pq_compute_single_core,
+            (
+                proc_id,
+                annotation_set,
+                gt_folder,
+                pred_folder,
+                categories,
+                file_client,
+            ),
+        )
         processes.append(p)
 
     # Close the process pool, otherwise it will lead to memory

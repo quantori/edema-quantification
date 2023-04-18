@@ -17,11 +17,14 @@ class DoubleHeadRoIHead(StandardRoIHead):
     def _bbox_forward(self, x, rois):
         """Box head forward function used in both training and testing time."""
         bbox_cls_feats = self.bbox_roi_extractor(
-            x[:self.bbox_roi_extractor.num_inputs], rois)
-        bbox_reg_feats = self.bbox_roi_extractor(
-            x[:self.bbox_roi_extractor.num_inputs],
+            x[: self.bbox_roi_extractor.num_inputs],
             rois,
-            roi_scale_factor=self.reg_roi_scale_factor)
+        )
+        bbox_reg_feats = self.bbox_roi_extractor(
+            x[: self.bbox_roi_extractor.num_inputs],
+            rois,
+            roi_scale_factor=self.reg_roi_scale_factor,
+        )
         if self.with_shared_head:
             bbox_cls_feats = self.shared_head(bbox_cls_feats)
             bbox_reg_feats = self.shared_head(bbox_reg_feats)
@@ -30,5 +33,6 @@ class DoubleHeadRoIHead(StandardRoIHead):
         bbox_results = dict(
             cls_score=cls_score,
             bbox_pred=bbox_pred,
-            bbox_feats=bbox_cls_feats)
+            bbox_feats=bbox_cls_feats,
+        )
         return bbox_results

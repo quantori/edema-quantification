@@ -4,7 +4,6 @@ import warnings
 
 import numpy as np
 import torch
-
 from mmdet.core import bbox2result
 from mmdet.models import BaseDetector
 
@@ -80,7 +79,9 @@ class DeployBaseDetector(BaseDetector):
                     masks = masks.astype(np.float32)
                     masks = torch.from_numpy(masks)
                     masks = torch.nn.functional.interpolate(
-                        masks.unsqueeze(0), size=(ori_h, ori_w))
+                        masks.unsqueeze(0),
+                        size=(ori_h, ori_w),
+                    )
                     masks = masks.squeeze(0).detach().numpy()
                 if masks.dtype != bool:
                     masks = masks >= 0.5
@@ -104,10 +105,13 @@ class ONNXRuntimeDetector(DeployBaseDetector):
         ort_custom_op_path = ''
         try:
             from mmcv.ops import get_onnxruntime_op_path
+
             ort_custom_op_path = get_onnxruntime_op_path()
         except (ImportError, ModuleNotFoundError):
-            warnings.warn('If input model has custom op from mmcv, \
-                you may have to build mmcv with ONNXRuntime from source.')
+            warnings.warn(
+                'If input model has custom op from mmcv, \
+                you may have to build mmcv with ONNXRuntime from source.',
+            )
         session_options = ort.SessionOptions()
         # register custom op for onnxruntime
         if osp.exists(ort_custom_op_path):
@@ -139,7 +143,8 @@ class ONNXRuntimeDetector(DeployBaseDetector):
             device_id=self.device_id,
             element_type=np.float32,
             shape=input_data.shape,
-            buffer_ptr=input_data.data_ptr())
+            buffer_ptr=input_data.data_ptr(),
+        )
 
         for name in self.output_names:
             self.io_binding.bind_output(name)
@@ -154,14 +159,18 @@ class TensorRTDetector(DeployBaseDetector):
 
     def __init__(self, engine_file, class_names, device_id, output_names=None):
         super(TensorRTDetector, self).__init__(class_names, device_id)
-        warnings.warn('`output_names` is deprecated and will be removed in '
-                      'future releases.')
+        warnings.warn(
+            '`output_names` is deprecated and will be removed in ' 'future releases.',
+        )
         from mmcv.tensorrt import TRTWraper, load_tensorrt_plugin
+
         try:
             load_tensorrt_plugin()
         except (ImportError, ModuleNotFoundError):
-            warnings.warn('If input model has custom op from mmcv, \
-                you may have to build mmcv with TensorRT from source.')
+            warnings.warn(
+                'If input model has custom op from mmcv, \
+                you may have to build mmcv with TensorRT from source.',
+            )
 
         output_names = ['dets', 'labels']
         model = TRTWraper(engine_file, ['input'], output_names)

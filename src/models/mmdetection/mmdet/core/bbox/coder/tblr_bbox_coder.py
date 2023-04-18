@@ -44,7 +44,10 @@ class TBLRBBoxCoder(BaseBBoxCoder):
         assert bboxes.size(0) == gt_bboxes.size(0)
         assert bboxes.size(-1) == gt_bboxes.size(-1) == 4
         encoded_bboxes = bboxes2tblr(
-            bboxes, gt_bboxes, normalizer=self.normalizer)
+            bboxes,
+            gt_bboxes,
+            normalizer=self.normalizer,
+        )
         return encoded_bboxes
 
     def decode(self, bboxes, pred_bboxes, max_shape=None):
@@ -68,7 +71,8 @@ class TBLRBBoxCoder(BaseBBoxCoder):
             pred_bboxes,
             normalizer=self.normalizer,
             max_shape=max_shape,
-            clip_border=self.clip_border)
+            clip_border=self.clip_border,
+        )
 
         return decoded_bboxes
 
@@ -121,12 +125,14 @@ def bboxes2tblr(priors, gts, normalizer=4.0, normalize_by_wh=True):
 
 
 @mmcv.jit(coderize=True)
-def tblr2bboxes(priors,
-                tblr,
-                normalizer=4.0,
-                normalize_by_wh=True,
-                max_shape=None,
-                clip_border=True):
+def tblr2bboxes(
+    priors,
+    tblr,
+    normalizer=4.0,
+    normalize_by_wh=True,
+    max_shape=None,
+    clip_border=True,
+):
     """Decode tblr outputs to prediction boxes.
 
     The process includes 3 steps: 1) De-normalize tblr coordinates by
@@ -186,8 +192,14 @@ def tblr2bboxes(priors,
         # clip bboxes with dynamic `min` and `max` for onnx
         if torch.onnx.is_in_onnx_export():
             from mmdet.core.export import dynamic_clip_for_onnx
+
             xmin, ymin, xmax, ymax = dynamic_clip_for_onnx(
-                xmin, ymin, xmax, ymax, max_shape)
+                xmin,
+                ymin,
+                xmax,
+                ymax,
+                max_shape,
+            )
             bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
             return bboxes
         if not isinstance(max_shape, torch.Tensor):
@@ -198,8 +210,14 @@ def tblr2bboxes(priors,
             assert max_shape.size(0) == bboxes.size(0)
 
         min_xy = priors.new_tensor(0)
-        max_xy = torch.cat([max_shape, max_shape],
-                           dim=-1).flip(-1).unsqueeze(-2)
+        max_xy = (
+            torch.cat(
+                [max_shape, max_shape],
+                dim=-1,
+            )
+            .flip(-1)
+            .unsqueeze(-2)
+        )
         bboxes = torch.where(bboxes < min_xy, min_xy, bboxes)
         bboxes = torch.where(bboxes > max_xy, max_xy, bboxes)
 

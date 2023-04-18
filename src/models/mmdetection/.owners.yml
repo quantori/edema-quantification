@@ -1,13 +1,11 @@
 assign:
-  strategy:
-    # random
-    daily-shift-based
+  strategy: daily-shift-based
   scedule: "*/1 * * * *"
   assignees:
-    - Czm369
-    - hhaAndroid
-    - zytx121
-    - RangiLyu
-    - BIGWangYuDong
-    - chhluo
-    - ZwwWayne
+  - Czm369
+  - hhaAndroid
+  - zytx121
+  - RangiLyu
+  - BIGWangYuDong
+  - chhluo
+  - ZwwWayne

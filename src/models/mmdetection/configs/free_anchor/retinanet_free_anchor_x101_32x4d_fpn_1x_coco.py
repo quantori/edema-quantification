@@ -10,4 +10,8 @@ model = dict(
         frozen_stages=1,
         style='pytorch',
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://resnext101_32x4d')))
+            type='Pretrained',
+            checkpoint='open-mmlab://resnext101_32x4d',
+        ),
+    ),
+)

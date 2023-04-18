@@ -26,9 +26,7 @@ def patch_first_conv(model, in_channels):
     else:
         reset = True
         weight = torch.Tensor(
-            module.out_channels,
-            module.in_channels // module.groups,
-            *module.kernel_size
+            module.out_channels, module.in_channels // module.groups, *module.kernel_size
         )
 
     module.weight = nn.parameter.Parameter(weight)
@@ -46,5 +44,5 @@ def replace_strides_with_dilation(module, dilation_rate):
             mod.padding = ((kh // 2) * dilation_rate, (kh // 2) * dilation_rate)
 
             # Kostyl for EfficientNet
-            if hasattr(mod, "static_padding"):
+            if hasattr(mod, 'static_padding'):
                 mod.static_padding = nn.Identity()

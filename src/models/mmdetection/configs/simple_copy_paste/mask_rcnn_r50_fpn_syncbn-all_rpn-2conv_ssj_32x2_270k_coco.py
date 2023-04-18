@@ -16,5 +16,8 @@ model = dict(
         bbox_head=dict(
             type='Shared4Conv1FCBBoxHead',
             conv_out_channels=256,
-            norm_cfg=head_norm_cfg),
-        mask_head=dict(norm_cfg=head_norm_cfg)))
+            norm_cfg=head_norm_cfg,
+        ),
+        mask_head=dict(norm_cfg=head_norm_cfg),
+    ),
+)

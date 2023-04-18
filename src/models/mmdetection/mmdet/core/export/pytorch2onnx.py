@@ -7,10 +7,12 @@ import torch
 from mmcv.runner import load_checkpoint
 
 
-def generate_inputs_and_wrap_model(config_path,
-                                   checkpoint_path,
-                                   input_config,
-                                   cfg_options=None):
+def generate_inputs_and_wrap_model(
+    config_path,
+    checkpoint_path,
+    input_config,
+    cfg_options=None,
+):
     """Prepare sample input and wrap model for ONNX export.
 
     The ONNX export API only accept args, and all inputs should be
@@ -42,11 +44,17 @@ def generate_inputs_and_wrap_model(config_path,
     """
 
     model = build_model_from_cfg(
-        config_path, checkpoint_path, cfg_options=cfg_options)
+        config_path,
+        checkpoint_path,
+        cfg_options=cfg_options,
+    )
     one_img, one_meta = preprocess_example_input(input_config)
     tensor_data = [one_img]
     model.forward = partial(
-        model.forward, img_metas=[[one_meta]], return_loss=False)
+        model.forward,
+        img_metas=[[one_meta]],
+        return_loss=False,
+    )
 
     # pytorch has some bug in pytorch1.3, we have to fix it
     # by replacing these existing op
@@ -92,8 +100,9 @@ def build_model_from_cfg(config_path, checkpoint_path, cfg_options=None):
         model.CLASSES = checkpoint['meta']['CLASSES']
     else:
         from mmdet.datasets import DATASETS
+
         dataset = DATASETS.get(cfg.data.test['type'])
-        assert (dataset is not None)
+        assert dataset is not None
         model.CLASSES = dataset.CLASSES
     model.cpu().eval()
     return model
@@ -142,8 +151,14 @@ def preprocess_example_input(input_config):
         to_rgb = normalize_cfg.get('to_rgb', True)
         one_img = mmcv.imnormalize(one_img, mean, std, to_rgb=to_rgb)
     one_img = one_img.transpose(2, 0, 1)
-    one_img = torch.from_numpy(one_img).unsqueeze(0).float().requires_grad_(
-        True)
+    one_img = (
+        torch.from_numpy(one_img)
+        .unsqueeze(0)
+        .float()
+        .requires_grad_(
+            True,
+        )
+    )
     (_, C, H, W) = input_shape
     one_meta = {
         'img_shape': (H, W, C),
@@ -153,7 +168,7 @@ def preprocess_example_input(input_config):
         'scale_factor': np.ones(4, dtype=np.float32),
         'flip': False,
         'show_img': show_img,
-        'flip_direction': None
+        'flip_direction': None,
     }
 
     return one_img, one_meta

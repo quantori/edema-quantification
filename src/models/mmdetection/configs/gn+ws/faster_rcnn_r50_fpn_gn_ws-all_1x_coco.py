@@ -6,11 +6,17 @@ model = dict(
         conv_cfg=conv_cfg,
         norm_cfg=norm_cfg,
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://jhu/resnet50_gn_ws')),
+            type='Pretrained',
+            checkpoint='open-mmlab://jhu/resnet50_gn_ws',
+        ),
+    ),
     neck=dict(conv_cfg=conv_cfg, norm_cfg=norm_cfg),
     roi_head=dict(
         bbox_head=dict(
             type='Shared4Conv1FCBBoxHead',
             conv_out_channels=256,
             conv_cfg=conv_cfg,
-            norm_cfg=norm_cfg)))
+            norm_cfg=norm_cfg,
+        ),
+    ),
+)

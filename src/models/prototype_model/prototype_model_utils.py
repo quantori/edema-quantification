@@ -1,11 +1,11 @@
-from typing import Any, Dict, Optional, Union, List, Sequence
-import sys
 import math
+import sys
+from typing import Dict, List, Optional, Sequence, Union
 
-from pytorch_lightning.callbacks import TQDMProgressBar
 import pytorch_lightning as pl
-from tqdm import tqdm
+from pytorch_lightning.callbacks import TQDMProgressBar
 from torch import nn
+from tqdm import tqdm
 
 
 class PNetProgressBar(TQDMProgressBar):
@@ -17,7 +17,7 @@ class PNetProgressBar(TQDMProgressBar):
     def status_bar(self) -> tqdm:
         if self._status_bar is None:
             raise TypeError(
-                f"The `{self.__class__.__name__}._status_bar` reference has not been set yet."
+                f'The `{self.__class__.__name__}._status_bar` reference has not been set yet.',
             )
         return self._status_bar
 
@@ -42,7 +42,10 @@ def get_encoder(encoders: dict, name: str = 'squezeenet') -> nn.Module:
 
 
 def _compute_layer_rf_info(
-    layer_filter_size, layer_stride, layer_padding, previous_layer_rf_info
+    layer_filter_size,
+    layer_stride,
+    layer_padding,
+    previous_layer_rf_info,
 ) -> List[Union[int, float]]:
     # based on https://blog.mlreview.com/a-guide-to-receptive-field-arithmetic-for-convolutional-neural-networks-e0f514068807
     n_in = previous_layer_rf_info[0]  # receptive-field input size
@@ -85,7 +88,9 @@ def _compute_layer_rf_info(
 
 
 def compute_proto_layer_rf_info(
-    img_size: int, conv_info: Dict[str, int], prototype_kernel_size: int
+    img_size: int,
+    conv_info: Dict[str, int],
+    prototype_kernel_size: int,
 ) -> List[Union[int, float]]:
     check_dimensions(conv_info=conv_info)
 
@@ -116,15 +121,16 @@ def compute_proto_layer_rf_info(
 
 def check_dimensions(conv_info: Dict[str, int]) -> None:
     if len(conv_info['kernel_sizes']) != len(conv_info['strides']):
-        raise Exception("The number of kernels has to be equla to the number of strides")
+        raise Exception('The number of kernels has to be equla to the number of strides')
     if len(conv_info['kernel_sizes']) != len(conv_info['paddings']):
-        raise Exception("The number of kernels has to be equla to the number of paddings")
+        raise Exception('The number of kernels has to be equla to the number of paddings')
 
 
 def _make_layers(
-    encoder: nn.Module, prototype_shape: Sequence[Union[int, float]]
+    encoder: nn.Module,
+    prototype_shape: Sequence[Union[int, float]],
 ) -> List[nn.Module]:
-    if encoder.__class__.__name__ == "SqueezeNet":
+    if encoder.__class__.__name__ == 'SqueezeNet':
         first_transient_layer_in_channels = (
             2 * [i for i in encoder.modules() if isinstance(i, nn.Conv2d)][-1].out_channels
         )
@@ -147,7 +153,7 @@ def _make_layers(
                 in_channels=current_in_channels,
                 out_channels=current_out_channels,
                 kernel_size=1,
-            )
+            ),
         )
         transient_layers.append(nn.ReLU())
         transient_layers.append(
@@ -155,7 +161,7 @@ def _make_layers(
                 in_channels=current_out_channels,
                 out_channels=current_out_channels,
                 kernel_size=1,
-            )
+            ),
         )
 
         if current_out_channels > prototype_shape[1]:
@@ -195,7 +201,7 @@ def print_status_bar(trainer: pl.Trainer, blocks: Dict, status: str = '') -> Non
             # protoype layer is inhereted from Tensor and, therefore, has the requires_grad attr
             prot=blocks['prototype_layer'].requires_grad,
             last=get_grad_status(blocks['last_layer']),
-        )
+        ),
     )
 
 
@@ -205,7 +211,7 @@ def get_grad_status(block: nn.Module) -> bool:
         return first_param.requires_grad
     else:
         raise Exception(
-            f'Not all the parmaters in {block.__class__.__name__} have the same grad status'
+            f'Not all the parmaters in {block.__class__.__name__} have the same grad status',
         )
 
 

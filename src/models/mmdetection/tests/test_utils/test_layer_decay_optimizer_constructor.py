@@ -2,7 +2,6 @@
 import torch
 import torch.nn as nn
 from mmcv.cnn import ConvModule
-
 from mmdet.core.optimizers import LearningRateDecayOptimizerConstructor
 
 base_lr = 1
@@ -10,85 +9,110 @@ decay_rate = 2
 base_wd = 0.05
 weight_decay = 0.05
 
-expected_stage_wise_lr_wd_convnext = [{
-    'weight_decay': 0.0,
-    'lr_scale': 128
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 1
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 64
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 64
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 32
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 32
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 16
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 16
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 8
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 8
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 128
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 1
-}]
+expected_stage_wise_lr_wd_convnext = [
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 128,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 1,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 64,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 64,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 32,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 32,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 16,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 16,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 8,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 8,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 128,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 1,
+    },
+]
 
-expected_layer_wise_lr_wd_convnext = [{
-    'weight_decay': 0.0,
-    'lr_scale': 128
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 1
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 64
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 64
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 32
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 32
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 16
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 16
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 2
-}, {
-    'weight_decay': 0.0,
-    'lr_scale': 2
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 128
-}, {
-    'weight_decay': 0.05,
-    'lr_scale': 1
-}]
+expected_layer_wise_lr_wd_convnext = [
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 128,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 1,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 64,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 64,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 32,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 32,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 16,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 16,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 2,
+    },
+    {
+        'weight_decay': 0.0,
+        'lr_scale': 2,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 128,
+    },
+    {
+        'weight_decay': 0.05,
+        'lr_scale': 1,
+    },
+]
 
 
 class ToyConvNeXt(nn.Module):
-
     def __init__(self):
         super().__init__()
         self.stages = nn.ModuleList()
@@ -114,7 +138,6 @@ class ToyConvNeXt(nn.Module):
 
 
 class ToyDetector(nn.Module):
-
     def __init__(self, backbone):
         super().__init__()
         self.backbone = backbone
@@ -122,7 +145,6 @@ class ToyDetector(nn.Module):
 
 
 class PseudoDataParallel(nn.Module):
-
     def __init__(self, model):
         super().__init__()
         self.module = model
@@ -142,23 +164,36 @@ def check_optimizer_lr_wd(optimizer, gt_lr_wd):
 
 
 def test_learning_rate_decay_optimizer_constructor():
-
     # Test lr wd for ConvNeXT
     backbone = ToyConvNeXt()
     model = PseudoDataParallel(ToyDetector(backbone))
     optimizer_cfg = dict(
-        type='AdamW', lr=base_lr, betas=(0.9, 0.999), weight_decay=0.05)
+        type='AdamW',
+        lr=base_lr,
+        betas=(0.9, 0.999),
+        weight_decay=0.05,
+    )
     # stagewise decay
     stagewise_paramwise_cfg = dict(
-        decay_rate=decay_rate, decay_type='stage_wise', num_layers=6)
+        decay_rate=decay_rate,
+        decay_type='stage_wise',
+        num_layers=6,
+    )
     optim_constructor = LearningRateDecayOptimizerConstructor(
-        optimizer_cfg, stagewise_paramwise_cfg)
+        optimizer_cfg,
+        stagewise_paramwise_cfg,
+    )
     optimizer = optim_constructor(model)
     check_optimizer_lr_wd(optimizer, expected_stage_wise_lr_wd_convnext)
     # layerwise decay
     layerwise_paramwise_cfg = dict(
-        decay_rate=decay_rate, decay_type='layer_wise', num_layers=6)
+        decay_rate=decay_rate,
+        decay_type='layer_wise',
+        num_layers=6,
+    )
     optim_constructor = LearningRateDecayOptimizerConstructor(
-        optimizer_cfg, layerwise_paramwise_cfg)
+        optimizer_cfg,
+        layerwise_paramwise_cfg,
+    )
     optimizer = optim_constructor(model)
     check_optimizer_lr_wd(optimizer, expected_layer_wise_lr_wd_convnext)

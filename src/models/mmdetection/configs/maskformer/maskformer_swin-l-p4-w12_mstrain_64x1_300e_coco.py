@@ -15,22 +15,26 @@ model = dict(
         num_heads=[6, 12, 24, 48],
         qkv_bias=True,
         qk_scale=None,
-        drop_rate=0.,
-        attn_drop_rate=0.,
+        drop_rate=0.0,
+        attn_drop_rate=0.0,
         drop_path_rate=0.3,
         patch_norm=True,
         out_indices=(0, 1, 2, 3),
         with_cp=False,
         convert_weights=True,
-        init_cfg=dict(type='Pretrained', checkpoint=pretrained)),
+        init_cfg=dict(type='Pretrained', checkpoint=pretrained),
+    ),
     panoptic_head=dict(
         in_channels=[192, 384, 768, 1536],  # pass to pixel_decoder inside
         pixel_decoder=dict(
             _delete_=True,
             type='PixelDecoder',
             norm_cfg=dict(type='GN', num_groups=32),
-            act_cfg=dict(type='ReLU')),
-        enforce_decoder_input_project=True))
+            act_cfg=dict(type='ReLU'),
+        ),
+        enforce_decoder_input_project=True,
+    ),
+)
 
 # weight_decay = 0.01
 # norm_weight_decay = 0.0
@@ -41,7 +45,7 @@ custom_keys = {
     'norm': norm_multi,
     'absolute_pos_embed': embed_multi,
     'relative_position_bias_table': embed_multi,
-    'query_embed': embed_multi
+    'query_embed': embed_multi,
 }
 
 # optimizer
@@ -51,7 +55,8 @@ optimizer = dict(
     weight_decay=0.01,
     eps=1e-8,
     betas=(0.9, 0.999),
-    paramwise_cfg=dict(custom_keys=custom_keys, norm_decay_mult=0.0))
+    paramwise_cfg=dict(custom_keys=custom_keys, norm_decay_mult=0.0),
+)
 optimizer_config = dict(grad_clip=dict(max_norm=0.01, norm_type=2))
 
 # learning policy
@@ -63,5 +68,6 @@ lr_config = dict(
     warmup='linear',
     warmup_by_epoch=False,
     warmup_ratio=1e-6,
-    warmup_iters=1500)
+    warmup_iters=1500,
+)
 runner = dict(type='EpochBasedRunner', max_epochs=300)

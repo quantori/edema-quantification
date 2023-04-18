@@ -4,14 +4,20 @@ model = dict(
     backbone=dict(
         norm_cfg=norm_cfg,
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://contrib/resnet50_gn')),
+            type='Pretrained',
+            checkpoint='open-mmlab://contrib/resnet50_gn',
+        ),
+    ),
     neck=dict(norm_cfg=norm_cfg),
     roi_head=dict(
         bbox_head=dict(
             type='Shared4Conv1FCBBoxHead',
             conv_out_channels=256,
-            norm_cfg=norm_cfg),
-        mask_head=dict(norm_cfg=norm_cfg)))
+            norm_cfg=norm_cfg,
+        ),
+        mask_head=dict(norm_cfg=norm_cfg),
+    ),
+)
 # learning policy
 lr_config = dict(step=[16, 22])
 runner = dict(type='EpochBasedRunner', max_epochs=24)

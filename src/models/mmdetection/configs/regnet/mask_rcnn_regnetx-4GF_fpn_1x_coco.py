@@ -9,9 +9,14 @@ model = dict(
         norm_eval=True,
         style='pytorch',
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://regnetx_4.0gf')),
+            type='Pretrained',
+            checkpoint='open-mmlab://regnetx_4.0gf',
+        ),
+    ),
     neck=dict(
         type='FPN',
         in_channels=[80, 240, 560, 1360],
         out_channels=256,
-        num_outs=5))
+        num_outs=5,
+    ),
+)

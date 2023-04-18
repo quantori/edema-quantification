@@ -25,8 +25,14 @@ def split_batch(img, img_metas, kwargs):
 
     # only stack img in the batch
     def fuse_list(obj_list, obj):
-        return torch.stack(obj_list) if isinstance(obj,
-                                                   torch.Tensor) else obj_list
+        return (
+            torch.stack(obj_list)
+            if isinstance(
+                obj,
+                torch.Tensor,
+            )
+            else obj_list
+        )
 
     # select data with tag from data_batch
     def select_group(data_batch, current_tag):

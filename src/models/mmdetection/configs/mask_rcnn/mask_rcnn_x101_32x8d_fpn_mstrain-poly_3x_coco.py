@@ -1,6 +1,6 @@
 _base_ = [
     '../common/mstrain-poly_3x_coco_instance.py',
-    '../_base_/models/mask_rcnn_r50_fpn.py'
+    '../_base_/models/mask_rcnn_r50_fpn.py',
 ]
 
 model = dict(
@@ -16,14 +16,18 @@ model = dict(
         style='pytorch',
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='open-mmlab://detectron2/resnext101_32x8d')))
+            checkpoint='open-mmlab://detectron2/resnext101_32x8d',
+        ),
+    ),
+)
 
 dataset_type = 'CocoDataset'
 data_root = 'data/coco/'
 img_norm_cfg = dict(
     mean=[103.530, 116.280, 123.675],
     std=[57.375, 57.120, 58.395],
-    to_rgb=False)
+    to_rgb=False,
+)
 
 # In mstrain 3x config, img_scale=[(1333, 640), (1333, 800)],
 # multiscale_mode='range'
@@ -33,12 +37,14 @@ train_pipeline = [
         type='LoadAnnotations',
         with_bbox=True,
         with_mask=True,
-        poly2mask=False),
+        poly2mask=False,
+    ),
     dict(
         type='Resize',
         img_scale=[(1333, 640), (1333, 800)],
         multiscale_mode='range',
-        keep_ratio=True),
+        keep_ratio=True,
+    ),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -58,7 +64,8 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 
 # Use RepeatDataset to speed up training
@@ -72,14 +79,19 @@ data = dict(
             type=dataset_type,
             ann_file=data_root + 'annotations/instances_train2017.json',
             img_prefix=data_root + 'train2017/',
-            pipeline=train_pipeline)),
+            pipeline=train_pipeline,
+        ),
+    ),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+    ),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+    ),
+)

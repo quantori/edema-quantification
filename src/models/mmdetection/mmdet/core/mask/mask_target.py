@@ -4,8 +4,12 @@ import torch
 from torch.nn.modules.utils import _pair
 
 
-def mask_target(pos_proposals_list, pos_assigned_gt_inds_list, gt_masks_list,
-                cfg):
+def mask_target(
+    pos_proposals_list,
+    pos_assigned_gt_inds_list,
+    gt_masks_list,
+    cfg,
+):
     """Compute mask target for positive proposals in multiple images.
 
     Args:
@@ -56,8 +60,13 @@ def mask_target(pos_proposals_list, pos_assigned_gt_inds_list, gt_masks_list,
         >>> assert mask_targets.shape == (5,) + cfg['mask_size']
     """
     cfg_list = [cfg for _ in range(len(pos_proposals_list))]
-    mask_targets = map(mask_target_single, pos_proposals_list,
-                       pos_assigned_gt_inds_list, gt_masks_list, cfg_list)
+    mask_targets = map(
+        mask_target_single,
+        pos_proposals_list,
+        pos_assigned_gt_inds_list,
+        gt_masks_list,
+        cfg_list,
+    )
     mask_targets = list(mask_targets)
     if len(mask_targets) > 0:
         mask_targets = torch.cat(mask_targets)
@@ -118,10 +127,11 @@ def mask_target_single(pos_proposals, pos_assigned_gt_inds, gt_masks, cfg):
             mask_size,
             device=device,
             inds=pos_assigned_gt_inds,
-            binarize=binarize).to_ndarray()
+            binarize=binarize,
+        ).to_ndarray()
 
         mask_targets = torch.from_numpy(mask_targets).float().to(device)
     else:
-        mask_targets = pos_proposals.new_zeros((0, ) + mask_size)
+        mask_targets = pos_proposals.new_zeros((0,) + mask_size)
 
     return mask_targets

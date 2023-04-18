@@ -47,12 +47,13 @@ def replace_cfg_vals(ori_cfg):
                 for key, value in zip(keys, values):
                     # the format of string cfg is
                     # "xxx${key}xxx" or "xxx${key1}xxx${key2}xxx"
-                    assert not isinstance(value, (dict, list, tuple)), \
-                        f'for the format of string cfg is ' \
-                        f"'xxxxx${key}xxxxx' or 'xxx${key}xxx${key}xxx', " \
-                        f"the type of the value of '${key}' " \
-                        f'can not be dict, list, or tuple' \
+                    assert not isinstance(value, (dict, list, tuple)), (
+                        f'for the format of string cfg is '
+                        f"'xxxxx${key}xxxxx' or 'xxx${key}xxx${key}xxx', "
+                        f"the type of the value of '${key}' "
+                        f'can not be dict, list, or tuple'
                         f'but you input {type(value)} in {cfg}'
+                    )
                     cfg = cfg.replace(key, str(value))
             return cfg
         else:
@@ -62,7 +63,9 @@ def replace_cfg_vals(ori_cfg):
     pattern_key = re.compile(r'\$\{[a-zA-Z\d_.]*\}')
     # the type of ori_cfg._cfg_dict is mmcv.utils.config.ConfigDict
     updated_cfg = Config(
-        replace_value(ori_cfg._cfg_dict), filename=ori_cfg.filename)
+        replace_value(ori_cfg._cfg_dict),
+        filename=ori_cfg.filename,
+    )
     # replace the model with model_wrapper
     if updated_cfg.get('model_wrapper', None) is not None:
         updated_cfg.model = updated_cfg.model_wrapper

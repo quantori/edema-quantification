@@ -82,7 +82,8 @@ class NiceRepr:
         else:
             # In all other cases force the subclass to overload __nice__
             raise NotImplementedError(
-                f'Define the __nice__ method for {self.__class__!r}')
+                f'Define the __nice__ method for {self.__class__!r}',
+            )
 
     def __repr__(self):
         """str: the string of the module"""

@@ -3,7 +3,6 @@ import pytest
 import torch
 from mmcv import ConfigDict
 from mmcv.cnn import build_plugin_layer
-
 from mmdet.models.plugins import DropBlock
 
 
@@ -40,11 +39,13 @@ def test_pixel_decoder():
             feat_channels=base_channels,
             out_channels=base_channels,
             norm_cfg=dict(type='GN', num_groups=32),
-            act_cfg=dict(type='ReLU')))
+            act_cfg=dict(type='ReLU'),
+        ),
+    )
     self = build_plugin_layer(pixel_decoder_cfg)[1]
     img_metas = [{}, {}]
     feats = [
-        torch.rand((2, base_channels * 2**i, 4 * 2**(3 - i), 5 * 2**(3 - i)))
+        torch.rand((2, base_channels * 2**i, 4 * 2 ** (3 - i), 5 * 2 ** (3 - i)))
         for i in range(4)
     ]
     mask_feature, memory = self(feats, img_metas)
@@ -75,7 +76,8 @@ def test_transformer_encoder_pixel_decoder():
                         attn_drop=0.1,
                         proj_drop=0.1,
                         dropout_layer=None,
-                        batch_first=False),
+                        batch_first=False,
+                    ),
                     ffn_cfgs=dict(
                         embed_dims=base_channels,
                         feedforward_channels=base_channels * 8,
@@ -83,26 +85,35 @@ def test_transformer_encoder_pixel_decoder():
                         act_cfg=dict(type='ReLU', inplace=True),
                         ffn_drop=0.1,
                         dropout_layer=None,
-                        add_identity=True),
+                        add_identity=True,
+                    ),
                     operation_order=('self_attn', 'norm', 'ffn', 'norm'),
                     norm_cfg=dict(type='LN'),
                     init_cfg=None,
-                    batch_first=False),
-                init_cfg=None),
+                    batch_first=False,
+                ),
+                init_cfg=None,
+            ),
             positional_encoding=dict(
                 type='SinePositionalEncoding',
                 num_feats=base_channels // 2,
-                normalize=True)))
+                normalize=True,
+            ),
+        ),
+    )
     self = build_plugin_layer(pixel_decoder_cfg)[1]
-    img_metas = [{
-        'batch_input_shape': (128, 160),
-        'img_shape': (120, 160, 3),
-    }, {
-        'batch_input_shape': (128, 160),
-        'img_shape': (125, 160, 3),
-    }]
+    img_metas = [
+        {
+            'batch_input_shape': (128, 160),
+            'img_shape': (120, 160, 3),
+        },
+        {
+            'batch_input_shape': (128, 160),
+            'img_shape': (125, 160, 3),
+        },
+    ]
     feats = [
-        torch.rand((2, base_channels * 2**i, 4 * 2**(3 - i), 5 * 2**(3 - i)))
+        torch.rand((2, base_channels * 2**i, 4 * 2 ** (3 - i), 5 * 2 ** (3 - i)))
         for i in range(4)
     ]
     mask_feature, memory = self(feats, img_metas)
@@ -138,24 +149,31 @@ def test_msdeformattn_pixel_decoder():
                         dropout=0.0,
                         batch_first=False,
                         norm_cfg=None,
-                        init_cfg=None),
+                        init_cfg=None,
+                    ),
                     ffn_cfgs=dict(
                         type='FFN',
                         embed_dims=base_channels,
                         feedforward_channels=base_channels * 4,
                         num_fcs=2,
                         ffn_drop=0.0,
-                        act_cfg=dict(type='ReLU', inplace=True)),
-                    operation_order=('self_attn', 'norm', 'ffn', 'norm')),
-                init_cfg=None),
+                        act_cfg=dict(type='ReLU', inplace=True),
+                    ),
+                    operation_order=('self_attn', 'norm', 'ffn', 'norm'),
+                ),
+                init_cfg=None,
+            ),
             positional_encoding=dict(
                 type='SinePositionalEncoding',
                 num_feats=base_channels // 2,
-                normalize=True),
-            init_cfg=None), )
+                normalize=True,
+            ),
+            init_cfg=None,
+        ),
+    )
     self = build_plugin_layer(pixel_decoder_cfg)[1]
     feats = [
-        torch.rand((2, base_channels * 2**i, 4 * 2**(3 - i), 5 * 2**(3 - i)))
+        torch.rand((2, base_channels * 2**i, 4 * 2 ** (3 - i), 5 * 2 ** (3 - i)))
         for i in range(4)
     ]
     mask_feature, multi_scale_features = self(feats)

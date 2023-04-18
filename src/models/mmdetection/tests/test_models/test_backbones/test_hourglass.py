@@ -1,7 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import pytest
 import torch
-
 from mmdet.models.backbones.hourglass import HourglassNet
 
 
@@ -14,20 +13,23 @@ def test_hourglass_backbone():
         # len(stage_channels) should equal len(stage_blocks)
         HourglassNet(
             stage_channels=[256, 256, 384, 384, 384],
-            stage_blocks=[2, 2, 2, 2, 2, 4])
+            stage_blocks=[2, 2, 2, 2, 2, 4],
+        )
 
     with pytest.raises(AssertionError):
         # len(stage_channels) should lagrer than downsample_times
         HourglassNet(
             downsample_times=5,
             stage_channels=[256, 256, 384, 384, 384],
-            stage_blocks=[2, 2, 2, 2, 2])
+            stage_blocks=[2, 2, 2, 2, 2],
+        )
 
     # Test HourglassNet-52
     model = HourglassNet(
         num_stacks=1,
         stage_channels=(64, 64, 96, 96, 96, 128),
-        feat_channel=64)
+        feat_channel=64,
+    )
     model.train()
 
     imgs = torch.randn(1, 3, 256, 256)
@@ -39,7 +41,8 @@ def test_hourglass_backbone():
     model = HourglassNet(
         num_stacks=2,
         stage_channels=(64, 64, 96, 96, 96, 128),
-        feat_channel=64)
+        feat_channel=64,
+    )
     model.train()
 
     imgs = torch.randn(1, 3, 256, 256)

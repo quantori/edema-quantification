@@ -19,7 +19,8 @@ class COCO(_COCO):
         if getattr(pycocotools, '__version__', '0') >= '12.0.2':
             warnings.warn(
                 'mmpycocotools is deprecated. Please install official pycocotools by "pip install pycocotools"',  # noqa: E501
-                UserWarning)
+                UserWarning,
+            )
         super().__init__(annotation_file=annotation_file)
         self.img_ann_map = self.imgToAnns
         self.cat_img_map = self.catToImgs

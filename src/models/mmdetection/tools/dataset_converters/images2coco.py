@@ -8,21 +8,27 @@ from PIL import Image
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Convert images to coco format without annotations')
+        description='Convert images to coco format without annotations',
+    )
     parser.add_argument('img_path', help='The root path of images')
     parser.add_argument(
-        'classes', type=str, help='The text file name of storage class list')
+        'classes',
+        type=str,
+        help='The text file name of storage class list',
+    )
     parser.add_argument(
         'out',
         type=str,
         help='The output annotation json file name, The save dir is in the '
-        'same directory as img_path')
+        'same directory as img_path',
+    )
     parser.add_argument(
         '-e',
         '--exclude-extensions',
         type=str,
         nargs='+',
-        help='The suffix of images to be excluded, such as "png" and "bmp"')
+        help='The suffix of images to be excluded, such as "png" and "bmp"',
+    )
     args = parser.parse_args()
     return args
 
@@ -33,8 +39,8 @@ def collect_image_infos(path, exclude_extensions=None):
     images_generator = mmcv.scandir(path, recursive=True)
     for image_path in mmcv.track_iter_progress(list(images_generator)):
         if exclude_extensions is None or (
-                exclude_extensions is not None
-                and not image_path.lower().endswith(exclude_extensions)):
+            exclude_extensions is not None and not image_path.lower().endswith(exclude_extensions)
+        ):
             image_path = os.path.join(path, image_path)
             img_pillow = Image.open(image_path)
             img_info = {
@@ -80,7 +86,8 @@ def cvt_to_coco_json(img_infos, classes):
 def main():
     args = parse_args()
     assert args.out.endswith(
-        'json'), 'The output file name must be json suffix'
+        'json',
+    ), 'The output file name must be json suffix'
 
     # 1 load image list info
     img_infos = collect_image_infos(args.img_path, args.exclude_extensions)

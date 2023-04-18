@@ -9,19 +9,18 @@ except ImportError:
 
 class Conv2dReLU(nn.Sequential):
     def __init__(
-            self,
-            in_channels,
-            out_channels,
-            kernel_size,
-            padding=0,
-            stride=1,
-            use_batchnorm=True,
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding=0,
+        stride=1,
+        use_batchnorm=True,
     ):
-
-        if use_batchnorm == "inplace" and InPlaceABN is None:
+        if use_batchnorm == 'inplace' and InPlaceABN is None:
             raise RuntimeError(
                 "In order to use `use_batchnorm='inplace'` inplace_abn package must be installed. "
-                + "To install see: https://github.com/mapillary/inplace_abn"
+                + 'To install see: https://github.com/mapillary/inplace_abn',
             )
 
         conv = nn.Conv2d(
@@ -34,11 +33,11 @@ class Conv2dReLU(nn.Sequential):
         )
         relu = nn.ReLU(inplace=True)
 
-        if use_batchnorm == "inplace":
-            bn = InPlaceABN(out_channels, activation="leaky_relu", activation_param=0.0)
+        if use_batchnorm == 'inplace':
+            bn = InPlaceABN(out_channels, activation='leaky_relu', activation_param=0.0)
             relu = nn.Identity()
 
-        elif use_batchnorm and use_batchnorm != "inplace":
+        elif use_batchnorm and use_batchnorm != 'inplace':
             bn = nn.BatchNorm2d(out_channels)
 
         else:
@@ -64,7 +63,6 @@ class SCSEModule(nn.Module):
 
 
 class ArgMax(nn.Module):
-
     def __init__(self, dim=None):
         super().__init__()
         self.dim = dim
@@ -74,9 +72,7 @@ class ArgMax(nn.Module):
 
 
 class Activation(nn.Module):
-
     def __init__(self, name, **params):
-
         super().__init__()
 
         if name is None or name == 'identity':
@@ -98,14 +94,17 @@ class Activation(nn.Module):
         elif callable(name):
             self.activation = name(**params)
         else:
-            raise ValueError('Activation should be callable/sigmoid/softmax/logsoftmax/tanh/None; got {}'.format(name))
+            raise ValueError(
+                'Activation should be callable/sigmoid/softmax/logsoftmax/tanh/None; got {}'.format(
+                    name,
+                ),
+            )
 
     def forward(self, x):
         return self.activation(x)
 
 
 class Attention(nn.Module):
-
     def __init__(self, name, **params):
         super().__init__()
 
@@ -114,7 +113,7 @@ class Attention(nn.Module):
         elif name == 'scse':
             self.attention = SCSEModule(**params)
         else:
-            raise ValueError("Attention {} is not implemented".format(name))
+            raise ValueError('Attention {} is not implemented'.format(name))
 
     def forward(self, x):
         return self.attention(x)

@@ -14,18 +14,22 @@ model = dict(
         mlp_ratio=4,
         qkv_bias=True,
         qk_scale=None,
-        drop_rate=0.,
-        attn_drop_rate=0.,
+        drop_rate=0.0,
+        attn_drop_rate=0.0,
         drop_path_rate=0.3,
         patch_norm=True,
         out_indices=(0, 1, 2, 3),
         with_cp=False,
         convert_weights=True,
         frozen_stages=-1,
-        init_cfg=dict(type='Pretrained', checkpoint=pretrained)),
+        init_cfg=dict(type='Pretrained', checkpoint=pretrained),
+    ),
     panoptic_head=dict(
-        type='Mask2FormerHead', in_channels=[96, 192, 384, 768]),
-    init_cfg=None)
+        type='Mask2FormerHead',
+        in_channels=[96, 192, 384, 768],
+    ),
+    init_cfg=None,
+)
 
 # set all layers in backbone to lr_mult=0.1
 # set all norm layers, position_embeding,
@@ -41,17 +45,21 @@ custom_keys = {
     'relative_position_bias_table': backbone_embed_multi,
     'query_embed': embed_multi,
     'query_feat': embed_multi,
-    'level_embed': embed_multi
+    'level_embed': embed_multi,
 }
-custom_keys.update({
-    f'backbone.stages.{stage_id}.blocks.{block_id}.norm': backbone_norm_multi
-    for stage_id, num_blocks in enumerate(depths)
-    for block_id in range(num_blocks)
-})
-custom_keys.update({
-    f'backbone.stages.{stage_id}.downsample.norm': backbone_norm_multi
-    for stage_id in range(len(depths) - 1)
-})
+custom_keys.update(
+    {
+        f'backbone.stages.{stage_id}.blocks.{block_id}.norm': backbone_norm_multi
+        for stage_id, num_blocks in enumerate(depths)
+        for block_id in range(num_blocks)
+    },
+)
+custom_keys.update(
+    {
+        f'backbone.stages.{stage_id}.downsample.norm': backbone_norm_multi
+        for stage_id in range(len(depths) - 1)
+    },
+)
 # optimizer
 optimizer = dict(
     type='AdamW',
@@ -59,4 +67,5 @@ optimizer = dict(
     weight_decay=0.05,
     eps=1e-8,
     betas=(0.9, 0.999),
-    paramwise_cfg=dict(custom_keys=custom_keys, norm_decay_mult=0.0))
+    paramwise_cfg=dict(custom_keys=custom_keys, norm_decay_mult=0.0),
+)

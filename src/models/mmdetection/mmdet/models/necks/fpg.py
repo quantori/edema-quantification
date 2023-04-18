@@ -40,32 +40,32 @@ class UpInterpolationConv(Transition):
         kernel_size (int): Kernel size for the conv. Default: 3.
     """
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 scale_factor=2,
-                 mode='nearest',
-                 align_corners=None,
-                 kernel_size=3,
-                 init_cfg=None,
-                 **kwargs):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        scale_factor=2,
+        mode='nearest',
+        align_corners=None,
+        kernel_size=3,
+        init_cfg=None,
+        **kwargs
+    ):
         super().__init__(in_channels, out_channels, init_cfg)
         self.mode = mode
         self.scale_factor = scale_factor
         self.align_corners = align_corners
         self.conv = ConvModule(
-            in_channels,
-            out_channels,
-            kernel_size,
-            padding=(kernel_size - 1) // 2,
-            **kwargs)
+            in_channels, out_channels, kernel_size, padding=(kernel_size - 1) // 2, **kwargs
+        )
 
     def forward(self, x):
         x = F.interpolate(
             x,
             scale_factor=self.scale_factor,
             mode=self.mode,
-            align_corners=self.align_corners)
+            align_corners=self.align_corners,
+        )
         x = self.conv(x)
         return x
 
@@ -80,21 +80,14 @@ class LastConv(Transition):
         kernel_size (int): Kernel size for the conv. Default: 3.
     """
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 num_inputs,
-                 kernel_size=3,
-                 init_cfg=None,
-                 **kwargs):
+    def __init__(
+        self, in_channels, out_channels, num_inputs, kernel_size=3, init_cfg=None, **kwargs
+    ):
         super().__init__(in_channels, out_channels, init_cfg)
         self.num_inputs = num_inputs
         self.conv_out = ConvModule(
-            in_channels,
-            out_channels,
-            kernel_size,
-            padding=(kernel_size - 1) // 2,
-            **kwargs)
+            in_channels, out_channels, kernel_size, padding=(kernel_size - 1) // 2, **kwargs
+        )
 
     def forward(self, inputs):
         assert len(inputs) == self.num_inputs
@@ -147,36 +140,45 @@ class FPG(BaseModule):
         'last_conv': LastConv,
     }
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 num_outs,
-                 stack_times,
-                 paths,
-                 inter_channels=None,
-                 same_down_trans=None,
-                 same_up_trans=dict(
-                     type='conv', kernel_size=3, stride=2, padding=1),
-                 across_lateral_trans=dict(type='conv', kernel_size=1),
-                 across_down_trans=dict(type='conv', kernel_size=3),
-                 across_up_trans=None,
-                 across_skip_trans=dict(type='identity'),
-                 output_trans=dict(type='last_conv', kernel_size=3),
-                 start_level=0,
-                 end_level=-1,
-                 add_extra_convs=False,
-                 norm_cfg=None,
-                 skip_inds=None,
-                 init_cfg=[
-                     dict(type='Caffe2Xavier', layer='Conv2d'),
-                     dict(
-                         type='Constant',
-                         layer=[
-                             '_BatchNorm', '_InstanceNorm', 'GroupNorm',
-                             'LayerNorm'
-                         ],
-                         val=1.0)
-                 ]):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        num_outs,
+        stack_times,
+        paths,
+        inter_channels=None,
+        same_down_trans=None,
+        same_up_trans=dict(
+            type='conv',
+            kernel_size=3,
+            stride=2,
+            padding=1,
+        ),
+        across_lateral_trans=dict(type='conv', kernel_size=1),
+        across_down_trans=dict(type='conv', kernel_size=3),
+        across_up_trans=None,
+        across_skip_trans=dict(type='identity'),
+        output_trans=dict(type='last_conv', kernel_size=3),
+        start_level=0,
+        end_level=-1,
+        add_extra_convs=False,
+        norm_cfg=None,
+        skip_inds=None,
+        init_cfg=[
+            dict(type='Caffe2Xavier', layer='Conv2d'),
+            dict(
+                type='Constant',
+                layer=[
+                    '_BatchNorm',
+                    '_InstanceNorm',
+                    'GroupNorm',
+                    'LayerNorm',
+                ],
+                val=1.0,
+            ),
+        ],
+    ):
         super(FPG, self).__init__(init_cfg)
         assert isinstance(in_channels, list)
         self.in_channels = in_channels
@@ -227,8 +229,11 @@ class FPG(BaseModule):
         # build lateral 1x1 convs to reduce channels
         self.lateral_convs = nn.ModuleList()
         for i in range(self.start_level, self.backbone_end_level):
-            l_conv = nn.Conv2d(self.in_channels[i],
-                               self.inter_channels[i - self.start_level], 1)
+            l_conv = nn.Conv2d(
+                self.in_channels[i],
+                self.inter_channels[i - self.start_level],
+                1,
+            )
             self.lateral_convs.append(l_conv)
 
         extra_levels = num_outs - self.backbone_end_level + self.start_level
@@ -241,7 +246,8 @@ class FPG(BaseModule):
                     self.inter_channels[fpn_idx],
                     3,
                     stride=2,
-                    padding=1)
+                    padding=1,
+                )
                 self.extra_downsamples.append(extra_conv)
             else:
                 self.extra_downsamples.append(nn.MaxPool2d(1, stride=2))
@@ -260,44 +266,56 @@ class FPG(BaseModule):
                     same_up_trans = None
                 else:
                     same_up_trans = self.build_trans(
-                        self.same_up_trans, self.inter_channels[i - 1],
-                        self.inter_channels[i])
+                        self.same_up_trans,
+                        self.inter_channels[i - 1],
+                        self.inter_channels[i],
+                    )
                 trans['same_up'] = same_up_trans
                 # build same-stage up trans (used in top-down paths)
                 if i == self.num_outs - 1 or self.same_down_trans is None:
                     same_down_trans = None
                 else:
                     same_down_trans = self.build_trans(
-                        self.same_down_trans, self.inter_channels[i + 1],
-                        self.inter_channels[i])
+                        self.same_down_trans,
+                        self.inter_channels[i + 1],
+                        self.inter_channels[i],
+                    )
                 trans['same_down'] = same_down_trans
                 # build across lateral trans
                 across_lateral_trans = self.build_trans(
-                    self.across_lateral_trans, self.inter_channels[i],
-                    self.inter_channels[i])
+                    self.across_lateral_trans,
+                    self.inter_channels[i],
+                    self.inter_channels[i],
+                )
                 trans['across_lateral'] = across_lateral_trans
                 # build across down trans
                 if i == self.num_outs - 1 or self.across_down_trans is None:
                     across_down_trans = None
                 else:
                     across_down_trans = self.build_trans(
-                        self.across_down_trans, self.inter_channels[i + 1],
-                        self.inter_channels[i])
+                        self.across_down_trans,
+                        self.inter_channels[i + 1],
+                        self.inter_channels[i],
+                    )
                 trans['across_down'] = across_down_trans
                 # build across up trans
                 if i == 0 or self.across_up_trans is None:
                     across_up_trans = None
                 else:
                     across_up_trans = self.build_trans(
-                        self.across_up_trans, self.inter_channels[i - 1],
-                        self.inter_channels[i])
+                        self.across_up_trans,
+                        self.inter_channels[i - 1],
+                        self.inter_channels[i],
+                    )
                 trans['across_up'] = across_up_trans
                 if self.across_skip_trans is None:
                     across_skip_trans = None
                 else:
                     across_skip_trans = self.build_trans(
-                        self.across_skip_trans, self.inter_channels[i - 1],
-                        self.inter_channels[i])
+                        self.across_skip_trans,
+                        self.inter_channels[i - 1],
+                        self.inter_channels[i],
+                    )
                 trans['across_skip'] = across_skip_trans
                 # build across_skip trans
                 stage_trans.append(trans)
@@ -309,7 +327,8 @@ class FPG(BaseModule):
                 self.output_trans,
                 self.inter_channels[i],
                 self.out_channels,
-                num_inputs=self.stack_times + 1)
+                num_inputs=self.stack_times + 1,
+            )
             self.output_transition.append(trans)
 
         self.relu = nn.ReLU(inplace=True)
@@ -361,29 +380,35 @@ class FPG(BaseModule):
                     same_trans = self.fpn_transitions[i][lvl]['same_down']
                 else:
                     same_trans = self.fpn_transitions[i][lvl]['same_up']
-                across_lateral_trans = self.fpn_transitions[i][lvl][
-                    'across_lateral']
+                across_lateral_trans = self.fpn_transitions[i][lvl]['across_lateral']
                 across_down_trans = self.fpn_transitions[i][lvl]['across_down']
                 across_up_trans = self.fpn_transitions[i][lvl]['across_up']
                 across_skip_trans = self.fpn_transitions[i][lvl]['across_skip']
                 # init output
                 to_fuse = dict(
-                    same=None, lateral=None, across_up=None, across_down=None)
+                    same=None,
+                    lateral=None,
+                    across_up=None,
+                    across_down=None,
+                )
                 # same downsample/upsample
                 if same_trans is not None:
                     to_fuse['same'] = same_trans(next_outs[-1])
                 # across lateral
                 if across_lateral_trans is not None:
                     to_fuse['lateral'] = across_lateral_trans(
-                        current_outs[lvl])
+                        current_outs[lvl],
+                    )
                 # across downsample
                 if lvl > 0 and across_up_trans is not None:
-                    to_fuse['across_up'] = across_up_trans(current_outs[lvl -
-                                                                        1])
+                    to_fuse['across_up'] = across_up_trans(
+                        current_outs[lvl - 1],
+                    )
                 # across upsample
-                if (lvl < self.num_outs - 1 and across_down_trans is not None):
+                if lvl < self.num_outs - 1 and across_down_trans is not None:
                     to_fuse['across_down'] = across_down_trans(
-                        current_outs[lvl + 1])
+                        current_outs[lvl + 1],
+                    )
                 if across_skip_trans is not None:
                     to_fuse['across_skip'] = across_skip_trans(outs[0][lvl])
                 x = self.fuse(to_fuse)
