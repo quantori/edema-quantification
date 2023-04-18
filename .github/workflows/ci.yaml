@@ -44,15 +44,9 @@ jobs:
   unit-testing:
     needs: [pre-commit]
     runs-on: ubuntu-latest
-    # optionally use a convenient Ubuntu LTS + DVC + CML image
-    # container: ghcr.io/iterative/cml:0-dvc2-base1
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    - name: Setup CML
-      uses: iterative/setup-cml@v1
-      with:
-        sudo: true
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
@@ -66,4 +60,26 @@ jobs:
         export PYTHONPATH=${PWD}
         echo -e "${GREEN}PWD: $PYTHONPATH${NC}"
         python tests/convert_sly_to_int_test.py
+        echo -e "${GREEN}Job completed successfully${NC}"
+
+  reporting:
+    needs: [unit-testing]
+    runs-on: ubuntu-latest
+    # optionally use a convenient Ubuntu LTS + DVC + CML image
+    # container: ghcr.io/iterative/cml:0-dvc2-base1
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Setup CML
+      uses: iterative/setup-cml@v1
+    - name: Reporting
+      env:
+        REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo ":white_check_mark: **pre-commit**" >> report.md
+        echo ">  complete" >> report.md
+        echo " " >> report.md
+        echo ":white_check_mark: **unit-testing**" >> report.md
+        echo ">  complete" >> report.md
+        cml comment create report.md
         echo -e "${GREEN}Job completed successfully${NC}"
