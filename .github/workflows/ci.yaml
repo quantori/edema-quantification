@@ -25,21 +25,20 @@ jobs:
         pip install -r requirements/tests.txt
     - name: Linting
       run: |
-        pre-commit run check-yaml --from-ref origin/inference_detection --to-ref origin/main
-        pre-commit run check-yaml
-        pre-commit run check-toml
-        pre-commit run check-json
-        pre-commit run check-ast
-        pre-commit run requirements-txt-fixer
-        pre-commit run trailing-whitespace
-        pre-commit run end-of-file-fixer
-        pre-commit run double-quote-string-fixer
-        pre-commit run add-trailing-comma
-        pre-commit run black
-        pre-commit run pretty-format-yaml
-        pre-commit run pycln
-        pre-commit run isort
-        pre-commit run pydocstyle
+        pre-commit run check-yaml --all-files --show-diff-on-failure --verbose
+        pre-commit run check-yaml --all-files --show-diff-on-failure --verbose
+        pre-commit run check-toml --all-files --show-diff-on-failure --verbose
+        pre-commit run check-json --all-files --show-diff-on-failure --verbose
+        pre-commit run check-ast --all-files --show-diff-on-failure --verbose
+        pre-commit run requirements-txt-fixer --all-files --show-diff-on-failure --verbose
+        pre-commit run trailing-whitespace --all-files --show-diff-on-failure --verbose
+        pre-commit run end-of-file-fixer --all-files --show-diff-on-failure --verbose
+        pre-commit run double-quote-string-fixer --all-files --show-diff-on-failure --verbose
+        pre-commit run add-trailing-comma --all-files --show-diff-on-failure --verbose
+        pre-commit run black --all-files --show-diff-on-failure --verbose
+        pre-commit run pretty-format-yaml --all-files --show-diff-on-failure --verbose
+        pre-commit run pycln --all-files --show-diff-on-failure --verbose
+        pre-commit run isort --all-files --show-diff-on-failure --verbose
         echo -e "${GREEN}Job completed successfully${NC}"
 
   unit-testing:
