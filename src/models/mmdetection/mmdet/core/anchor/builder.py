@@ -15,5 +15,6 @@ def build_prior_generator(cfg, default_args=None):
 def build_anchor_generator(cfg, default_args=None):
     warnings.warn(
         '``build_anchor_generator`` would be deprecated soon, please use '
-        '``build_prior_generator`` ')
+        '``build_prior_generator`` ',
+    )
     return build_prior_generator(cfg, default_args=default_args)

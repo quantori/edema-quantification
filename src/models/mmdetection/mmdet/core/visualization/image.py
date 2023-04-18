@@ -8,15 +8,19 @@ import numpy as np
 import pycocotools.mask as mask_util
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
-
 from mmdet.core.evaluation.panoptic_utils import INSTANCE_OFFSET
+
 from ..mask.structures import bitmap_to_polygon
 from ..utils import mask2ndarray
 from .palette import get_palette, palette_val
 
 __all__ = [
-    'color_val_matplotlib', 'draw_masks', 'draw_bboxes', 'draw_labels',
-    'imshow_det_bboxes', 'imshow_gt_det_bboxes'
+    'color_val_matplotlib',
+    'draw_masks',
+    'draw_bboxes',
+    'draw_labels',
+    'imshow_det_bboxes',
+    'imshow_gt_det_bboxes',
 ]
 
 EPS = 1e-2
@@ -74,7 +78,10 @@ def _get_bias_color(base, max_dist=30):
         ndarray: The new color for a mask with the shape of (3, ).
     """
     new_color = base + np.random.randint(
-        low=-max_dist, high=max_dist + 1, size=3)
+        low=-max_dist,
+        high=max_dist + 1,
+        size=3,
+    )
     return np.clip(new_color, 0, 255, new_color)
 
 
@@ -96,8 +103,12 @@ def draw_bboxes(ax, bboxes, color='g', alpha=0.8, thickness=2):
     polygons = []
     for i, bbox in enumerate(bboxes):
         bbox_int = bbox.astype(np.int32)
-        poly = [[bbox_int[0], bbox_int[1]], [bbox_int[0], bbox_int[3]],
-                [bbox_int[2], bbox_int[3]], [bbox_int[2], bbox_int[1]]]
+        poly = [
+            [bbox_int[0], bbox_int[1]],
+            [bbox_int[0], bbox_int[3]],
+            [bbox_int[2], bbox_int[3]],
+            [bbox_int[2], bbox_int[1]],
+        ]
         np_poly = np.array(poly).reshape((4, 2))
         polygons.append(Polygon(np_poly))
     p = PatchCollection(
@@ -105,21 +116,24 @@ def draw_bboxes(ax, bboxes, color='g', alpha=0.8, thickness=2):
         facecolor='none',
         edgecolors=color,
         linewidths=thickness,
-        alpha=alpha)
+        alpha=alpha,
+    )
     ax.add_collection(p)
 
     return ax
 
 
-def draw_labels(ax,
-                labels,
-                positions,
-                scores=None,
-                class_names=None,
-                color='w',
-                font_size=8,
-                scales=None,
-                horizontal_alignment='left'):
+def draw_labels(
+    ax,
+    labels,
+    positions,
+    scores=None,
+    class_names=None,
+    color='w',
+    font_size=8,
+    scales=None,
+    horizontal_alignment='left',
+):
     """Draw labels on the axes.
 
     Args:
@@ -138,8 +152,7 @@ def draw_labels(ax,
         matplotlib.Axes: The result axes.
     """
     for i, (pos, label) in enumerate(zip(positions, labels)):
-        label_text = class_names[
-            label] if class_names is not None else f'class {label}'
+        label_text = class_names[label] if class_names is not None else f'class {label}'
         if scores is not None:
             label_text += f'|{scores[i]:.02f}'
         text_color = color[i] if isinstance(color, list) else color
@@ -153,12 +166,13 @@ def draw_labels(ax,
                 'facecolor': 'black',
                 'alpha': 0.8,
                 'pad': 0.7,
-                'edgecolor': 'none'
+                'edgecolor': 'none',
             },
             color=text_color,
             fontsize=font_size_mask,
             verticalalignment='top',
-            horizontalalignment=horizontal_alignment)
+            horizontalalignment=horizontal_alignment,
+        )
 
     return ax
 
@@ -199,27 +213,34 @@ def draw_masks(ax, img, masks, color=None, with_edge=True, alpha=0.8):
         img[mask] = img[mask] * (1 - alpha) + color_mask * alpha
 
     p = PatchCollection(
-        polygons, facecolor='none', edgecolors='w', linewidths=1, alpha=0.8)
+        polygons,
+        facecolor='none',
+        edgecolors='w',
+        linewidths=1,
+        alpha=0.8,
+    )
     ax.add_collection(p)
 
     return ax, img
 
 
-def imshow_det_bboxes(img,
-                      bboxes=None,
-                      labels=None,
-                      segms=None,
-                      class_names=None,
-                      score_thr=0,
-                      bbox_color='green',
-                      text_color='green',
-                      mask_color=None,
-                      thickness=2,
-                      font_size=8,
-                      win_name='',
-                      show=True,
-                      wait_time=0,
-                      out_file=None):
+def imshow_det_bboxes(
+    img,
+    bboxes=None,
+    labels=None,
+    segms=None,
+    class_names=None,
+    score_thr=0,
+    bbox_color='green',
+    text_color='green',
+    mask_color=None,
+    thickness=2,
+    font_size=8,
+    win_name='',
+    show=True,
+    wait_time=0,
+    out_file=None,
+):
     """Draw bboxes and class labels (with scores) on an image.
 
     Args:
@@ -251,18 +272,22 @@ def imshow_det_bboxes(img,
     Returns:
         ndarray: The image with bboxes drawn on it.
     """
-    assert bboxes is None or bboxes.ndim == 2, \
-        f' bboxes ndim should be 2, but its ndim is {bboxes.ndim}.'
-    assert labels.ndim == 1, \
-        f' labels ndim should be 1, but its ndim is {labels.ndim}.'
-    assert bboxes is None or bboxes.shape[1] == 4 or bboxes.shape[1] == 5, \
-        f' bboxes.shape[1] should be 4 or 5, but its {bboxes.shape[1]}.'
-    assert bboxes is None or bboxes.shape[0] <= labels.shape[0], \
-        'labels.shape[0] should not be less than bboxes.shape[0].'
-    assert segms is None or segms.shape[0] == labels.shape[0], \
-        'segms.shape[0] and labels.shape[0] should have the same length.'
-    assert segms is not None or bboxes is not None, \
-        'segms and bboxes should not be None at the same time.'
+    assert (
+        bboxes is None or bboxes.ndim == 2
+    ), f' bboxes ndim should be 2, but its ndim is {bboxes.ndim}.'
+    assert labels.ndim == 1, f' labels ndim should be 1, but its ndim is {labels.ndim}.'
+    assert (
+        bboxes is None or bboxes.shape[1] == 4 or bboxes.shape[1] == 5
+    ), f' bboxes.shape[1] should be 4 or 5, but its {bboxes.shape[1]}.'
+    assert (
+        bboxes is None or bboxes.shape[0] <= labels.shape[0]
+    ), 'labels.shape[0] should not be less than bboxes.shape[0].'
+    assert (
+        segms is None or segms.shape[0] == labels.shape[0]
+    ), 'segms.shape[0] and labels.shape[0] should have the same length.'
+    assert (
+        segms is not None or bboxes is not None
+    ), 'segms and bboxes should not be None at the same time.'
 
     img = mmcv.imread(img).astype(np.uint8)
 
@@ -317,7 +342,8 @@ def imshow_det_bboxes(img,
             color=text_colors,
             font_size=font_size,
             scales=scales,
-            horizontal_alignment=horizontal_alignment)
+            horizontal_alignment=horizontal_alignment,
+        )
 
     if segms is not None:
         mask_palette = get_palette(mask_color, max_label + 1)
@@ -332,7 +358,9 @@ def imshow_det_bboxes(img,
             positions = []
             for mask in segms:
                 _, _, stats, centroids = cv2.connectedComponentsWithStats(
-                    mask.astype(np.uint8), connectivity=8)
+                    mask.astype(np.uint8),
+                    connectivity=8,
+                )
                 largest_id = np.argmax(stats[1:, -1]) + 1
                 positions.append(centroids[largest_id])
                 areas.append(stats[largest_id, -1])
@@ -346,7 +374,8 @@ def imshow_det_bboxes(img,
                 color=text_colors,
                 font_size=font_size,
                 scales=scales,
-                horizontal_alignment=horizontal_alignment)
+                horizontal_alignment=horizontal_alignment,
+            )
 
     plt.imshow(img)
 
@@ -377,24 +406,26 @@ def imshow_det_bboxes(img,
     return img
 
 
-def imshow_gt_det_bboxes(img,
-                         annotation,
-                         result,
-                         class_names=None,
-                         score_thr=0,
-                         gt_bbox_color=(61, 102, 255),
-                         gt_text_color=(200, 200, 200),
-                         gt_mask_color=(61, 102, 255),
-                         det_bbox_color=(241, 101, 72),
-                         det_text_color=(200, 200, 200),
-                         det_mask_color=(241, 101, 72),
-                         thickness=2,
-                         font_size=13,
-                         win_name='',
-                         show=True,
-                         wait_time=0,
-                         out_file=None,
-                         overlay_gt_pred=True):
+def imshow_gt_det_bboxes(
+    img,
+    annotation,
+    result,
+    class_names=None,
+    score_thr=0,
+    gt_bbox_color=(61, 102, 255),
+    gt_text_color=(200, 200, 200),
+    gt_mask_color=(61, 102, 255),
+    det_bbox_color=(241, 101, 72),
+    det_text_color=(200, 200, 200),
+    det_mask_color=(241, 101, 72),
+    thickness=2,
+    font_size=13,
+    win_name='',
+    show=True,
+    wait_time=0,
+    out_file=None,
+    overlay_gt_pred=True,
+):
     """General visualization GT and result function.
 
     Args:
@@ -441,8 +472,9 @@ def imshow_gt_det_bboxes(img,
     """
     assert 'gt_bboxes' in annotation
     assert 'gt_labels' in annotation
-    assert isinstance(result, (tuple, list, dict)), 'Expected ' \
-        f'tuple or list or dict, but get {type(result)}'
+    assert isinstance(result, (tuple, list, dict)), (
+        'Expected ' f'tuple or list or dict, but get {type(result)}'
+    )
 
     gt_bboxes = annotation['gt_bboxes']
     gt_labels = annotation['gt_labels']
@@ -456,12 +488,18 @@ def imshow_gt_det_bboxes(img,
         sem_labels = np.unique(gt_seg)
         all_labels = np.concatenate((gt_labels, sem_labels), axis=0)
         all_labels, counts = np.unique(all_labels, return_counts=True)
-        stuff_labels = all_labels[np.logical_and(counts < 2,
-                                                 all_labels != pad_value)]
+        stuff_labels = all_labels[
+            np.logical_and(
+                counts < 2,
+                all_labels != pad_value,
+            )
+        ]
         stuff_masks = gt_seg[None] == stuff_labels[:, None, None]
         gt_labels = np.concatenate((gt_labels, stuff_labels), axis=0)
-        gt_masks = np.concatenate((gt_masks, stuff_masks.astype(np.uint8)),
-                                  axis=0)
+        gt_masks = np.concatenate(
+            (gt_masks, stuff_masks.astype(np.uint8)),
+            axis=0,
+        )
         # If you need to show the bounding boxes,
         # please comment the following line
         # gt_bboxes = None
@@ -480,7 +518,8 @@ def imshow_gt_det_bboxes(img,
         thickness=thickness,
         font_size=font_size,
         win_name=win_name,
-        show=False)
+        show=False,
+    )
 
     if not isinstance(result, dict):
         if isinstance(result, tuple):
@@ -491,10 +530,7 @@ def imshow_gt_det_bboxes(img,
             bbox_result, segm_result = result, None
 
         bboxes = np.vstack(bbox_result)
-        labels = [
-            np.full(bbox.shape[0], i, dtype=np.int32)
-            for i, bbox in enumerate(bbox_result)
-        ]
+        labels = [np.full(bbox.shape[0], i, dtype=np.int32) for i, bbox in enumerate(bbox_result)]
         labels = np.concatenate(labels)
 
         segms = None
@@ -503,8 +539,7 @@ def imshow_gt_det_bboxes(img,
             segms = mask_util.decode(segms)
             segms = segms.transpose(2, 0, 1)
     else:
-        assert class_names is not None, 'We need to know the number ' \
-                                        'of classes.'
+        assert class_names is not None, 'We need to know the number ' 'of classes.'
         VOID = len(class_names)
         bboxes = None
         pan_results = result['pan_results']
@@ -513,7 +548,7 @@ def imshow_gt_det_bboxes(img,
         legal_indices = ids != VOID
         ids = ids[legal_indices]
         labels = np.array([id % INSTANCE_OFFSET for id in ids], dtype=np.int64)
-        segms = (pan_results[None] == ids[:, None, None])
+        segms = pan_results[None] == ids[:, None, None]
 
     if overlay_gt_pred:
         img = imshow_det_bboxes(
@@ -531,7 +566,8 @@ def imshow_gt_det_bboxes(img,
             win_name=win_name,
             show=show,
             wait_time=wait_time,
-            out_file=out_file)
+            out_file=out_file,
+        )
     else:
         img_with_det = imshow_det_bboxes(
             img,
@@ -546,7 +582,8 @@ def imshow_gt_det_bboxes(img,
             thickness=thickness,
             font_size=font_size,
             win_name=win_name,
-            show=False)
+            show=False,
+        )
         img = np.concatenate([img_with_gt, img_with_det], axis=0)
 
         plt.imshow(img)

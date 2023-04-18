@@ -24,8 +24,7 @@ Methods:
 """
 
 import torch.nn as nn
-from pretrainedmodels.models.inceptionv4 import InceptionV4, BasicConv2d
-from pretrainedmodels.models.inceptionv4 import pretrained_settings
+from pretrainedmodels.models.inceptionv4 import InceptionV4, pretrained_settings
 
 from ._base import EncoderMixin
 
@@ -50,21 +49,22 @@ class InceptionV4Encoder(InceptionV4, EncoderMixin):
         del self.last_linear
 
     def make_dilated(self, stage_list, dilation_list):
-        raise ValueError("InceptionV4 encoder does not support dilated mode "
-                         "due to pooling operation for downsampling!")
+        raise ValueError(
+            'InceptionV4 encoder does not support dilated mode '
+            'due to pooling operation for downsampling!',
+        )
 
     def get_stages(self):
         return [
             nn.Identity(),
             self.features[: self._stage_idxs[0]],
-            self.features[self._stage_idxs[0]: self._stage_idxs[1]],
-            self.features[self._stage_idxs[1]: self._stage_idxs[2]],
-            self.features[self._stage_idxs[2]: self._stage_idxs[3]],
-            self.features[self._stage_idxs[3]:],
+            self.features[self._stage_idxs[0] : self._stage_idxs[1]],
+            self.features[self._stage_idxs[1] : self._stage_idxs[2]],
+            self.features[self._stage_idxs[2] : self._stage_idxs[3]],
+            self.features[self._stage_idxs[3] :],
         ]
 
     def forward(self, x):
-
         stages = self.get_stages()
 
         features = []
@@ -75,19 +75,19 @@ class InceptionV4Encoder(InceptionV4, EncoderMixin):
         return features
 
     def load_state_dict(self, state_dict, **kwargs):
-        state_dict.pop("last_linear.bias")
-        state_dict.pop("last_linear.weight")
+        state_dict.pop('last_linear.bias')
+        state_dict.pop('last_linear.weight')
         super().load_state_dict(state_dict, **kwargs)
 
 
 inceptionv4_encoders = {
-    "inceptionv4": {
-        "encoder": InceptionV4Encoder,
-        "pretrained_settings": pretrained_settings["inceptionv4"],
-        "params": {
-            "stage_idxs": (3, 5, 9, 15),
-            "out_channels": (3, 64, 192, 384, 1024, 1536),
-            "num_classes": 1001,
+    'inceptionv4': {
+        'encoder': InceptionV4Encoder,
+        'pretrained_settings': pretrained_settings['inceptionv4'],
+        'params': {
+            'stage_idxs': (3, 5, 9, 15),
+            'out_channels': (3, 64, 192, 384, 1024, 1536),
+            'num_classes': 1001,
         },
-    }
+    },
 }

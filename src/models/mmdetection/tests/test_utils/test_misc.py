@@ -5,11 +5,15 @@ import tempfile
 import numpy as np
 import pytest
 import torch
-
 from mmdet.core.bbox import distance2bbox
 from mmdet.core.mask.structures import BitmapMasks, PolygonMasks
-from mmdet.core.utils import (center_of_mass, filter_scores_and_topk,
-                              flip_tensor, mask2ndarray, select_single_mlvl)
+from mmdet.core.utils import (
+    center_of_mass,
+    filter_scores_and_topk,
+    flip_tensor,
+    mask2ndarray,
+    select_single_mlvl,
+)
 from mmdet.utils import find_latest_checkpoint
 
 
@@ -55,14 +59,24 @@ def test_mask2ndarray():
 
 
 def test_distance2bbox():
-    point = torch.Tensor([[74., 61.], [-29., 106.], [138., 61.], [29., 170.]])
+    point = torch.Tensor([[74.0, 61.0], [-29.0, 106.0], [138.0, 61.0], [29.0, 170.0]])
 
-    distance = torch.Tensor([[0., 0, 1., 1.], [1., 2., 10., 6.],
-                             [22., -29., 138., 61.], [54., -29., 170., 61.]])
-    expected_decode_bboxes = torch.Tensor([[74., 61., 75., 62.],
-                                           [0., 104., 0., 112.],
-                                           [100., 90., 100., 120.],
-                                           [0., 120., 100., 120.]])
+    distance = torch.Tensor(
+        [
+            [0.0, 0, 1.0, 1.0],
+            [1.0, 2.0, 10.0, 6.0],
+            [22.0, -29.0, 138.0, 61.0],
+            [54.0, -29.0, 170.0, 61.0],
+        ],
+    )
+    expected_decode_bboxes = torch.Tensor(
+        [
+            [74.0, 61.0, 75.0, 62.0],
+            [0.0, 104.0, 0.0, 112.0],
+            [100.0, 90.0, 100.0, 120.0],
+            [0.0, 120.0, 100.0, 120.0],
+        ],
+    )
     out_bbox = distance2bbox(point, distance, max_shape=(120, 100))
     assert expected_decode_bboxes.allclose(out_bbox)
     out = distance2bbox(point, distance, max_shape=torch.Tensor((120, 100)))
@@ -71,10 +85,16 @@ def test_distance2bbox():
     batch_point = point.unsqueeze(0).repeat(2, 1, 1)
     batch_distance = distance.unsqueeze(0).repeat(2, 1, 1)
     batch_out = distance2bbox(
-        batch_point, batch_distance, max_shape=(120, 100))[0]
+        batch_point,
+        batch_distance,
+        max_shape=(120, 100),
+    )[0]
     assert out.allclose(batch_out)
     batch_out = distance2bbox(
-        batch_point, batch_distance, max_shape=[(120, 100), (120, 100)])[0]
+        batch_point,
+        batch_distance,
+        max_shape=[(120, 100), (120, 100)],
+    )[0]
     assert out.allclose(batch_out)
 
     batch_out = distance2bbox(point, batch_distance, max_shape=(120, 100))[0]
@@ -85,7 +105,8 @@ def test_distance2bbox():
         distance2bbox(
             batch_point,
             batch_distance,
-            max_shape=[(120, 100), (120, 100), (32, 32)])
+            max_shape=[(120, 100), (120, 100), (32, 32)],
+        )
 
     rois = torch.zeros((0, 4))
     deltas = torch.zeros((0, 4))
@@ -98,21 +119,22 @@ def test_distance2bbox():
     assert rois.shape == out.shape
 
 
-@pytest.mark.parametrize('mask', [
-    torch.ones((28, 28)),
-    torch.zeros((28, 28)),
-    torch.rand(28, 28) > 0.5,
-    torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
-])
+@pytest.mark.parametrize(
+    'mask',
+    [
+        torch.ones((28, 28)),
+        torch.zeros((28, 28)),
+        torch.rand(28, 28) > 0.5,
+        torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]]),
+    ],
+)
 def test_center_of_mass(mask):
     center_h, center_w = center_of_mass(mask)
     if mask.shape[0] == 4:
         assert center_h == 1.5
         assert center_w == 1.5
-    assert isinstance(center_h, torch.Tensor) \
-           and isinstance(center_w, torch.Tensor)
-    assert 0 <= center_h <= 28 \
-           and 0 <= center_w <= 28
+    assert isinstance(center_h, torch.Tensor) and isinstance(center_w, torch.Tensor)
+    assert 0 <= center_h <= 28 and 0 <= center_w <= 28
 
 
 def test_flip_tensor():
@@ -147,23 +169,34 @@ def test_select_single_mlvl():
 
 
 def test_filter_scores_and_topk():
-    score = torch.tensor([[0.1, 0.3, 0.2], [0.12, 0.7, 0.9], [0.02, 0.8, 0.08],
-                          [0.4, 0.1, 0.08]])
+    score = torch.tensor(
+        [
+            [0.1, 0.3, 0.2],
+            [0.12, 0.7, 0.9],
+            [0.02, 0.8, 0.08],
+            [0.4, 0.1, 0.08],
+        ],
+    )
     bbox_pred = torch.tensor([[0.2, 0.3], [0.4, 0.7], [0.1, 0.1], [0.5, 0.1]])
     score_thr = 0.15
     nms_pre = 4
     # test results type error
     with pytest.raises(NotImplementedError):
-        filter_scores_and_topk(score, score_thr, nms_pre, (score, ))
+        filter_scores_and_topk(score, score_thr, nms_pre, (score,))
 
     filtered_results = filter_scores_and_topk(
-        score, score_thr, nms_pre, results=dict(bbox_pred=bbox_pred))
+        score,
+        score_thr,
+        nms_pre,
+        results=dict(bbox_pred=bbox_pred),
+    )
     filtered_score, labels, keep_idxs, results = filtered_results
     assert filtered_score.allclose(torch.tensor([0.9, 0.8, 0.7, 0.4]))
     assert labels.allclose(torch.tensor([2, 1, 1, 0]))
     assert keep_idxs.allclose(torch.tensor([1, 2, 1, 3]))
     assert results['bbox_pred'].allclose(
-        torch.tensor([[0.4, 0.7], [0.1, 0.1], [0.4, 0.7], [0.5, 0.1]]))
+        torch.tensor([[0.4, 0.7], [0.1, 0.1], [0.4, 0.7], [0.5, 0.1]]),
+    )
 
 
 def test_find_latest_checkpoint():

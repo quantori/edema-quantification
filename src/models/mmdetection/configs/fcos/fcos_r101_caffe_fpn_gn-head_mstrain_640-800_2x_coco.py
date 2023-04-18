@@ -4,9 +4,15 @@ model = dict(
         depth=101,
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='open-mmlab://detectron/resnet101_caffe')))
+            checkpoint='open-mmlab://detectron/resnet101_caffe',
+        ),
+    ),
+)
 img_norm_cfg = dict(
-    mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
+    mean=[102.9801, 115.9465, 122.7717],
+    std=[1.0, 1.0, 1.0],
+    to_rgb=False,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
@@ -14,7 +20,8 @@ train_pipeline = [
         type='Resize',
         img_scale=[(1333, 640), (1333, 800)],
         multiscale_mode='value',
-        keep_ratio=True),
+        keep_ratio=True,
+    ),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -34,14 +41,16 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
-    test=dict(pipeline=test_pipeline))
+    test=dict(pipeline=test_pipeline),
+)
 # learning policy
 lr_config = dict(step=[16, 22])
 runner = dict(type='EpochBasedRunner', max_epochs=24)

@@ -1,11 +1,8 @@
 import numpy as np
 
 
-def preprocess_input(
-    x, mean=None, std=None, input_space="RGB", input_range=None, **kwargs
-):
-
-    if input_space == "BGR":
+def preprocess_input(x, mean=None, std=None, input_space='RGB', input_range=None, **kwargs):
+    if input_space == 'BGR':
         x = x[..., ::-1].copy()
 
     if input_range is not None:

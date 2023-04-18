@@ -10,10 +10,12 @@ arch_settings = {50: (3, 4, 6, 3), 101: (3, 4, 23, 3)}
 
 def convert_bn(blobs, state_dict, caffe_name, torch_name, converted_names):
     # detectron replace bn with affine channel layer
-    state_dict[torch_name + '.bias'] = torch.from_numpy(blobs[caffe_name +
-                                                              '_b'])
-    state_dict[torch_name + '.weight'] = torch.from_numpy(blobs[caffe_name +
-                                                                '_s'])
+    state_dict[torch_name + '.bias'] = torch.from_numpy(
+        blobs[caffe_name + '_b'],
+    )
+    state_dict[torch_name + '.weight'] = torch.from_numpy(
+        blobs[caffe_name + '_s'],
+    )
     bn_size = state_dict[torch_name + '.weight'].size()
     state_dict[torch_name + '.running_mean'] = torch.zeros(bn_size)
     state_dict[torch_name + '.running_var'] = torch.ones(bn_size)
@@ -21,14 +23,21 @@ def convert_bn(blobs, state_dict, caffe_name, torch_name, converted_names):
     converted_names.add(caffe_name + '_s')
 
 
-def convert_conv_fc(blobs, state_dict, caffe_name, torch_name,
-                    converted_names):
-    state_dict[torch_name + '.weight'] = torch.from_numpy(blobs[caffe_name +
-                                                                '_w'])
+def convert_conv_fc(
+    blobs,
+    state_dict,
+    caffe_name,
+    torch_name,
+    converted_names,
+):
+    state_dict[torch_name + '.weight'] = torch.from_numpy(
+        blobs[caffe_name + '_w'],
+    )
     converted_names.add(caffe_name + '_w')
     if caffe_name + '_b' in blobs:
-        state_dict[torch_name + '.bias'] = torch.from_numpy(blobs[caffe_name +
-                                                                  '_b'])
+        state_dict[torch_name + '.bias'] = torch.from_numpy(
+            blobs[caffe_name + '_b'],
+        )
         converted_names.add(caffe_name + '_b')
 
 
@@ -49,17 +58,35 @@ def convert(src, dst, depth):
     for i in range(1, len(block_nums) + 1):
         for j in range(block_nums[i - 1]):
             if j == 0:
-                convert_conv_fc(blobs, state_dict, f'res{i + 1}_{j}_branch1',
-                                f'layer{i}.{j}.downsample.0', converted_names)
-                convert_bn(blobs, state_dict, f'res{i + 1}_{j}_branch1_bn',
-                           f'layer{i}.{j}.downsample.1', converted_names)
+                convert_conv_fc(
+                    blobs,
+                    state_dict,
+                    f'res{i + 1}_{j}_branch1',
+                    f'layer{i}.{j}.downsample.0',
+                    converted_names,
+                )
+                convert_bn(
+                    blobs,
+                    state_dict,
+                    f'res{i + 1}_{j}_branch1_bn',
+                    f'layer{i}.{j}.downsample.1',
+                    converted_names,
+                )
             for k, letter in enumerate(['a', 'b', 'c']):
-                convert_conv_fc(blobs, state_dict,
-                                f'res{i + 1}_{j}_branch2{letter}',
-                                f'layer{i}.{j}.conv{k+1}', converted_names)
-                convert_bn(blobs, state_dict,
-                           f'res{i + 1}_{j}_branch2{letter}_bn',
-                           f'layer{i}.{j}.bn{k + 1}', converted_names)
+                convert_conv_fc(
+                    blobs,
+                    state_dict,
+                    f'res{i + 1}_{j}_branch2{letter}',
+                    f'layer{i}.{j}.conv{k+1}',
+                    converted_names,
+                )
+                convert_bn(
+                    blobs,
+                    state_dict,
+                    f'res{i + 1}_{j}_branch2{letter}_bn',
+                    f'layer{i}.{j}.bn{k + 1}',
+                    converted_names,
+                )
     # check if all layers are converted
     for key in blobs:
         if key not in converted_names:

@@ -1,13 +1,12 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from mmcv.cnn import ConvModule
-
 from mmdet.models.builder import HEADS
+
 from .fcn_mask_head import FCNMaskHead
 
 
 @HEADS.register_module()
 class HTCMaskHead(FCNMaskHead):
-
     def __init__(self, with_conv_res=True, *args, **kwargs):
         super(HTCMaskHead, self).__init__(*args, **kwargs)
         self.with_conv_res = with_conv_res
@@ -17,7 +16,8 @@ class HTCMaskHead(FCNMaskHead):
                 self.conv_out_channels,
                 1,
                 conv_cfg=self.conv_cfg,
-                norm_cfg=self.norm_cfg)
+                norm_cfg=self.norm_cfg,
+            )
 
     def forward(self, x, res_feat=None, return_logits=True, return_feat=True):
         if res_feat is not None:

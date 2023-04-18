@@ -4,15 +4,16 @@ import os.path as osp
 import mmcv
 import pytest
 import torch
-
 from mmdet import digit_version
 from mmdet.models.necks import FPN, YOLOV3Neck
+
 from .utils import ort_validate
 
 if digit_version(torch.__version__) <= digit_version('1.5.0'):
     pytest.skip(
         'ort backend does not support version below 1.5.0',
-        allow_module_level=True)
+        allow_module_level=True,
+    )
 
 # Control the returned model of fpn_neck_config()
 fpn_test_step_names = {
@@ -41,62 +42,69 @@ def fpn_neck_config(test_step_name):
     out_channels = 8
 
     feats = [
-        torch.rand(1, in_channels[i], feat_sizes[i], feat_sizes[i])
-        for i in range(len(in_channels))
+        torch.rand(1, in_channels[i], feat_sizes[i], feat_sizes[i]) for i in range(len(in_channels))
     ]
 
-    if (fpn_test_step_names[test_step_name] == 0):
+    if fpn_test_step_names[test_step_name] == 0:
         fpn_model = FPN(
             in_channels=in_channels,
             out_channels=out_channels,
             add_extra_convs=True,
-            num_outs=5)
-    elif (fpn_test_step_names[test_step_name] == 1):
+            num_outs=5,
+        )
+    elif fpn_test_step_names[test_step_name] == 1:
         fpn_model = FPN(
             in_channels=in_channels,
             out_channels=out_channels,
             add_extra_convs=False,
-            num_outs=5)
-    elif (fpn_test_step_names[test_step_name] == 2):
+            num_outs=5,
+        )
+    elif fpn_test_step_names[test_step_name] == 2:
         fpn_model = FPN(
             in_channels=in_channels,
             out_channels=out_channels,
             add_extra_convs=True,
             no_norm_on_lateral=False,
             norm_cfg=dict(type='BN', requires_grad=True),
-            num_outs=5)
-    elif (fpn_test_step_names[test_step_name] == 3):
+            num_outs=5,
+        )
+    elif fpn_test_step_names[test_step_name] == 3:
         fpn_model = FPN(
             in_channels=in_channels,
             out_channels=out_channels,
             add_extra_convs=True,
             upsample_cfg=dict(mode='bilinear', align_corners=True),
-            num_outs=5)
-    elif (fpn_test_step_names[test_step_name] == 4):
+            num_outs=5,
+        )
+    elif fpn_test_step_names[test_step_name] == 4:
         fpn_model = FPN(
             in_channels=in_channels,
             out_channels=out_channels,
             add_extra_convs=True,
             upsample_cfg=dict(scale_factor=2),
-            num_outs=5)
-    elif (fpn_test_step_names[test_step_name] == 5):
+            num_outs=5,
+        )
+    elif fpn_test_step_names[test_step_name] == 5:
         fpn_model = FPN(
             in_channels=in_channels,
             out_channels=out_channels,
             add_extra_convs='on_input',
-            num_outs=5)
-    elif (fpn_test_step_names[test_step_name] == 6):
+            num_outs=5,
+        )
+    elif fpn_test_step_names[test_step_name] == 6:
         fpn_model = FPN(
             in_channels=in_channels,
             out_channels=out_channels,
             add_extra_convs='on_lateral',
-            num_outs=5)
-    elif (fpn_test_step_names[test_step_name] == 7):
+            num_outs=5,
+        )
+    elif fpn_test_step_names[test_step_name] == 7:
         fpn_model = FPN(
             in_channels=in_channels,
             out_channels=out_channels,
             add_extra_convs='on_output',
-            num_outs=5)
+            num_outs=5,
+        )
     return fpn_model, feats
 
 
@@ -112,9 +120,12 @@ def yolo_neck_config(test_step_name):
     yolov3_neck_data = 'yolov3_neck.pkl'
     feats = mmcv.load(osp.join(data_path, yolov3_neck_data))
 
-    if (yolo_test_step_names[test_step_name] == 0):
+    if yolo_test_step_names[test_step_name] == 0:
         yolo_model = YOLOV3Neck(
-            in_channels=in_channels, out_channels=out_channels, num_scales=3)
+            in_channels=in_channels,
+            out_channels=out_channels,
+            num_scales=3,
+        )
     return yolo_model, feats
 
 

@@ -1,7 +1,8 @@
 _base_ = [
     '../_base_/models/retinanet_r50_fpn.py',
     '../_base_/datasets/coco_detection.py',
-    '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
+    '../_base_/schedules/schedule_1x.py',
+    '../_base_/default_runtime.py',
 ]
 
 # please install mmcls>=0.20.0
@@ -14,6 +15,8 @@ model = dict(
         model_name='tv_resnet50',  # ResNet-50 with torchvision weights
         features_only=True,
         pretrained=True,
-        out_indices=(1, 2, 3, 4)))
+        out_indices=(1, 2, 3, 4),
+    ),
+)
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)

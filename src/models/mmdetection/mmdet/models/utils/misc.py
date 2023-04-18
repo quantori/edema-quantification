@@ -61,7 +61,8 @@ def interpolate_as(source, target, mode='bilinear', align_corners=False):
                 source,
                 size=(target_h, target_w),
                 mode=mode,
-                align_corners=align_corners)
+                align_corners=align_corners,
+            )
         return source
 
     if len(source.shape) == 3:

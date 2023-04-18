@@ -14,27 +14,36 @@ model = dict(
         norm_cfg=norm_cfg,
         norm_eval=False,
         style='pytorch',
-        init_cfg=dict(type='Pretrained', checkpoint='open-mmlab://resnest50')),
+        init_cfg=dict(type='Pretrained', checkpoint='open-mmlab://resnest50'),
+    ),
     roi_head=dict(
         bbox_head=dict(
             type='Shared4Conv1FCBBoxHead',
             conv_out_channels=256,
-            norm_cfg=norm_cfg)))
+            norm_cfg=norm_cfg,
+        ),
+    ),
+)
 # # use ResNeSt img_norm
 img_norm_cfg = dict(
-    mean=[123.68, 116.779, 103.939], std=[58.393, 57.12, 57.375], to_rgb=True)
+    mean=[123.68, 116.779, 103.939],
+    std=[58.393, 57.12, 57.375],
+    to_rgb=True,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='LoadAnnotations',
         with_bbox=True,
         with_mask=False,
-        poly2mask=False),
+        poly2mask=False,
+    ),
     dict(
         type='Resize',
         img_scale=[(1333, 640), (1333, 800)],
         multiscale_mode='range',
-        keep_ratio=True),
+        keep_ratio=True,
+    ),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -54,9 +63,11 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
-    test=dict(pipeline=test_pipeline))
+    test=dict(pipeline=test_pipeline),
+)

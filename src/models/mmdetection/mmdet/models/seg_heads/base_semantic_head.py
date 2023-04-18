@@ -17,18 +17,21 @@ class BaseSemanticHead(BaseModule, metaclass=ABCMeta):
         loss_seg (dict): the loss of the semantic head.
     """
 
-    def __init__(self,
-                 num_classes,
-                 init_cfg=None,
-                 loss_seg=dict(
-                     type='CrossEntropyLoss',
-                     ignore_index=255,
-                     loss_weight=1.0)):
+    def __init__(
+        self,
+        num_classes,
+        init_cfg=None,
+        loss_seg=dict(
+            type='CrossEntropyLoss',
+            ignore_index=255,
+            loss_weight=1.0,
+        ),
+    ):
         super(BaseSemanticHead, self).__init__(init_cfg)
         self.loss_seg = build_loss(loss_seg)
         self.num_classes = num_classes
 
-    @force_fp32(apply_to=('seg_preds', ))
+    @force_fp32(apply_to=('seg_preds',))
     def loss(self, seg_preds, gt_semantic_seg):
         """Get the loss of semantic head.
 
@@ -48,7 +51,8 @@ class BaseSemanticHead(BaseModule, metaclass=ABCMeta):
 
         loss_seg = self.loss_seg(
             seg_preds.reshape(-1, self.num_classes),  # => [NxHxW, C]
-            gt_semantic_seg.reshape(-1).long())
+            gt_semantic_seg.reshape(-1).long(),
+        )
         return dict(loss_seg=loss_seg)
 
     @abstractmethod
@@ -74,7 +78,8 @@ class BaseSemanticHead(BaseModule, metaclass=ABCMeta):
             seg_preds,
             size=img_metas[0]['pad_shape'][:2],
             mode='bilinear',
-            align_corners=False)
+            align_corners=False,
+        )
 
         if rescale:
             h, w, _ = img_metas[0]['img_shape']
@@ -82,5 +87,9 @@ class BaseSemanticHead(BaseModule, metaclass=ABCMeta):
 
             h, w, _ = img_metas[0]['ori_shape']
             seg_preds = F.interpolate(
-                seg_preds, size=(h, w), mode='bilinear', align_corners=False)
+                seg_preds,
+                size=(h, w),
+                mode='bilinear',
+                align_corners=False,
+            )
         return seg_preds

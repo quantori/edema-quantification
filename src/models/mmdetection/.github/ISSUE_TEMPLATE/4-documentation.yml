@@ -10,8 +10,8 @@ body:
     label: Branch
     description: This issue is related to the
     options:
-      - master branch  https://mmdetection.readthedocs.io/en/latest/
-      - 3.x branch https://mmdetection.readthedocs.io/en/3.x/
+    - master branch  https://mmdetection.readthedocs.io/en/latest/
+    - 3.x branch https://mmdetection.readthedocs.io/en/3.x/
   validations:
     required: true
 

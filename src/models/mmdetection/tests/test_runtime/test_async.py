@@ -8,7 +8,6 @@ import sys
 import asynctest
 import mmcv
 import torch
-
 from mmdet.apis import async_inference_detector, init_detector
 
 if sys.version_info >= (3, 7):
@@ -25,22 +24,26 @@ class AsyncTestCase(asynctest.TestCase):
         result = method()
         if asyncio.iscoroutine(result):
             self.loop.run_until_complete(
-                asyncio.wait_for(result, timeout=self.TEST_TIMEOUT))
+                asyncio.wait_for(result, timeout=self.TEST_TIMEOUT),
+            )
 
 
 class MaskRCNNDetector:
-
-    def __init__(self,
-                 model_config,
-                 checkpoint=None,
-                 streamqueue_size=3,
-                 device='cuda:0'):
-
+    def __init__(
+        self,
+        model_config,
+        checkpoint=None,
+        streamqueue_size=3,
+        device='cuda:0',
+    ):
         self.streamqueue_size = streamqueue_size
         self.device = device
         # build the model and load checkpoint
         self.model = init_detector(
-            model_config, checkpoint=None, device=self.device)
+            model_config,
+            checkpoint=None,
+            device=self.device,
+        )
         self.streamqueue = None
 
     async def init(self):
@@ -60,7 +63,6 @@ class MaskRCNNDetector:
 
 
 class AsyncInferenceTestCase(AsyncTestCase):
-
     if sys.version_info >= (3, 7):
 
         async def test_simple_inference(self):
@@ -72,7 +74,9 @@ class AsyncInferenceTestCase(AsyncTestCase):
             ori_grad_enabled = torch.is_grad_enabled()
             root_dir = os.path.dirname(os.path.dirname(__name__))
             model_config = os.path.join(
-                root_dir, 'configs/mask_rcnn/mask_rcnn_r50_fpn_1x_coco.py')
+                root_dir,
+                'configs/mask_rcnn/mask_rcnn_r50_fpn_1x_coco.py',
+            )
             detector = MaskRCNNDetector(model_config)
             await detector.init()
             img_path = os.path.join(root_dir, 'demo/demo.jpg')

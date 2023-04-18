@@ -8,7 +8,6 @@ import torch
 from mmcv.ops import RoIPool
 from mmcv.parallel import collate, scatter
 from mmcv.runner import load_checkpoint
-
 from mmdet.core import get_classes
 from mmdet.datasets import replace_ImageToTensor
 from mmdet.datasets.pipelines import Compose
@@ -32,8 +31,9 @@ def init_detector(config, checkpoint=None, device='cuda:0', cfg_options=None):
     if isinstance(config, (str, Path)):
         config = mmcv.Config.fromfile(config)
     elif not isinstance(config, mmcv.Config):
-        raise TypeError('config must be a filename or Config object, '
-                        f'but got {type(config)}')
+        raise TypeError(
+            'config must be a filename or Config object, ' f'but got {type(config)}',
+        )
     if cfg_options is not None:
         config.merge_from_dict(cfg_options)
     if 'pretrained' in config.model:
@@ -48,8 +48,10 @@ def init_detector(config, checkpoint=None, device='cuda:0', cfg_options=None):
             model.CLASSES = checkpoint['meta']['CLASSES']
         else:
             warnings.simplefilter('once')
-            warnings.warn('Class names are not saved in the checkpoint\'s '
-                          'meta data, use COCO classes by default.')
+            warnings.warn(
+                'Class names are not saved in the checkpoint\'s '
+                'meta data, use COCO classes by default.',
+            )
             model.CLASSES = get_classes('coco')
     model.cfg = config  # save the config in the model for convenience
     model.to(device)
@@ -57,6 +59,7 @@ def init_detector(config, checkpoint=None, device='cuda:0', cfg_options=None):
 
     if device == 'npu':
         from mmcv.device.npu import NPUDataParallel
+
         model = NPUDataParallel(model)
         model.cfg = config
 
@@ -79,9 +82,11 @@ class LoadImage:
             dict: ``results`` will be returned containing loaded image.
         """
         warnings.simplefilter('once')
-        warnings.warn('`LoadImage` is deprecated and will be removed in '
-                      'future releases. You may use `LoadImageFromWebcam` '
-                      'from `mmdet.datasets.pipelines.` instead.')
+        warnings.warn(
+            '`LoadImage` is deprecated and will be removed in '
+            'future releases. You may use `LoadImageFromWebcam` '
+            'from `mmdet.datasets.pipelines.` instead.',
+        )
         if isinstance(results['img'], str):
             results['filename'] = results['img']
             results['ori_filename'] = results['img']
@@ -149,7 +154,8 @@ def inference_detector(model, imgs):
     else:
         for m in model.modules():
             assert not isinstance(
-                m, RoIPool
+                m,
+                RoIPool,
             ), 'CPU inference with RoIPool is not supported currently.'
 
     # forward the model
@@ -209,7 +215,8 @@ async def async_inference_detector(model, imgs):
     else:
         for m in model.modules():
             assert not isinstance(
-                m, RoIPool
+                m,
+                RoIPool,
             ), 'CPU inference with RoIPool is not supported currently.'
 
     # We don't restore `torch.is_grad_enabled()` value during concurrent
@@ -219,14 +226,16 @@ async def async_inference_detector(model, imgs):
     return results
 
 
-def show_result_pyplot(model,
-                       img,
-                       result,
-                       score_thr=0.3,
-                       title='result',
-                       wait_time=0,
-                       palette=None,
-                       out_file=None):
+def show_result_pyplot(
+    model,
+    img,
+    result,
+    score_thr=0.3,
+    title='result',
+    wait_time=0,
+    palette=None,
+    out_file=None,
+):
     """Visualize the detection results on the image.
 
     Args:
@@ -254,4 +263,5 @@ def show_result_pyplot(model,
         bbox_color=palette,
         text_color=(200, 200, 200),
         mask_color=palette,
-        out_file=out_file)
+        out_file=out_file,
+    )

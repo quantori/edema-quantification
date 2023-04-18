@@ -5,7 +5,6 @@ import torch
 from mmcv.cnn.utils.weight_init import constant_init
 from mmcv.ops import batched_nms
 from mmcv.runner import BaseModule, force_fp32
-
 from mmdet.core.utils import filter_scores_and_topk, select_single_mlvl
 
 
@@ -29,15 +28,17 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         pass
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
-    def get_bboxes(self,
-                   cls_scores,
-                   bbox_preds,
-                   score_factors=None,
-                   img_metas=None,
-                   cfg=None,
-                   rescale=False,
-                   with_nms=True,
-                   **kwargs):
+    def get_bboxes(
+        self,
+        cls_scores,
+        bbox_preds,
+        score_factors=None,
+        img_metas=None,
+        cfg=None,
+        rescale=False,
+        with_nms=True,
+        **kwargs
+    ):
         """Transform network outputs of a batch into bbox results.
 
         Note: When score_factors is not None, the cls_scores are
@@ -86,7 +87,8 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         mlvl_priors = self.prior_generator.grid_priors(
             featmap_sizes,
             dtype=cls_scores[0].dtype,
-            device=cls_scores[0].device)
+            device=cls_scores[0].device,
+        )
 
         result_list = []
 
@@ -99,23 +101,32 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
             else:
                 score_factor_list = [None for _ in range(num_levels)]
 
-            results = self._get_bboxes_single(cls_score_list, bbox_pred_list,
-                                              score_factor_list, mlvl_priors,
-                                              img_meta, cfg, rescale, with_nms,
-                                              **kwargs)
+            results = self._get_bboxes_single(
+                cls_score_list,
+                bbox_pred_list,
+                score_factor_list,
+                mlvl_priors,
+                img_meta,
+                cfg,
+                rescale,
+                with_nms,
+                **kwargs
+            )
             result_list.append(results)
         return result_list
 
-    def _get_bboxes_single(self,
-                           cls_score_list,
-                           bbox_pred_list,
-                           score_factor_list,
-                           mlvl_priors,
-                           img_meta,
-                           cfg,
-                           rescale=False,
-                           with_nms=True,
-                           **kwargs):
+    def _get_bboxes_single(
+        self,
+        cls_score_list,
+        bbox_pred_list,
+        score_factor_list,
+        mlvl_priors,
+        img_meta,
+        cfg,
+        rescale=False,
+        with_nms=True,
+        **kwargs
+    ):
         """Transform outputs of a single image into bbox predictions.
 
         Args:
@@ -174,18 +185,32 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
             mlvl_score_factors = []
         else:
             mlvl_score_factors = None
-        for level_idx, (cls_score, bbox_pred, score_factor, priors) in \
-                enumerate(zip(cls_score_list, bbox_pred_list,
-                              score_factor_list, mlvl_priors)):
-
+        for level_idx, (cls_score, bbox_pred, score_factor, priors) in enumerate(
+            zip(
+                cls_score_list,
+                bbox_pred_list,
+                score_factor_list,
+                mlvl_priors,
+            ),
+        ):
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
 
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             if with_score_factors:
-                score_factor = score_factor.permute(1, 2,
-                                                    0).reshape(-1).sigmoid()
-            cls_score = cls_score.permute(1, 2,
-                                          0).reshape(-1, self.cls_out_channels)
+                score_factor = (
+                    score_factor.permute(
+                        1,
+                        2,
+                        0,
+                    )
+                    .reshape(-1)
+                    .sigmoid()
+                )
+            cls_score = cls_score.permute(
+                1,
+                2,
+                0,
+            ).reshape(-1, self.cls_out_channels)
             if self.use_sigmoid_cls:
                 scores = cls_score.sigmoid()
             else:
@@ -200,8 +225,11 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
             # find a slight drop in performance, you can set a larger
             # `nms_pre` than before.
             results = filter_scores_and_topk(
-                scores, cfg.score_thr, nms_pre,
-                dict(bbox_pred=bbox_pred, priors=priors))
+                scores,
+                cfg.score_thr,
+                nms_pre,
+                dict(bbox_pred=bbox_pred, priors=priors),
+            )
             scores, labels, keep_idxs, filtered_results = results
 
             bbox_pred = filtered_results['bbox_pred']
@@ -211,7 +239,10 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
                 score_factor = score_factor[keep_idxs]
 
             bboxes = self.bbox_coder.decode(
-                priors, bbox_pred, max_shape=img_shape)
+                priors,
+                bbox_pred,
+                max_shape=img_shape,
+            )
 
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
@@ -219,20 +250,30 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
             if with_score_factors:
                 mlvl_score_factors.append(score_factor)
 
-        return self._bbox_post_process(mlvl_scores, mlvl_labels, mlvl_bboxes,
-                                       img_meta['scale_factor'], cfg, rescale,
-                                       with_nms, mlvl_score_factors, **kwargs)
+        return self._bbox_post_process(
+            mlvl_scores,
+            mlvl_labels,
+            mlvl_bboxes,
+            img_meta['scale_factor'],
+            cfg,
+            rescale,
+            with_nms,
+            mlvl_score_factors,
+            **kwargs
+        )
 
-    def _bbox_post_process(self,
-                           mlvl_scores,
-                           mlvl_labels,
-                           mlvl_bboxes,
-                           scale_factor,
-                           cfg,
-                           rescale=False,
-                           with_nms=True,
-                           mlvl_score_factors=None,
-                           **kwargs):
+    def _bbox_post_process(
+        self,
+        mlvl_scores,
+        mlvl_labels,
+        mlvl_bboxes,
+        scale_factor,
+        cfg,
+        rescale=False,
+        with_nms=True,
+        mlvl_score_factors=None,
+        **kwargs
+    ):
         """bbox post-processing method.
 
         The boxes would be rescaled to the original image scale and do
@@ -292,22 +333,28 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
                 det_bboxes = torch.cat([mlvl_bboxes, mlvl_scores[:, None]], -1)
                 return det_bboxes, mlvl_labels
 
-            det_bboxes, keep_idxs = batched_nms(mlvl_bboxes, mlvl_scores,
-                                                mlvl_labels, cfg.nms)
-            det_bboxes = det_bboxes[:cfg.max_per_img]
-            det_labels = mlvl_labels[keep_idxs][:cfg.max_per_img]
+            det_bboxes, keep_idxs = batched_nms(
+                mlvl_bboxes,
+                mlvl_scores,
+                mlvl_labels,
+                cfg.nms,
+            )
+            det_bboxes = det_bboxes[: cfg.max_per_img]
+            det_labels = mlvl_labels[keep_idxs][: cfg.max_per_img]
             return det_bboxes, det_labels
         else:
             return mlvl_bboxes, mlvl_scores, mlvl_labels
 
-    def forward_train(self,
-                      x,
-                      img_metas,
-                      gt_bboxes,
-                      gt_labels=None,
-                      gt_bboxes_ignore=None,
-                      proposal_cfg=None,
-                      **kwargs):
+    def forward_train(
+        self,
+        x,
+        img_metas,
+        gt_bboxes,
+        gt_labels=None,
+        gt_bboxes_ignore=None,
+        proposal_cfg=None,
+        **kwargs
+    ):
         """
         Args:
             x (list[Tensor]): Features from FPN.
@@ -336,8 +383,7 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         if proposal_cfg is None:
             return losses
         else:
-            proposal_list = self.get_bboxes(
-                *outs, img_metas=img_metas, cfg=proposal_cfg)
+            proposal_list = self.get_bboxes(*outs, img_metas=img_metas, cfg=proposal_cfg)
             return losses, proposal_list
 
     def simple_test(self, feats, img_metas, rescale=False):
@@ -360,12 +406,14 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         return self.simple_test_bboxes(feats, img_metas, rescale=rescale)
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
-    def onnx_export(self,
-                    cls_scores,
-                    bbox_preds,
-                    score_factors=None,
-                    img_metas=None,
-                    with_nms=True):
+    def onnx_export(
+        self,
+        cls_scores,
+        bbox_preds,
+        score_factors=None,
+        img_metas=None,
+        with_nms=True,
+    ):
         """Transform network output for a batch into bbox predictions.
 
         Args:
@@ -397,14 +445,18 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         mlvl_priors = self.prior_generator.grid_priors(
             featmap_sizes,
             dtype=bbox_preds[0].dtype,
-            device=bbox_preds[0].device)
+            device=bbox_preds[0].device,
+        )
 
         mlvl_cls_scores = [cls_scores[i].detach() for i in range(num_levels)]
         mlvl_bbox_preds = [bbox_preds[i].detach() for i in range(num_levels)]
 
-        assert len(
-            img_metas
-        ) == 1, 'Only support one input image while in exporting to ONNX'
+        assert (
+            len(
+                img_metas,
+            )
+            == 1
+        ), 'Only support one input image while in exporting to ONNX'
         img_shape = img_metas[0]['img_shape_for_onnx']
 
         cfg = self.test_cfg
@@ -413,7 +465,10 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         batch_size = cls_scores[0].shape[0]
         # convert to tensor to keep tracing
         nms_pre_tensor = torch.tensor(
-            cfg.get('nms_pre', -1), device=device, dtype=torch.long)
+            cfg.get('nms_pre', -1),
+            device=device,
+            dtype=torch.long,
+        )
 
         # e.g. Retina, FreeAnchor, etc.
         if score_factors is None:
@@ -422,22 +477,30 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         else:
             # e.g. FCOS, PAA, ATSS, etc.
             with_score_factors = True
-            mlvl_score_factor = [
-                score_factors[i].detach() for i in range(num_levels)
-            ]
+            mlvl_score_factor = [score_factors[i].detach() for i in range(num_levels)]
             mlvl_score_factors = []
 
         mlvl_batch_bboxes = []
         mlvl_scores = []
 
         for cls_score, bbox_pred, score_factors, priors in zip(
-                mlvl_cls_scores, mlvl_bbox_preds, mlvl_score_factor,
-                mlvl_priors):
+            mlvl_cls_scores,
+            mlvl_bbox_preds,
+            mlvl_score_factor,
+            mlvl_priors,
+        ):
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
 
-            scores = cls_score.permute(0, 2, 3,
-                                       1).reshape(batch_size, -1,
-                                                  self.cls_out_channels)
+            scores = cls_score.permute(
+                0,
+                2,
+                3,
+                1,
+            ).reshape(
+                batch_size,
+                -1,
+                self.cls_out_channels,
+            )
             if self.use_sigmoid_cls:
                 scores = scores.sigmoid()
                 nms_pre_score = scores
@@ -446,18 +509,28 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
                 nms_pre_score = scores
 
             if with_score_factors:
-                score_factors = score_factors.permute(0, 2, 3, 1).reshape(
-                    batch_size, -1).sigmoid()
-            bbox_pred = bbox_pred.permute(0, 2, 3,
-                                          1).reshape(batch_size, -1, 4)
+                score_factors = (
+                    score_factors.permute(0, 2, 3, 1)
+                    .reshape(
+                        batch_size,
+                        -1,
+                    )
+                    .sigmoid()
+                )
+            bbox_pred = bbox_pred.permute(
+                0,
+                2,
+                3,
+                1,
+            ).reshape(batch_size, -1, 4)
             priors = priors.expand(batch_size, -1, priors.size(-1))
             # Get top-k predictions
             from mmdet.core.export import get_k_for_topk
+
             nms_pre = get_k_for_topk(nms_pre_tensor, bbox_pred.shape[1])
             if nms_pre > 0:
-
                 if with_score_factors:
-                    nms_pre_score = (nms_pre_score * score_factors[..., None])
+                    nms_pre_score = nms_pre_score * score_factors[..., None]
                 else:
                     nms_pre_score = nms_pre_score
 
@@ -471,26 +544,57 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
                     max_scores, _ = nms_pre_score[..., :-1].max(-1)
                 _, topk_inds = max_scores.topk(nms_pre)
 
-                batch_inds = torch.arange(
-                    batch_size, device=bbox_pred.device).view(
-                        -1, 1).expand_as(topk_inds).long()
+                batch_inds = (
+                    torch.arange(
+                        batch_size,
+                        device=bbox_pred.device,
+                    )
+                    .view(
+                        -1,
+                        1,
+                    )
+                    .expand_as(topk_inds)
+                    .long()
+                )
                 # Avoid onnx2tensorrt issue in https://github.com/NVIDIA/TensorRT/issues/1134 # noqa: E501
                 transformed_inds = bbox_pred.shape[1] * batch_inds + topk_inds
                 priors = priors.reshape(
-                    -1, priors.size(-1))[transformed_inds, :].reshape(
-                        batch_size, -1, priors.size(-1))
-                bbox_pred = bbox_pred.reshape(-1,
-                                              4)[transformed_inds, :].reshape(
-                                                  batch_size, -1, 4)
+                    -1,
+                    priors.size(-1),
+                )[transformed_inds, :].reshape(
+                    batch_size,
+                    -1,
+                    priors.size(-1),
+                )
+                bbox_pred = bbox_pred.reshape(
+                    -1,
+                    4,
+                )[transformed_inds, :].reshape(
+                    batch_size,
+                    -1,
+                    4,
+                )
                 scores = scores.reshape(
-                    -1, self.cls_out_channels)[transformed_inds, :].reshape(
-                        batch_size, -1, self.cls_out_channels)
+                    -1,
+                    self.cls_out_channels,
+                )[transformed_inds, :].reshape(
+                    batch_size,
+                    -1,
+                    self.cls_out_channels,
+                )
                 if with_score_factors:
                     score_factors = score_factors.reshape(
-                        -1, 1)[transformed_inds].reshape(batch_size, -1)
+                        -1,
+                        1,
+                    )[
+                        transformed_inds
+                    ].reshape(batch_size, -1)
 
             bboxes = self.bbox_coder.decode(
-                priors, bbox_pred, max_shape=img_shape)
+                priors,
+                bbox_pred,
+                max_shape=img_shape,
+            )
 
             mlvl_batch_bboxes.append(bboxes)
             mlvl_scores.append(scores)
@@ -507,20 +611,27 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         from mmdet.core.export import add_dummy_nms_for_onnx
 
         if not self.use_sigmoid_cls:
-            batch_scores = batch_scores[..., :self.num_classes]
+            batch_scores = batch_scores[..., : self.num_classes]
 
         if with_score_factors:
             batch_scores = batch_scores * (batch_score_factors.unsqueeze(2))
 
         if with_nms:
             max_output_boxes_per_class = cfg.nms.get(
-                'max_output_boxes_per_class', 200)
+                'max_output_boxes_per_class',
+                200,
+            )
             iou_threshold = cfg.nms.get('iou_threshold', 0.5)
             score_threshold = cfg.score_thr
             nms_pre = cfg.get('deploy_nms_pre', -1)
-            return add_dummy_nms_for_onnx(batch_bboxes, batch_scores,
-                                          max_output_boxes_per_class,
-                                          iou_threshold, score_threshold,
-                                          nms_pre, cfg.max_per_img)
+            return add_dummy_nms_for_onnx(
+                batch_bboxes,
+                batch_scores,
+                max_output_boxes_per_class,
+                iou_threshold,
+                score_threshold,
+                nms_pre,
+                cfg.max_per_img,
+            )
         else:
             return batch_bboxes, batch_scores

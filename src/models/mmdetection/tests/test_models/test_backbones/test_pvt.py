@@ -1,15 +1,19 @@
 import pytest
 import torch
-
-from mmdet.models.backbones.pvt import (PVTEncoderLayer,
-                                        PyramidVisionTransformer,
-                                        PyramidVisionTransformerV2)
+from mmdet.models.backbones.pvt import (
+    PVTEncoderLayer,
+    PyramidVisionTransformer,
+    PyramidVisionTransformerV2,
+)
 
 
 def test_pvt_block():
     # test PVT structure and forward
     block = PVTEncoderLayer(
-        embed_dims=64, num_heads=4, feedforward_channels=256)
+        embed_dims=64,
+        num_heads=4,
+        feedforward_channels=256,
+    )
     assert block.ffn.embed_dims == 64
     assert block.attn.num_heads == 4
     assert block.ffn.feedforward_channels == 256
@@ -32,7 +36,9 @@ def test_pvt():
     # Test absolute position embedding
     temp = torch.randn((1, 3, 224, 224))
     model = PyramidVisionTransformer(
-        pretrain_img_size=224, use_abs_pos_embed=True)
+        pretrain_img_size=224,
+        use_abs_pos_embed=True,
+    )
     model.init_weights()
     model(temp)
 

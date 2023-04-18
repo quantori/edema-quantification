@@ -5,7 +5,6 @@ import platform
 
 import cv2
 from mmcv import Config
-
 from mmdet.utils import setup_multi_processes
 
 
@@ -48,7 +47,8 @@ def test_setup_multi_processes():
     config = dict(
         data=dict(workers_per_gpu=2),
         opencv_num_threads=4,
-        mp_start_method='spawn')
+        mp_start_method='spawn',
+    )
     cfg = Config(config)
     setup_multi_processes(cfg)
     assert cv2.getNumThreads() == 4

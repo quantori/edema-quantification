@@ -10,7 +10,11 @@ from mmcv import Config
 
 def is_head(key):
     valid_head_list = [
-        'bbox_head', 'mask_head', 'semantic_head', 'grid_head', 'mask_iou_head'
+        'bbox_head',
+        'mask_head',
+        'semantic_head',
+        'grid_head',
+        'mask_iou_head',
     ]
 
     return any(key.startswith(h) for h in valid_head_list)
@@ -37,8 +41,7 @@ def parse_config(config_strings):
     elif isinstance(config.model['bbox_head'], list):
         reg_cls_agnostic = True
     elif 'reg_class_agnostic' in config.model.bbox_head:
-        reg_cls_agnostic = config.model.bbox_head \
-            .reg_class_agnostic
+        reg_cls_agnostic = config.model.bbox_head.reg_class_agnostic
     temp_file.close()
     return is_two_stage, is_ssd, is_retina, reg_cls_agnostic
 
@@ -66,11 +69,10 @@ def reorder_cls_channel(val, num_classes=81):
 
 
 def truncate_cls_channel(val, num_classes=81):
-
     # bias
     if val.dim() == 1:
         if val.size(0) % num_classes == 0:
-            new_val = val[:num_classes - 1]
+            new_val = val[: num_classes - 1]
         else:
             new_val = val
     # weight
@@ -92,7 +94,7 @@ def truncate_reg_channel(val, num_classes=81):
     if val.dim() == 1:
         # fc_reg | rpn_reg
         if val.size(0) % num_classes == 0:
-            new_val = val.reshape(num_classes, -1)[:num_classes - 1]
+            new_val = val.reshape(num_classes, -1)[: num_classes - 1]
             new_val = new_val.reshape(-1)
         # agnostic
         else:
@@ -102,8 +104,7 @@ def truncate_reg_channel(val, num_classes=81):
         out_channels, in_channels = val.shape[:2]
         # fc_reg | rpn_reg
         if out_channels % num_classes == 0:
-            new_val = val.reshape(num_classes, -1, in_channels,
-                                  *val.shape[2:])[1:]
+            new_val = val.reshape(num_classes, -1, in_channels, *val.shape[2:])[1:]
             new_val = new_val.reshape(-1, *val.shape[1:])
         # agnostic
         else:
@@ -124,7 +125,8 @@ def convert(in_file, out_file, num_classes):
     out_state_dict = OrderedDict()
     meta_info = checkpoint['meta']
     is_two_stage, is_ssd, is_retina, reg_cls_agnostic = parse_config(
-        '#' + meta_info['config'])
+        '#' + meta_info['config'],
+    )
     if meta_info['mmdet_version'] <= '0.5.3' and is_retina:
         upgrade_retina = True
     else:
@@ -147,12 +149,14 @@ def convert(in_file, out_file, num_classes):
         # classification
         if upgrade_rpn:
             m = re.search(
-                r'(conv_cls|retina_cls|rpn_cls|fc_cls|fcos_cls|'
-                r'fovea_cls).(weight|bias)', new_key)
+                r'(conv_cls|retina_cls|rpn_cls|fc_cls|fcos_cls|' r'fovea_cls).(weight|bias)',
+                new_key,
+            )
         else:
             m = re.search(
-                r'(conv_cls|retina_cls|fc_cls|fcos_cls|'
-                r'fovea_cls).(weight|bias)', new_key)
+                r'(conv_cls|retina_cls|fc_cls|fcos_cls|' r'fovea_cls).(weight|bias)',
+                new_key,
+            )
         if m is not None:
             print(f'reorder cls channels of {new_key}')
             new_val = reorder_cls_channel(val, num_classes)
@@ -201,7 +205,8 @@ def main():
         '--num-classes',
         type=int,
         default=81,
-        help='number of classes of the original model')
+        help='number of classes of the original model',
+    )
     args = parser.parse_args()
     convert(args.in_file, args.out_file, args.num_classes)
 

@@ -1,12 +1,16 @@
 _base_ = [
     '../_base_/models/fast_rcnn_r50_fpn.py',
     '../_base_/datasets/coco_detection.py',
-    '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
+    '../_base_/schedules/schedule_1x.py',
+    '../_base_/default_runtime.py',
 ]
 dataset_type = 'CocoDataset'
 data_root = 'data/coco/'
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[123.675, 116.28, 103.53],
+    std=[58.395, 57.12, 57.375],
+    to_rgb=True,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadProposals', num_max_proposals=2000),
@@ -34,19 +38,25 @@ test_pipeline = [
             dict(type='ToTensor', keys=['proposals']),
             dict(
                 type='ToDataContainer',
-                fields=[dict(key='proposals', stack=False)]),
+                fields=[dict(key='proposals', stack=False)],
+            ),
             dict(type='Collect', keys=['img', 'proposals']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(
         proposal_file=data_root + 'proposals/rpn_r50_fpn_1x_train2017.pkl',
-        pipeline=train_pipeline),
+        pipeline=train_pipeline,
+    ),
     val=dict(
         proposal_file=data_root + 'proposals/rpn_r50_fpn_1x_val2017.pkl',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+    ),
     test=dict(
         proposal_file=data_root + 'proposals/rpn_r50_fpn_1x_val2017.pkl',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+    ),
+)

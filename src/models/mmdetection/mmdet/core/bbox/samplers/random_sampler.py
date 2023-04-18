@@ -18,15 +18,15 @@ class RandomSampler(BaseSampler):
             boxes as proposals. Defaults to True.
     """
 
-    def __init__(self,
-                 num,
-                 pos_fraction,
-                 neg_pos_ub=-1,
-                 add_gt_as_proposals=True,
-                 **kwargs):
+    def __init__(self, num, pos_fraction, neg_pos_ub=-1, add_gt_as_proposals=True, **kwargs):
         from mmdet.core.bbox import demodata
-        super(RandomSampler, self).__init__(num, pos_fraction, neg_pos_ub,
-                                            add_gt_as_proposals)
+
+        super(RandomSampler, self).__init__(
+            num,
+            pos_fraction,
+            neg_pos_ub,
+            add_gt_as_proposals,
+        )
         self.rng = demodata.ensure_rng(kwargs.get('rng', None))
 
     def random_choice(self, gallery, num):

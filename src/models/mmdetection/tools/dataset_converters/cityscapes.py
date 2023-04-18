@@ -14,11 +14,9 @@ def collect_files(img_dir, gt_dir):
     files = []
     for img_file in glob.glob(osp.join(img_dir, '**/*.png')):
         assert img_file.endswith(suffix), img_file
-        inst_file = gt_dir + img_file[
-            len(img_dir):-len(suffix)] + 'gtFine_instanceIds.png'
+        inst_file = gt_dir + img_file[len(img_dir) : -len(suffix)] + 'gtFine_instanceIds.png'
         # Note that labelIds are not converted to trainId for seg map
-        segm_file = gt_dir + img_file[
-            len(img_dir):-len(suffix)] + 'gtFine_labelIds.png'
+        segm_file = gt_dir + img_file[len(img_dir) : -len(suffix)] + 'gtFine_labelIds.png'
         files.append((img_file, inst_file, segm_file))
     assert len(files), f'No images found in {img_dir}'
     print(f'Loaded {len(files)} images from {img_dir}')
@@ -30,7 +28,10 @@ def collect_annotations(files, nproc=1):
     print('Loading annotation images')
     if nproc > 1:
         images = mmcv.track_parallel_progress(
-            load_img_info, files, nproc=nproc)
+            load_img_info,
+            files,
+            nproc=nproc,
+        )
     else:
         images = mmcv.track_progress(load_img_info, files)
 
@@ -68,7 +69,8 @@ def load_img_info(files):
             category_id=category_id,
             bbox=bbox.tolist(),
             area=area.tolist(),
-            segmentation=mask_rle)
+            segmentation=mask_rle,
+        )
         anno_info.append(anno)
     video_name = osp.basename(osp.dirname(img_file))
     img_info = dict(
@@ -77,7 +79,8 @@ def load_img_info(files):
         height=inst_img.shape[0],
         width=inst_img.shape[1],
         anno_info=anno_info,
-        segm_file=osp.join(video_name, osp.basename(segm_file)))
+        segm_file=osp.join(video_name, osp.basename(segm_file)),
+    )
 
     return img_info
 
@@ -113,13 +116,18 @@ def cvt_annotations(image_infos, out_json_name):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Convert Cityscapes annotations to COCO format')
+        description='Convert Cityscapes annotations to COCO format',
+    )
     parser.add_argument('cityscapes_path', help='cityscapes data path')
     parser.add_argument('--img-dir', default='leftImg8bit', type=str)
     parser.add_argument('--gt-dir', default='gtFine', type=str)
     parser.add_argument('-o', '--out-dir', help='output path')
     parser.add_argument(
-        '--nproc', default=1, type=int, help='number of process')
+        '--nproc',
+        default=1,
+        type=int,
+        help='number of process',
+    )
     args = parser.parse_args()
     return args
 
@@ -136,14 +144,18 @@ def main():
     set_name = dict(
         train='instancesonly_filtered_gtFine_train.json',
         val='instancesonly_filtered_gtFine_val.json',
-        test='instancesonly_filtered_gtFine_test.json')
+        test='instancesonly_filtered_gtFine_test.json',
+    )
 
     for split, json_name in set_name.items():
         print(f'Converting {split} into {json_name}')
         with mmcv.Timer(
-                print_tmpl='It took {}s to convert Cityscapes annotation'):
+            print_tmpl='It took {}s to convert Cityscapes annotation',
+        ):
             files = collect_files(
-                osp.join(img_dir, split), osp.join(gt_dir, split))
+                osp.join(img_dir, split),
+                osp.join(gt_dir, split),
+            )
             image_infos = collect_annotations(files, nproc=args.nproc)
             cvt_annotations(image_infos, osp.join(out_dir, json_name))
 

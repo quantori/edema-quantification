@@ -4,7 +4,8 @@ model = dict(
     backbone=dict(
         type='DetectoRS_ResNet',
         conv_cfg=dict(type='ConvAWS'),
-        output_img=True),
+        output_img=True,
+    ),
     neck=dict(
         type='RFP',
         rfp_steps=2,
@@ -21,4 +22,7 @@ model = dict(
             norm_eval=True,
             conv_cfg=dict(type='ConvAWS'),
             pretrained='torchvision://resnet50',
-            style='pytorch')))
+            style='pytorch',
+        ),
+    ),
+)

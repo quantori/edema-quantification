@@ -7,7 +7,6 @@ import numpy as np
 import torch
 import torch.distributed as dist
 from mmcv.runner import BaseModule, auto_fp16
-
 from mmdet.core.visualization import imshow_det_bboxes
 
 
@@ -33,14 +32,16 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
     @property
     def with_bbox(self):
         """bool: whether the detector has a bbox head"""
-        return ((hasattr(self, 'roi_head') and self.roi_head.with_bbox)
-                or (hasattr(self, 'bbox_head') and self.bbox_head is not None))
+        return (hasattr(self, 'roi_head') and self.roi_head.with_bbox) or (
+            hasattr(self, 'bbox_head') and self.bbox_head is not None
+        )
 
     @property
     def with_mask(self):
         """bool: whether the detector has a mask head"""
-        return ((hasattr(self, 'roi_head') and self.roi_head.with_mask)
-                or (hasattr(self, 'mask_head') and self.mask_head is not None))
+        return (hasattr(self, 'roi_head') and self.roi_head.with_mask) or (
+            hasattr(self, 'mask_head') and self.mask_head is not None
+        )
 
     @abstractmethod
     def extract_feat(self, imgs):
@@ -98,8 +99,9 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
 
         num_augs = len(img)
         if num_augs != len(img_metas):
-            raise ValueError(f'num of augmentations ({len(img)}) '
-                             f'!= num of image metas ({len(img_metas)})')
+            raise ValueError(
+                f'num of augmentations ({len(img)}) ' f'!= num of image metas ({len(img_metas)})',
+            )
         # TODO: remove the restriction of samples_per_gpu == 1 when prepared
         samples_per_gpu = img[0].size(0)
         assert samples_per_gpu == 1
@@ -125,8 +127,9 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
 
         num_augs = len(imgs)
         if num_augs != len(img_metas):
-            raise ValueError(f'num of augmentations ({len(imgs)}) '
-                             f'!= num of image meta ({len(img_metas)})')
+            raise ValueError(
+                f'num of augmentations ({len(imgs)}) ' f'!= num of image meta ({len(img_metas)})',
+            )
 
         # NOTE the batched image size information may be useful, e.g.
         # in DETR, this is needed for the construction of masks, which is
@@ -146,14 +149,14 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
                 kwargs['proposals'] = kwargs['proposals'][0]
             return self.simple_test(imgs[0], img_metas[0], **kwargs)
         else:
-            assert imgs[0].size(0) == 1, 'aug test does not support ' \
-                                         'inference with batch size ' \
-                                         f'{imgs[0].size(0)}'
+            assert imgs[0].size(0) == 1, (
+                'aug test does not support ' 'inference with batch size ' f'{imgs[0].size(0)}'
+            )
             # TODO: support test augmentation for predefined proposals
             assert 'proposals' not in kwargs
             return self.aug_test(imgs, img_metas, **kwargs)
 
-    @auto_fp16(apply_to=('img', ))
+    @auto_fp16(apply_to=('img',))
     def forward(self, img, img_metas, return_loss=True, **kwargs):
         """Calls either :func:`forward_train` or :func:`forward_test` depending
         on whether ``return_loss`` is ``True``.
@@ -193,20 +196,24 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
                 log_vars[loss_name] = sum(_loss.mean() for _loss in loss_value)
             else:
                 raise TypeError(
-                    f'{loss_name} is not a tensor or list of tensors')
+                    f'{loss_name} is not a tensor or list of tensors',
+                )
 
-        loss = sum(_value for _key, _value in log_vars.items()
-                   if 'loss' in _key)
+        loss = sum(_value for _key, _value in log_vars.items() if 'loss' in _key)
 
         # If the loss_vars has different length, GPUs will wait infinitely
         if dist.is_available() and dist.is_initialized():
             log_var_length = torch.tensor(len(log_vars), device=loss.device)
             dist.all_reduce(log_var_length)
-            message = (f'rank {dist.get_rank()}' +
-                       f' len(log_vars): {len(log_vars)}' + ' keys: ' +
-                       ','.join(log_vars.keys()))
-            assert log_var_length == len(log_vars) * dist.get_world_size(), \
+            message = (
+                f'rank {dist.get_rank()}'
+                + f' len(log_vars): {len(log_vars)}'
+                + ' keys: '
+                + ','.join(log_vars.keys())
+            )
+            assert log_var_length == len(log_vars) * dist.get_world_size(), (
                 'loss log variables are different across GPUs!\n' + message
+            )
 
         log_vars['loss'] = loss
         for loss_name, loss_value in log_vars.items():
@@ -249,7 +256,10 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
         loss, log_vars = self._parse_losses(losses)
 
         outputs = dict(
-            loss=loss, log_vars=log_vars, num_samples=len(data['img_metas']))
+            loss=loss,
+            log_vars=log_vars,
+            num_samples=len(data['img_metas']),
+        )
 
         return outputs
 
@@ -269,23 +279,28 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
             log_vars_[k] = loss_value
 
         outputs = dict(
-            loss=loss, log_vars=log_vars_, num_samples=len(data['img_metas']))
+            loss=loss,
+            log_vars=log_vars_,
+            num_samples=len(data['img_metas']),
+        )
 
         return outputs
 
-    def show_result(self,
-                    img,
-                    result,
-                    score_thr=0.3,
-                    bbox_color=(72, 101, 241),
-                    text_color=(72, 101, 241),
-                    mask_color=None,
-                    thickness=2,
-                    font_size=13,
-                    win_name='',
-                    show=False,
-                    wait_time=0,
-                    out_file=None):
+    def show_result(
+        self,
+        img,
+        result,
+        score_thr=0.3,
+        bbox_color=(72, 101, 241),
+        text_color=(72, 101, 241),
+        mask_color=None,
+        thickness=2,
+        font_size=13,
+        win_name='',
+        show=False,
+        wait_time=0,
+        out_file=None,
+    ):
         """Draw `result` over `img`.
 
         Args:
@@ -323,10 +338,7 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
         else:
             bbox_result, segm_result = result, None
         bboxes = np.vstack(bbox_result)
-        labels = [
-            np.full(bbox.shape[0], i, dtype=np.int32)
-            for i, bbox in enumerate(bbox_result)
-        ]
+        labels = [np.full(bbox.shape[0], i, dtype=np.int32) for i, bbox in enumerate(bbox_result)]
         labels = np.concatenate(labels)
         # draw segmentation masks
         segms = None
@@ -355,11 +367,13 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
             win_name=win_name,
             show=show,
             wait_time=wait_time,
-            out_file=out_file)
+            out_file=out_file,
+        )
 
         if not (show or out_file):
             return img
 
     def onnx_export(self, img, img_metas):
-        raise NotImplementedError(f'{self.__class__.__name__} does '
-                                  f'not support ONNX EXPORT')
+        raise NotImplementedError(
+            f'{self.__class__.__name__} does ' f'not support ONNX EXPORT',
+        )

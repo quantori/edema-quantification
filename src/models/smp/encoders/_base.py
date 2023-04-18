@@ -1,15 +1,10 @@
-import torch
-import torch.nn as nn
-from typing import List
-from collections import OrderedDict
-
 from . import _utils as utils
 
 
 class EncoderMixin:
     """Add encoder functionality such as:
-        - output channels specification of feature tensors (produced by encoder)
-        - patching first convolution for arbitrary input channels
+    - output channels specification of feature tensors (produced by encoder)
+    - patching first convolution for arbitrary input channels
     """
 
     @property

@@ -5,8 +5,10 @@ model = dict(
     backbone=dict(
         embed_dims=192,
         num_heads=[6, 12, 24, 48],
-        init_cfg=dict(type='Pretrained', checkpoint=pretrained)),
-    panoptic_head=dict(num_queries=200, in_channels=[192, 384, 768, 1536]))
+        init_cfg=dict(type='Pretrained', checkpoint=pretrained),
+    ),
+    panoptic_head=dict(num_queries=200, in_channels=[192, 384, 768, 1536]),
+)
 
 data = dict(samples_per_gpu=1, workers_per_gpu=1)
 
@@ -23,4 +25,5 @@ dynamic_intervals = [(max_iters // interval * interval + 1, max_iters)]
 evaluation = dict(
     interval=interval,
     dynamic_intervals=dynamic_intervals,
-    metric=['PQ', 'bbox', 'segm'])
+    metric=['PQ', 'bbox', 'segm'],
+)

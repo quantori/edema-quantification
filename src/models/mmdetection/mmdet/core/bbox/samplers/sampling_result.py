@@ -1,6 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import torch
-
 from mmdet.utils import util_mixins
 
 
@@ -23,8 +22,15 @@ class SamplingResult(util_mixins.NiceRepr):
         })>
     """
 
-    def __init__(self, pos_inds, neg_inds, bboxes, gt_bboxes, assign_result,
-                 gt_flags):
+    def __init__(
+        self,
+        pos_inds,
+        neg_inds,
+        bboxes,
+        gt_bboxes,
+        assign_result,
+        gt_flags,
+    ):
         self.pos_inds = pos_inds
         self.neg_inds = neg_inds
         self.pos_bboxes = bboxes[pos_inds]
@@ -115,6 +121,7 @@ class SamplingResult(util_mixins.NiceRepr):
         from mmdet.core.bbox import demodata
         from mmdet.core.bbox.assigners.assign_result import AssignResult
         from mmdet.core.bbox.samplers.random_sampler import RandomSampler
+
         rng = demodata.ensure_rng(rng)
 
         # make probabilistic?
@@ -148,6 +155,7 @@ class SamplingResult(util_mixins.NiceRepr):
             pos_fraction,
             neg_pos_ub=neg_pos_ub,
             add_gt_as_proposals=add_gt_as_proposals,
-            rng=rng)
+            rng=rng,
+        )
         self = sampler.sample(assign_result, bboxes, gt_bboxes, gt_labels)
         return self

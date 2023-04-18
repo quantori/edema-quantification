@@ -3,12 +3,14 @@ Lovasz-Softmax and Jaccard hinge loss in PyTorch
 Maxim Berman 2018 ESAT-PSI KU Leuven (MIT License)
 """
 
-from __future__ import print_function, division
+from __future__ import division, print_function
+
 from typing import Optional
 
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
+
 from .constants import BINARY_MODE, MULTICLASS_MODE, MULTILABEL_MODE
 
 try:
@@ -16,7 +18,7 @@ try:
 except ImportError:  # py3k
     from itertools import filterfalse as ifilterfalse
 
-__all__ = ["LovaszLoss"]
+__all__ = ['LovaszLoss']
 
 
 def _lovasz_grad(gt_sorted):
@@ -88,7 +90,7 @@ def _flatten_binary_scores(scores, labels, ignore=None):
 # --------------------------- MULTICLASS LOSSES ---------------------------
 
 
-def _lovasz_softmax(probas, labels, classes="present", per_image=False, ignore=None):
+def _lovasz_softmax(probas, labels, classes='present', per_image=False, ignore=None):
     """Multi-class Lovasz-Softmax loss
     Args:
         @param probas: [B, C, H, W] Class probabilities at each prediction (between 0 and 1).
@@ -100,7 +102,9 @@ def _lovasz_softmax(probas, labels, classes="present", per_image=False, ignore=N
     """
     if per_image:
         loss = mean(
-            _lovasz_softmax_flat(*_flatten_probas(prob.unsqueeze(0), lab.unsqueeze(0), ignore), classes=classes)
+            _lovasz_softmax_flat(
+                *_flatten_probas(prob.unsqueeze(0), lab.unsqueeze(0), ignore), classes=classes
+            )
             for prob, lab in zip(probas, labels)
         )
     else:
@@ -108,7 +112,7 @@ def _lovasz_softmax(probas, labels, classes="present", per_image=False, ignore=N
     return loss
 
 
-def _lovasz_softmax_flat(probas, labels, classes="present"):
+def _lovasz_softmax_flat(probas, labels, classes='present'):
     """Multi-class Lovasz-Softmax loss
     Args:
         @param probas: [P, C] Class probabilities at each prediction (between 0 and 1)
@@ -120,14 +124,14 @@ def _lovasz_softmax_flat(probas, labels, classes="present"):
         return probas * 0.0
     C = probas.size(1)
     losses = []
-    class_to_sum = list(range(C)) if classes in ["all", "present"] else classes
+    class_to_sum = list(range(C)) if classes in ['all', 'present'] else classes
     for c in class_to_sum:
         fg = (labels == c).type_as(probas)  # foreground for class c
-        if classes == "present" and fg.sum() == 0:
+        if classes == 'present' and fg.sum() == 0:
             continue
         if C == 1:
             if len(classes) > 1:
-                raise ValueError("Sigmoid output possible only with 1 class")
+                raise ValueError('Sigmoid output possible only with 1 class')
             class_pred = probas[:, 0]
         else:
             class_pred = probas[:, c]
@@ -140,8 +144,7 @@ def _lovasz_softmax_flat(probas, labels, classes="present"):
 
 
 def _flatten_probas(probas, labels, ignore=None):
-    """Flattens predictions in the batch
-    """
+    """Flattens predictions in the batch"""
     if probas.dim() == 3:
         # assumes output of a sigmoid layer
         B, H, W = probas.size()
@@ -166,8 +169,7 @@ def isnan(x):
 
 
 def mean(values, ignore_nan=False, empty=0):
-    """Nanmean compatible with generators.
-    """
+    """Nanmean compatible with generators."""
     values = iter(values)
     if ignore_nan:
         values = ifilterfalse(isnan, values)
@@ -175,8 +177,8 @@ def mean(values, ignore_nan=False, empty=0):
         n = 1
         acc = next(values)
     except StopIteration:
-        if empty == "raise":
-            raise ValueError("Empty mean")
+        if empty == 'raise':
+            raise ValueError('Empty mean')
         return empty
     for n, v in enumerate(values, 2):
         acc += v
@@ -200,7 +202,7 @@ class LovaszLoss(_Loss):
             mode: Loss mode 'binary', 'multiclass' or 'multilabel'
             ignore_index: Label that indicates ignored pixels (does not contribute to loss)
             per_image: If True loss computed per each image and then averaged, else computed per whole batch
-        
+
         Shape
              - **y_pred** - torch.Tensor of shape (N, C, H, W)
              - **y_true** - torch.Tensor of shape (N, H, W) or (N, C, H, W)
@@ -216,12 +218,16 @@ class LovaszLoss(_Loss):
         self.per_image = per_image
 
     def forward(self, y_pred, y_true):
-
         if self.mode in {BINARY_MODE, MULTILABEL_MODE}:
             loss = _lovasz_hinge(y_pred, y_true, per_image=self.per_image, ignore=self.ignore_index)
         elif self.mode == MULTICLASS_MODE:
             y_pred = y_pred.softmax(dim=1)
-            loss = _lovasz_softmax(y_pred, y_true, per_image=self.per_image, ignore=self.ignore_index)    
+            loss = _lovasz_softmax(
+                y_pred,
+                y_true,
+                per_image=self.per_image,
+                ignore=self.ignore_index,
+            )
         else:
-            raise ValueError("Wrong mode {}.".format(self.mode))
+            raise ValueError('Wrong mode {}.'.format(self.mode))
         return loss

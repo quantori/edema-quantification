@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 
 import numpy as np
 import requests
-
 from mmdet.apis import inference_detector, init_detector, show_result_pyplot
 from mmdet.core import bbox2result
 
@@ -16,11 +15,19 @@ def parse_args():
     parser.add_argument(
         '--inference-addr',
         default='127.0.0.1:8080',
-        help='Address and port of the inference server')
+        help='Address and port of the inference server',
+    )
     parser.add_argument(
-        '--device', default='cuda:0', help='Device used for inference')
+        '--device',
+        default='cuda:0',
+        help='Device used for inference',
+    )
     parser.add_argument(
-        '--score-thr', type=float, default=0.5, help='bbox score threshold')
+        '--score-thr',
+        type=float,
+        default=0.5,
+        help='bbox score threshold',
+    )
     args = parser.parse_args()
     return args
 
@@ -53,7 +60,8 @@ def main(args):
         args.img,
         model_result,
         score_thr=args.score_thr,
-        title='pytorch_result')
+        title='pytorch_result',
+    )
     url = 'http://' + args.inference_addr + '/predictions/' + args.model_name
     with open(args.img, 'rb') as image:
         response = requests.post(url, image)
@@ -63,7 +71,8 @@ def main(args):
         args.img,
         server_result,
         score_thr=args.score_thr,
-        title='server_result')
+        title='server_result',
+    )
 
     for i in range(len(model.CLASSES)):
         assert np.allclose(model_result[i], server_result[i])

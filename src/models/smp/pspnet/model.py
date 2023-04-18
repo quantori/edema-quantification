@@ -1,26 +1,24 @@
 from typing import Optional, Union
 
-from .decoder import PSPDecoder
+from ..base import ClassificationHead, SegmentationHead, SegmentationModel
 from ..encoders import get_encoder
-
-from ..base import SegmentationModel
-from ..base import SegmentationHead, ClassificationHead
+from .decoder import PSPDecoder
 
 
 class PSPNet(SegmentationModel):
-    """PSPNet_ is a fully convolution neural network for image semantic segmentation. Consist of 
-    *encoder* and *Spatial Pyramid* (decoder). Spatial Pyramid build on top of encoder and does not 
+    """PSPNet_ is a fully convolution neural network for image semantic segmentation. Consist of
+    *encoder* and *Spatial Pyramid* (decoder). Spatial Pyramid build on top of encoder and does not
     use "fine-features" (features of high spatial resolution). PSPNet can be used for multiclass segmentation
-    of high resolution images, however it is not good for detecting small objects and producing accurate, pixel-level mask. 
+    of high resolution images, however it is not good for detecting small objects and producing accurate, pixel-level mask.
 
     Args:
         encoder_name: Name of the classification model that will be used as an encoder (a.k.a backbone)
             to extract features of different spatial resolution
-        encoder_depth: A number of stages used in encoder in range [3, 5]. Each stage generate features 
+        encoder_depth: A number of stages used in encoder in range [3, 5]. Each stage generate features
             two times smaller in spatial dimensions than previous one (e.g. for depth 0 we will have features
             with shapes [(N, C, H, W),], for depth 1 - [(N, C, H, W), (N, C, H // 2, W // 2)] and so on).
             Default is 5
-        encoder_weights: One of **None** (random initialization), **"imagenet"** (pre-training on ImageNet) and 
+        encoder_weights: One of **None** (random initialization), **"imagenet"** (pre-training on ImageNet) and
             other pretrained weights (see table with available weights for each encoder_name)
         psp_out_channels: A number of filters in Spatial Pyramid
         psp_use_batchnorm: If **True**, BatchNorm2d layer between Conv2D and Activation layers
@@ -33,7 +31,7 @@ class PSPNet(SegmentationModel):
             Available options are **"sigmoid"**, **"softmax"**, **"logsoftmax"**, **"tanh"**, **"identity"**, **callable** and **None**.
             Default is **None**
         upsampling: Final upsampling factor. Default is 8 to preserve input-output spatial shape identity
-        aux_params: Dictionary with parameters of the auxiliary output (classification head). Auxiliary output is build 
+        aux_params: Dictionary with parameters of the auxiliary output (classification head). Auxiliary output is build
             on top of encoder if **aux_params** is not **None** (default). Supported params:
                 - classes (int): A number of classes
                 - pooling (str): One of "max", "avg". Default is "avg"
@@ -49,8 +47,8 @@ class PSPNet(SegmentationModel):
 
     def __init__(
         self,
-        encoder_name: str = "resnet34",
-        encoder_weights: Optional[str] = "imagenet",
+        encoder_name: str = 'resnet34',
+        encoder_weights: Optional[str] = 'imagenet',
         encoder_depth: int = 3,
         psp_out_channels: int = 512,
         psp_use_batchnorm: bool = True,
@@ -92,5 +90,5 @@ class PSPNet(SegmentationModel):
         else:
             self.classification_head = None
 
-        self.name = "psp-{}".format(encoder_name)
+        self.name = 'psp-{}'.format(encoder_name)
         self.initialize()

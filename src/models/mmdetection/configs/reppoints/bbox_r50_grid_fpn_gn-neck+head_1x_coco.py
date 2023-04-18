@@ -10,4 +10,8 @@ model = dict(
                 pos_iou_thr=0.5,
                 neg_iou_thr=0.4,
                 min_pos_iou=0,
-                ignore_iof_thr=-1))))
+                ignore_iof_thr=-1,
+            ),
+        ),
+    ),
+)

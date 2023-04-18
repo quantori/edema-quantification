@@ -1,9 +1,8 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import numpy as np
 import torch
-from torch.autograd import gradcheck
-
 from mmdet.models.utils import interpolate_as, sigmoid_geometric_mean
+from torch.autograd import gradcheck
 
 
 def test_interpolate_as():

@@ -4,7 +4,6 @@ from copy import deepcopy
 
 import pytest
 from mmcv.utils import Config
-
 from mmdet.utils import replace_cfg_vals
 
 
@@ -20,7 +19,9 @@ def test_replace_cfg_vals():
     ori_cfg_dict['percent'] = 5
     ori_cfg_dict['fold'] = 1
     ori_cfg_dict['model_wrapper'] = dict(
-        type='SoftTeacher', detector='${model}')
+        type='SoftTeacher',
+        detector='${model}',
+    )
     ori_cfg_dict['model'] = dict(
         type='FasterRCNN',
         backbone=dict(type='ResNet'),
@@ -54,17 +55,18 @@ def test_replace_cfg_vals():
     ori_cfg_dict['list'] = [
         'Hello, world!',
     ]
-    ori_cfg_dict['tuple'] = ('Hello, world!', )
+    ori_cfg_dict['tuple'] = ('Hello, world!',)
     ori_cfg_dict['test_str'] = 'xxx${str}xxx'
 
     ori_cfg = Config(ori_cfg_dict, filename=cfg_path)
     updated_cfg = replace_cfg_vals(deepcopy(ori_cfg))
 
-    assert updated_cfg.work_dir \
-        == f'work_dirs/{osp.basename(temp_file.name)}/5/1'
+    assert updated_cfg.work_dir == f'work_dirs/{osp.basename(temp_file.name)}/5/1'
     assert updated_cfg.model.detector == ori_cfg.model
-    assert updated_cfg.iou_threshold.rpn_proposal_nms \
+    assert (
+        updated_cfg.iou_threshold.rpn_proposal_nms
         == ori_cfg.model.train_cfg.rpn_proposal.nms.iou_threshold
+    )
     assert updated_cfg.test_str == 'xxxHello, world!xxx'
     ori_cfg_dict['test_dict'] = 'xxx${dict}xxx'
     ori_cfg_dict['test_list'] = 'xxx${list}xxx'

@@ -6,20 +6,27 @@ model = dict(
         stage_with_dcn=(False, True, True, True),
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='open-mmlab://detectron2/resnet50_caffe')),
+            checkpoint='open-mmlab://detectron2/resnet50_caffe',
+        ),
+    ),
     bbox_head=dict(
         norm_on_bbox=True,
         centerness_on_reg=True,
         dcn_on_last_conv=True,
         center_sampling=True,
         conv_bias=True,
-        loss_bbox=dict(type='GIoULoss', loss_weight=1.0)),
+        loss_bbox=dict(type='GIoULoss', loss_weight=1.0),
+    ),
     # training and testing settings
-    test_cfg=dict(nms=dict(type='nms', iou_threshold=0.6)))
+    test_cfg=dict(nms=dict(type='nms', iou_threshold=0.6)),
+)
 
 # dataset settings
 img_norm_cfg = dict(
-    mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False)
+    mean=[103.530, 116.280, 123.675],
+    std=[1.0, 1.0, 1.0],
+    to_rgb=False,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
@@ -43,14 +50,16 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     samples_per_gpu=2,
     workers_per_gpu=2,
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
-    test=dict(pipeline=test_pipeline))
+    test=dict(pipeline=test_pipeline),
+)
 optimizer_config = dict(_delete_=True, grad_clip=None)
 
 lr_config = dict(warmup='linear')

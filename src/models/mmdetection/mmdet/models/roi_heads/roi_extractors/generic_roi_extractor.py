@@ -1,8 +1,8 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from mmcv.cnn.bricks import build_plugin_layer
 from mmcv.runner import force_fp32
-
 from mmdet.models.builder import ROI_EXTRACTORS
+
 from .base_roi_extractor import BaseRoIExtractor
 
 
@@ -22,11 +22,7 @@ class GenericRoIExtractor(BaseRoIExtractor):
             as :class:`BaseRoIExtractor`.
     """
 
-    def __init__(self,
-                 aggregation='sum',
-                 pre_cfg=None,
-                 post_cfg=None,
-                 **kwargs):
+    def __init__(self, aggregation='sum', pre_cfg=None, post_cfg=None, **kwargs):
         super(GenericRoIExtractor, self).__init__(**kwargs)
 
         assert aggregation in ['sum', 'concat']
@@ -40,7 +36,7 @@ class GenericRoIExtractor(BaseRoIExtractor):
         if self.with_pre:
             self.pre_module = build_plugin_layer(pre_cfg, '_pre_module')[1]
 
-    @force_fp32(apply_to=('feats', ), out_fp16=True)
+    @force_fp32(apply_to=('feats',), out_fp16=True)
     def forward(self, feats, rois, roi_scale_factor=None):
         """Forward function."""
         if len(feats) == 1:
@@ -48,8 +44,7 @@ class GenericRoIExtractor(BaseRoIExtractor):
 
         out_size = self.roi_layers[0].output_size
         num_levels = len(feats)
-        roi_feats = feats[0].new_zeros(
-            rois.size(0), self.out_channels, *out_size)
+        roi_feats = feats[0].new_zeros(rois.size(0), self.out_channels, *out_size)
 
         # some times rois is an empty tensor
         if roi_feats.shape[0] == 0:

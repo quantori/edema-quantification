@@ -1,13 +1,17 @@
 _base_ = [
     '../_base_/models/faster_rcnn_r50_fpn.py',
     '../_base_/datasets/coco_detection.py',
-    '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
+    '../_base_/schedules/schedule_1x.py',
+    '../_base_/default_runtime.py',
 ]
 model = dict(
     backbone=dict(
         depth=101,
-        init_cfg=dict(type='Pretrained',
-                      checkpoint='torchvision://resnet101')),
+        init_cfg=dict(
+            type='Pretrained',
+            checkpoint='torchvision://resnet101',
+        ),
+    ),
     roi_head=dict(
         bbox_head=dict(
             _delete_=True,
@@ -29,10 +33,25 @@ model = dict(
             reg_class_agnostic=True,
             norm_cfg=None,
             bbox_coder=dict(
-                type='BucketingBBoxCoder', num_buckets=14, scale_factor=1.7),
+                type='BucketingBBoxCoder',
+                num_buckets=14,
+                scale_factor=1.7,
+            ),
             loss_cls=dict(
-                type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
+                type='CrossEntropyLoss',
+                use_sigmoid=False,
+                loss_weight=1.0,
+            ),
             loss_bbox_cls=dict(
-                type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
-            loss_bbox_reg=dict(type='SmoothL1Loss', beta=0.1,
-                               loss_weight=1.0))))
+                type='CrossEntropyLoss',
+                use_sigmoid=True,
+                loss_weight=1.0,
+            ),
+            loss_bbox_reg=dict(
+                type='SmoothL1Loss',
+                beta=0.1,
+                loss_weight=1.0,
+            ),
+        ),
+    ),
+)

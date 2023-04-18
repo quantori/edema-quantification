@@ -2,25 +2,59 @@
 from collections import OrderedDict
 
 from mmcv.utils import print_log
-
 from mmdet.core import eval_map, eval_recalls
+
 from .builder import DATASETS
 from .xml_style import XMLDataset
 
 
 @DATASETS.register_module()
 class VOCDataset(XMLDataset):
+    CLASSES = (
+        'aeroplane',
+        'bicycle',
+        'bird',
+        'boat',
+        'bottle',
+        'bus',
+        'car',
+        'cat',
+        'chair',
+        'cow',
+        'diningtable',
+        'dog',
+        'horse',
+        'motorbike',
+        'person',
+        'pottedplant',
+        'sheep',
+        'sofa',
+        'train',
+        'tvmonitor',
+    )
 
-    CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',
-               'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse',
-               'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train',
-               'tvmonitor')
-
-    PALETTE = [(106, 0, 228), (119, 11, 32), (165, 42, 42), (0, 0, 192),
-               (197, 226, 255), (0, 60, 100), (0, 0, 142), (255, 77, 255),
-               (153, 69, 1), (120, 166, 157), (0, 182, 199), (0, 226, 252),
-               (182, 182, 255), (0, 0, 230), (220, 20, 60), (163, 255, 0),
-               (0, 82, 0), (3, 95, 161), (0, 80, 100), (183, 130, 88)]
+    PALETTE = [
+        (106, 0, 228),
+        (119, 11, 32),
+        (165, 42, 42),
+        (0, 0, 192),
+        (197, 226, 255),
+        (0, 60, 100),
+        (0, 0, 142),
+        (255, 77, 255),
+        (153, 69, 1),
+        (120, 166, 157),
+        (0, 182, 199),
+        (0, 226, 252),
+        (182, 182, 255),
+        (0, 0, 230),
+        (220, 20, 60),
+        (163, 255, 0),
+        (0, 82, 0),
+        (3, 95, 161),
+        (0, 80, 100),
+        (183, 130, 88),
+    ]
 
     def __init__(self, **kwargs):
         super(VOCDataset, self).__init__(**kwargs)
@@ -31,13 +65,15 @@ class VOCDataset(XMLDataset):
         else:
             raise ValueError('Cannot infer dataset year from img_prefix')
 
-    def evaluate(self,
-                 results,
-                 metric='mAP',
-                 logger=None,
-                 proposal_nums=(100, 300, 1000),
-                 iou_thr=0.5,
-                 scale_ranges=None):
+    def evaluate(
+        self,
+        results,
+        metric='mAP',
+        logger=None,
+        proposal_nums=(100, 300, 1000),
+        iou_thr=0.5,
+        scale_ranges=None,
+    ):
         """Evaluate in VOC protocol.
 
         Args:
@@ -88,7 +124,8 @@ class VOCDataset(XMLDataset):
                     iou_thr=iou_thr,
                     dataset=ds_name,
                     logger=logger,
-                    use_legacy_coordinate=True)
+                    use_legacy_coordinate=True,
+                )
                 mean_aps.append(mean_ap)
                 eval_results[f'AP{int(iou_thr * 100):02d}'] = round(mean_ap, 3)
             eval_results['mAP'] = sum(mean_aps) / len(mean_aps)
@@ -101,7 +138,8 @@ class VOCDataset(XMLDataset):
                 proposal_nums,
                 iou_thrs,
                 logger=logger,
-                use_legacy_coordinate=True)
+                use_legacy_coordinate=True,
+            )
             for i, num in enumerate(proposal_nums):
                 for j, iou_thr in enumerate(iou_thrs):
                     eval_results[f'recall@{num}@{iou_thr}'] = recalls[i, j]

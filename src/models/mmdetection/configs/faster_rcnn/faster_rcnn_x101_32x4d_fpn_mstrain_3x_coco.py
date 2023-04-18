@@ -1,5 +1,6 @@
 _base_ = [
-    '../common/mstrain_3x_coco.py', '../_base_/models/faster_rcnn_r50_fpn.py'
+    '../common/mstrain_3x_coco.py',
+    '../_base_/models/faster_rcnn_r50_fpn.py',
 ]
 model = dict(
     backbone=dict(
@@ -13,4 +14,8 @@ model = dict(
         norm_cfg=dict(type='BN', requires_grad=True),
         style='pytorch',
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://resnext101_32x4d')))
+            type='Pretrained',
+            checkpoint='open-mmlab://resnext101_32x4d',
+        ),
+    ),
+)

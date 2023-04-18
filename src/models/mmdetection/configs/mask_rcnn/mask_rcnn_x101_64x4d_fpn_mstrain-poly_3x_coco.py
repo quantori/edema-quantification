@@ -1,6 +1,6 @@
 _base_ = [
     '../common/mstrain-poly_3x_coco_instance.py',
-    '../_base_/models/mask_rcnn_r50_fpn.py'
+    '../_base_/models/mask_rcnn_r50_fpn.py',
 ]
 
 model = dict(
@@ -15,4 +15,8 @@ model = dict(
         norm_cfg=dict(type='BN', requires_grad=True),
         style='pytorch',
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://resnext101_64x4d')))
+            type='Pretrained',
+            checkpoint='open-mmlab://resnext101_64x4d',
+        ),
+    ),
+)

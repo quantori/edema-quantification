@@ -1,12 +1,24 @@
 import sys
+
 import torch
 from tqdm import tqdm as tqdm
+
 from .meter import AverageValueMeter
 
 
 class Epoch:
-
-    def __init__(self, model, loss_seg, loss_cls, weights_strategy, metrics_seg, metrics_cls, stage_name, device='cpu', verbose=True):
+    def __init__(
+        self,
+        model,
+        loss_seg,
+        loss_cls,
+        weights_strategy,
+        metrics_seg,
+        metrics_cls,
+        stage_name,
+        device='cpu',
+        verbose=True,
+    ):
         self.model = model
         self.loss_seg = loss_seg
         self.loss_cls = loss_cls
@@ -46,11 +58,19 @@ class Epoch:
         loss_meter_seg = AverageValueMeter()
         loss_meter_cls = AverageValueMeter()
         if not (self.loss_cls is None):
-            metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics_seg + self.metrics_cls}
+            metrics_meters = {
+                metric.__name__: AverageValueMeter()
+                for metric in self.metrics_seg + self.metrics_cls
+            }
         else:
             metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics_seg}
-        with tqdm(dataloader, desc='{:5s}'.format(self.stage_name), file=sys.stdout, disable=not (self.verbose)) as iterator:
-            for x, y, z in iterator:        # x - input image, y - output mask, z - output label
+        with tqdm(
+            dataloader,
+            desc='{:5s}'.format(self.stage_name),
+            file=sys.stdout,
+            disable=not (self.verbose),
+        ) as iterator:
+            for x, y, z in iterator:  # x - input image, y - output mask, z - output label
                 x, y, z = x.to(self.device), y.to(self.device), z.to(self.device)
                 loss, pred = self.batch_update(x, y, z)
 
@@ -58,16 +78,22 @@ class Epoch:
                     # Update loss logs
                     loss_seg, loss_cls = loss
                     pred_seg, pred_cls = pred
-                    loss_seg_np, loss_cls_np = loss_seg.cpu().detach().numpy(), loss_cls.cpu().detach().numpy()
+                    loss_seg_np, loss_cls_np = (
+                        loss_seg.cpu().detach().numpy(),
+                        loss_cls.cpu().detach().numpy(),
+                    )
                     loss_meter_seg.add(loss_seg_np)
                     loss_meter_cls.add(loss_cls_np)
 
                     pred_cls, z = torch.round(pred_cls.view(-1)), z.view(-1).to(torch.int32)
                     pred_seg = pred_seg * pred_cls.view(-1, 1, 1, 1)
 
-                    loss_logs = {self.loss_seg.__name__: loss_meter_seg.mean, self.loss_cls.__name__: loss_meter_cls.mean}
+                    loss_logs = {
+                        self.loss_seg.__name__: loss_meter_seg.mean,
+                        self.loss_cls.__name__: loss_meter_cls.mean,
+                    }
 
-                    # Uncomment for printing out weights each epoch 
+                    # Uncomment for printing out weights each epoch
                     logs['weight_seg'] = self.weights_strategy.w1
                     logs['weight_cls'] = self.weights_strategy.w2
                     logs.update(loss_logs)
@@ -106,7 +132,18 @@ class Epoch:
 
 
 class TrainEpoch(Epoch):
-    def __init__(self, model, loss_seg, loss_cls, weights_strategy, metrics_seg, metrics_cls, optimizer, device='cpu', verbose=True):
+    def __init__(
+        self,
+        model,
+        loss_seg,
+        loss_cls,
+        weights_strategy,
+        metrics_seg,
+        metrics_cls,
+        optimizer,
+        device='cpu',
+        verbose=True,
+    ):
         super().__init__(
             model=model,
             loss_seg=loss_seg,
@@ -148,8 +185,18 @@ class TrainEpoch(Epoch):
 
 
 class ValidEpoch(Epoch):
-
-    def __init__(self, model, loss_seg, loss_cls, weights_strategy, metrics_seg, metrics_cls, stage_name, device='cpu', verbose=True):
+    def __init__(
+        self,
+        model,
+        loss_seg,
+        loss_cls,
+        weights_strategy,
+        metrics_seg,
+        metrics_cls,
+        stage_name,
+        device='cpu',
+        verbose=True,
+    ):
         super().__init__(
             model=model,
             loss_seg=loss_seg,

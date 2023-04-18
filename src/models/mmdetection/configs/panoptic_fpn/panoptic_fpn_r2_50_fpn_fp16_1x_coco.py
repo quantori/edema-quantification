@@ -7,6 +7,9 @@ model = dict(
         base_width=26,
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='res2net50_v1b_26w_4s-3cf99910.pth')))
+            checkpoint='res2net50_v1b_26w_4s-3cf99910.pth',
+        ),
+    ),
+)
 
 fp16 = dict(loss_scale='dynamic')

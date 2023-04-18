@@ -1,10 +1,9 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import warnings
 
-from terminaltables import AsciiTable
-
 from mmdet.models import dense_heads
 from mmdet.models.dense_heads import *  # noqa: F401,F403
+from terminaltables import AsciiTable
 
 
 def test_dense_heads_test_attr():
@@ -15,8 +14,11 @@ def test_dense_heads_test_attr():
 
     # search attributes
     check_attributes = [
-        'simple_test', 'aug_test', 'simple_test_bboxes', 'simple_test_rpn',
-        'aug_test_rpn'
+        'simple_test',
+        'aug_test',
+        'simple_test_bboxes',
+        'simple_test_rpn',
+        'aug_test_rpn',
     ]
     table_header = ['head name'] + check_attributes
     table_data = [table_header]
@@ -37,8 +39,11 @@ def test_dense_heads_test_attr():
 
     # NOTE: this test just checks attributes.
     # simple_test of RPN heads will not work now.
-    assert len(not_found['simple_test']) == 0, \
-        f'simple_test not found in {not_found["simple_test"]}'
+    assert (
+        len(not_found['simple_test']) == 0
+    ), f'simple_test not found in {not_found["simple_test"]}'
     if len(not_found['aug_test']) != 0:
-        warnings.warn(f'aug_test not found in {not_found["aug_test"]}. '
-                      'Please implement it or raise NotImplementedError.')
+        warnings.warn(
+            f'aug_test not found in {not_found["aug_test"]}. '
+            'Please implement it or raise NotImplementedError.',
+        )

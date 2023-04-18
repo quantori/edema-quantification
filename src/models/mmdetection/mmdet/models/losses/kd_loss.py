@@ -9,10 +9,12 @@ from .utils import weighted_loss
 
 @mmcv.jit(derivate=True, coderize=True)
 @weighted_loss
-def knowledge_distillation_kl_div_loss(pred,
-                                       soft_label,
-                                       T,
-                                       detach_target=True):
+def knowledge_distillation_kl_div_loss(
+    pred,
+    soft_label,
+    T,
+    detach_target=True,
+):
     r"""Loss function for knowledge distilling using KL divergence.
 
     Args:
@@ -30,8 +32,12 @@ def knowledge_distillation_kl_div_loss(pred,
         target = target.detach()
 
     kd_loss = F.kl_div(
-        F.log_softmax(pred / T, dim=1), target, reduction='none').mean(1) * (
-            T * T)
+        F.log_softmax(pred / T, dim=1),
+        target,
+        reduction='none',
+    ).mean(
+        1,
+    ) * (T * T)
 
     return kd_loss
 
@@ -53,12 +59,14 @@ class KnowledgeDistillationKLDivLoss(nn.Module):
         self.loss_weight = loss_weight
         self.T = T
 
-    def forward(self,
-                pred,
-                soft_label,
-                weight=None,
-                avg_factor=None,
-                reduction_override=None):
+    def forward(
+        self,
+        pred,
+        soft_label,
+        weight=None,
+        avg_factor=None,
+        reduction_override=None,
+    ):
         """Forward function.
 
         Args:
@@ -74,8 +82,7 @@ class KnowledgeDistillationKLDivLoss(nn.Module):
         """
         assert reduction_override in (None, 'none', 'mean', 'sum')
 
-        reduction = (
-            reduction_override if reduction_override else self.reduction)
+        reduction = reduction_override if reduction_override else self.reduction
 
         loss_kd = self.loss_weight * knowledge_distillation_kl_div_loss(
             pred,
@@ -83,6 +90,7 @@ class KnowledgeDistillationKLDivLoss(nn.Module):
             weight,
             reduction=reduction,
             avg_factor=avg_factor,
-            T=self.T)
+            T=self.T,
+        )
 
         return loss_kd

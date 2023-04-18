@@ -53,7 +53,11 @@ myst_enable_extensions = ['colon_fence']
 myst_heading_anchors = 3
 
 autodoc_mock_imports = [
-    'matplotlib', 'pycocotools', 'terminaltables', 'mmdet.version', 'mmcv.ops'
+    'matplotlib',
+    'pycocotools',
+    'terminaltables',
+    'mmdet.version',
+    'mmcv.ops',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -88,12 +92,11 @@ html_theme_options = {
     'menu': [
         {
             'name': 'GitHub',
-            'url': 'https://github.com/open-mmlab/mmdetection'
+            'url': 'https://github.com/open-mmlab/mmdetection',
         },
     ],
     # Specify the language of shared menu
-    'menu_lang':
-    'en'
+    'menu_lang': 'en',
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

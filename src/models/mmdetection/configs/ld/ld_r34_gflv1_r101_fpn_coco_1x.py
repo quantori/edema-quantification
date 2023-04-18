@@ -9,11 +9,14 @@ model = dict(
         norm_cfg=dict(type='BN', requires_grad=True),
         norm_eval=True,
         style='pytorch',
-        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet34')),
+        init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet34'),
+    ),
     neck=dict(
         type='FPN',
         in_channels=[64, 128, 256, 512],
         out_channels=256,
         start_level=1,
         add_extra_convs='on_output',
-        num_outs=5))
+        num_outs=5,
+    ),
+)

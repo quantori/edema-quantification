@@ -6,4 +6,6 @@ model = dict(
     rpn_head=dict(in_channels=128),
     roi_head=dict(
         bbox_roi_extractor=dict(out_channels=128),
-        bbox_head=dict(in_channels=128)))
+        bbox_head=dict(in_channels=128),
+    ),
+)

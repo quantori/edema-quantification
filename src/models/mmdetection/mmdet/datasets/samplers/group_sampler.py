@@ -8,7 +8,6 @@ from torch.utils.data import Sampler
 
 
 class GroupSampler(Sampler):
-
     def __init__(self, dataset, samples_per_gpu=1):
         assert hasattr(dataset, 'flag')
         self.dataset = dataset
@@ -17,8 +16,14 @@ class GroupSampler(Sampler):
         self.group_sizes = np.bincount(self.flag)
         self.num_samples = 0
         for i, size in enumerate(self.group_sizes):
-            self.num_samples += int(np.ceil(
-                size / self.samples_per_gpu)) * self.samples_per_gpu
+            self.num_samples += (
+                int(
+                    np.ceil(
+                        size / self.samples_per_gpu,
+                    ),
+                )
+                * self.samples_per_gpu
+            )
 
     def __iter__(self):
         indices = []
@@ -28,16 +33,19 @@ class GroupSampler(Sampler):
             indice = np.where(self.flag == i)[0]
             assert len(indice) == size
             np.random.shuffle(indice)
-            num_extra = int(np.ceil(size / self.samples_per_gpu)
-                            ) * self.samples_per_gpu - len(indice)
+            num_extra = int(
+                np.ceil(size / self.samples_per_gpu),
+            ) * self.samples_per_gpu - len(indice)
             indice = np.concatenate(
-                [indice, np.random.choice(indice, num_extra)])
+                [indice, np.random.choice(indice, num_extra)],
+            )
             indices.append(indice)
         indices = np.concatenate(indices)
         indices = [
-            indices[i * self.samples_per_gpu:(i + 1) * self.samples_per_gpu]
+            indices[i * self.samples_per_gpu : (i + 1) * self.samples_per_gpu]
             for i in np.random.permutation(
-                range(len(indices) // self.samples_per_gpu))
+                range(len(indices) // self.samples_per_gpu),
+            )
         ]
         indices = np.concatenate(indices)
         indices = indices.astype(np.int64).tolist()
@@ -69,12 +77,14 @@ class DistributedGroupSampler(Sampler):
             processes in the distributed group. Default: 0.
     """
 
-    def __init__(self,
-                 dataset,
-                 samples_per_gpu=1,
-                 num_replicas=None,
-                 rank=None,
-                 seed=0):
+    def __init__(
+        self,
+        dataset,
+        samples_per_gpu=1,
+        num_replicas=None,
+        rank=None,
+        seed=0,
+    ):
         _rank, _num_replicas = get_dist_info()
         if num_replicas is None:
             num_replicas = _num_replicas
@@ -93,9 +103,14 @@ class DistributedGroupSampler(Sampler):
 
         self.num_samples = 0
         for i, j in enumerate(self.group_sizes):
-            self.num_samples += int(
-                math.ceil(self.group_sizes[i] * 1.0 / self.samples_per_gpu /
-                          self.num_replicas)) * self.samples_per_gpu
+            self.num_samples += (
+                int(
+                    math.ceil(
+                        self.group_sizes[i] * 1.0 / self.samples_per_gpu / self.num_replicas,
+                    ),
+                )
+                * self.samples_per_gpu
+            )
         self.total_size = self.num_samples * self.num_replicas
 
     def __iter__(self):
@@ -111,32 +126,42 @@ class DistributedGroupSampler(Sampler):
                 # add .numpy() to avoid bug when selecting indice in parrots.
                 # TODO: check whether torch.randperm() can be replaced by
                 # numpy.random.permutation().
-                indice = indice[list(
-                    torch.randperm(int(size), generator=g).numpy())].tolist()
+                indice = indice[
+                    list(
+                        torch.randperm(int(size), generator=g).numpy(),
+                    )
+                ].tolist()
                 extra = int(
                     math.ceil(
-                        size * 1.0 / self.samples_per_gpu / self.num_replicas)
+                        size * 1.0 / self.samples_per_gpu / self.num_replicas,
+                    ),
                 ) * self.samples_per_gpu * self.num_replicas - len(indice)
                 # pad indice
                 tmp = indice.copy()
                 for _ in range(extra // size):
                     indice.extend(tmp)
-                indice.extend(tmp[:extra % size])
+                indice.extend(tmp[: extra % size])
                 indices.extend(indice)
 
         assert len(indices) == self.total_size
 
         indices = [
-            indices[j] for i in list(
+            indices[j]
+            for i in list(
                 torch.randperm(
-                    len(indices) // self.samples_per_gpu, generator=g))
-            for j in range(i * self.samples_per_gpu, (i + 1) *
-                           self.samples_per_gpu)
+                    len(indices) // self.samples_per_gpu,
+                    generator=g,
+                ),
+            )
+            for j in range(
+                i * self.samples_per_gpu,
+                (i + 1) * self.samples_per_gpu,
+            )
         ]
 
         # subsample
         offset = self.num_samples * self.rank
-        indices = indices[offset:offset + self.num_samples]
+        indices = indices[offset : offset + self.num_samples]
         assert len(indices) == self.num_samples
 
         return iter(indices)

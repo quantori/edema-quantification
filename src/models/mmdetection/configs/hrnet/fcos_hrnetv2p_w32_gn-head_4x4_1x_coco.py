@@ -8,37 +8,50 @@ model = dict(
                 num_modules=1,
                 num_branches=1,
                 block='BOTTLENECK',
-                num_blocks=(4, ),
-                num_channels=(64, )),
+                num_blocks=(4,),
+                num_channels=(64,),
+            ),
             stage2=dict(
                 num_modules=1,
                 num_branches=2,
                 block='BASIC',
                 num_blocks=(4, 4),
-                num_channels=(32, 64)),
+                num_channels=(32, 64),
+            ),
             stage3=dict(
                 num_modules=4,
                 num_branches=3,
                 block='BASIC',
                 num_blocks=(4, 4, 4),
-                num_channels=(32, 64, 128)),
+                num_channels=(32, 64, 128),
+            ),
             stage4=dict(
                 num_modules=3,
                 num_branches=4,
                 block='BASIC',
                 num_blocks=(4, 4, 4, 4),
-                num_channels=(32, 64, 128, 256))),
+                num_channels=(32, 64, 128, 256),
+            ),
+        ),
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://msra/hrnetv2_w32')),
+            type='Pretrained',
+            checkpoint='open-mmlab://msra/hrnetv2_w32',
+        ),
+    ),
     neck=dict(
         _delete_=True,
         type='HRFPN',
         in_channels=[32, 64, 128, 256],
         out_channels=256,
         stride=2,
-        num_outs=5))
+        num_outs=5,
+    ),
+)
 img_norm_cfg = dict(
-    mean=[103.53, 116.28, 123.675], std=[57.375, 57.12, 58.395], to_rgb=False)
+    mean=[103.53, 116.28, 123.675],
+    std=[57.375, 57.12, 58.395],
+    to_rgb=False,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
@@ -62,9 +75,11 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
-    test=dict(pipeline=test_pipeline))
+    test=dict(pipeline=test_pipeline),
+)

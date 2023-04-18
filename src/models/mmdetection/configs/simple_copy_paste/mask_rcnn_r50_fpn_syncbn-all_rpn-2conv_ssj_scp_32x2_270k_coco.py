@@ -1,7 +1,7 @@
 _base_ = [
     '../_base_/models/mask_rcnn_r50_fpn.py',
     # 270k iterations with batch_size 64 is roughly equivalent to 144 epochs
-    '../common/ssj_scp_270k_coco_instance.py'
+    '../common/ssj_scp_270k_coco_instance.py',
 ]
 
 norm_cfg = dict(type='SyncBN', requires_grad=True)
@@ -16,5 +16,8 @@ model = dict(
         bbox_head=dict(
             type='Shared4Conv1FCBBoxHead',
             conv_out_channels=256,
-            norm_cfg=head_norm_cfg),
-        mask_head=dict(norm_cfg=head_norm_cfg)))
+            norm_cfg=head_norm_cfg,
+        ),
+        mask_head=dict(norm_cfg=head_norm_cfg),
+    ),
+)

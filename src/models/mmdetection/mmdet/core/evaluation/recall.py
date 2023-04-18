@@ -9,7 +9,6 @@ from .bbox_overlaps import bbox_overlaps
 
 
 def _recalls(all_ious, proposal_nums, thrs):
-
     img_num = all_ious.shape[0]
     total_gt_num = sum([ious.shape[0] for ious in all_ious])
 
@@ -62,12 +61,14 @@ def set_recall_param(proposal_nums, iou_thrs):
     return _proposal_nums, _iou_thrs
 
 
-def eval_recalls(gts,
-                 proposals,
-                 proposal_nums=None,
-                 iou_thrs=0.5,
-                 logger=None,
-                 use_legacy_coordinate=False):
+def eval_recalls(
+    gts,
+    proposals,
+    proposal_nums=None,
+    iou_thrs=0.5,
+    logger=None,
+    use_legacy_coordinate=False,
+):
     """Calculate recalls.
 
     Args:
@@ -105,7 +106,8 @@ def eval_recalls(gts,
             ious = bbox_overlaps(
                 gts[i],
                 img_proposal[:prop_num, :4],
-                use_legacy_coordinate=use_legacy_coordinate)
+                use_legacy_coordinate=use_legacy_coordinate,
+            )
         all_ious.append(ious)
     all_ious = np.array(all_ious)
     recalls = _recalls(all_ious, proposal_nums, iou_thrs)
@@ -114,12 +116,14 @@ def eval_recalls(gts,
     return recalls
 
 
-def print_recall_summary(recalls,
-                         proposal_nums,
-                         iou_thrs,
-                         row_idxs=None,
-                         col_idxs=None,
-                         logger=None):
+def print_recall_summary(
+    recalls,
+    proposal_nums,
+    iou_thrs,
+    row_idxs=None,
+    col_idxs=None,
+    logger=None,
+):
     """Print recalls in a table.
 
     Args:
@@ -164,6 +168,7 @@ def plot_num_recall(recalls, proposal_nums):
         _recalls = recalls
 
     import matplotlib.pyplot as plt
+
     f = plt.figure()
     plt.plot([0] + _proposal_nums, [0] + _recalls)
     plt.xlabel('Proposal num')
@@ -189,8 +194,9 @@ def plot_iou_recall(recalls, iou_thrs):
         _recalls = recalls
 
     import matplotlib.pyplot as plt
+
     f = plt.figure()
-    plt.plot(_iou_thrs + [1.0], _recalls + [0.])
+    plt.plot(_iou_thrs + [1.0], _recalls + [0.0])
     plt.xlabel('IoU')
     plt.ylabel('Recall')
     plt.axis([iou_thrs.min(), 1, 0, 1])

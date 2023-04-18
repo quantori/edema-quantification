@@ -12,15 +12,24 @@ class DETR(SingleStageDetector):
     r"""Implementation of `DETR: End-to-End Object Detection with
     Transformers <https://arxiv.org/pdf/2005.12872>`_"""
 
-    def __init__(self,
-                 backbone,
-                 bbox_head,
-                 train_cfg=None,
-                 test_cfg=None,
-                 pretrained=None,
-                 init_cfg=None):
-        super(DETR, self).__init__(backbone, None, bbox_head, train_cfg,
-                                   test_cfg, pretrained, init_cfg)
+    def __init__(
+        self,
+        backbone,
+        bbox_head,
+        train_cfg=None,
+        test_cfg=None,
+        pretrained=None,
+        init_cfg=None,
+    ):
+        super(DETR, self).__init__(
+            backbone,
+            None,
+            bbox_head,
+            train_cfg,
+            test_cfg,
+            pretrained,
+            init_cfg,
+        )
 
     # over-write `forward_dummy` because:
     # the forward of bbox_head requires img_metas
@@ -29,15 +38,19 @@ class DETR(SingleStageDetector):
 
         See `mmdetection/tools/analysis_tools/get_flops.py`
         """
-        warnings.warn('Warning! MultiheadAttention in DETR does not '
-                      'support flops computation! Do not use the '
-                      'results in your papers!')
+        warnings.warn(
+            'Warning! MultiheadAttention in DETR does not '
+            'support flops computation! Do not use the '
+            'results in your papers!',
+        )
 
         batch_size, _, height, width = img.shape
         dummy_img_metas = [
             dict(
                 batch_input_shape=(height, width),
-                img_shape=(height, width, 3)) for _ in range(batch_size)
+                img_shape=(height, width, 3),
+            )
+            for _ in range(batch_size)
         ]
         x = self.extract_feat(img)
         outs = self.bbox_head(x, dummy_img_metas)

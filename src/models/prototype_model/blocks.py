@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 
 import torch
 from torch import nn
@@ -31,7 +31,10 @@ class SqueezeNet(nn.Module):
         super().__init__()
 
         self.model = torch.hub.load(
-            "pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True, verbose=False
+            'pytorch/vision:v0.10.0',
+            'squeezenet1_1',
+            pretrained=True,
+            verbose=False,
         )
         del self.model.classifier
 
@@ -71,7 +74,7 @@ class SqueezeNet(nn.Module):
                 transforms.CenterCrop(224),
                 # transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
+            ],
         )
 
         return preprocess(x)

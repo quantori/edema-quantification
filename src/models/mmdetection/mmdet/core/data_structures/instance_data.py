@@ -64,27 +64,28 @@ class InstanceData(GeneralData):
     """
 
     def __setattr__(self, name, value):
-
         if name in ('_meta_info_fields', '_data_fields'):
             if not hasattr(self, name):
                 super().__setattr__(name, value)
             else:
                 raise AttributeError(
-                    f'{name} has been used as a '
-                    f'private attribute, which is immutable. ')
+                    f'{name} has been used as a ' f'private attribute, which is immutable. ',
+                )
 
         else:
-            assert isinstance(value, (torch.Tensor, np.ndarray, list)), \
-                f'Can set {type(value)}, only support' \
-                f' {(torch.Tensor, np.ndarray, list)}'
+            assert isinstance(value, (torch.Tensor, np.ndarray, list)), (
+                f'Can set {type(value)}, only support' f' {(torch.Tensor, np.ndarray, list)}'
+            )
 
             if self._data_fields:
-                assert len(value) == len(self), f'the length of ' \
-                                             f'values {len(value)} is ' \
-                                             f'not consistent with' \
-                                             f' the length ' \
-                                             f'of this :obj:`InstanceData` ' \
-                                             f'{len(self)} '
+                assert len(value) == len(self), (
+                    f'the length of '
+                    f'values {len(value)} is '
+                    f'not consistent with'
+                    f' the length '
+                    f'of this :obj:`InstanceData` '
+                    f'{len(self)} '
+                )
             super().__setattr__(name, value)
 
     def __getitem__(self, item):
@@ -100,7 +101,9 @@ class InstanceData(GeneralData):
         assert len(self), ' This is a empty instance'
 
         assert isinstance(
-            item, (str, slice, int, torch.LongTensor, torch.BoolTensor))
+            item,
+            (str, slice, int, torch.LongTensor, torch.BoolTensor),
+        )
 
         if isinstance(item, str):
             return getattr(self, item)
@@ -114,17 +117,18 @@ class InstanceData(GeneralData):
 
         new_data = self.new()
         if isinstance(item, (torch.Tensor)):
-            assert item.dim() == 1, 'Only support to get the' \
-                                 ' values along the first dimension.'
+            assert item.dim() == 1, 'Only support to get the' ' values along the first dimension.'
             if isinstance(item, torch.BoolTensor):
-                assert len(item) == len(self), f'The shape of the' \
-                                               f' input(BoolTensor)) ' \
-                                               f'{len(item)} ' \
-                                               f' does not match the shape ' \
-                                               f'of the indexed tensor ' \
-                                               f'in results_filed ' \
-                                               f'{len(self)} at ' \
-                                               f'first dimension. '
+                assert len(item) == len(self), (
+                    f'The shape of the'
+                    f' input(BoolTensor)) '
+                    f'{len(item)} '
+                    f' does not match the shape '
+                    f'of the indexed tensor '
+                    f'in results_filed '
+                    f'{len(self)} at '
+                    f'first dimension. '
+                )
 
             for k, v in self.items():
                 if isinstance(v, torch.Tensor):
@@ -158,8 +162,7 @@ class InstanceData(GeneralData):
         Returns:
             obj:`InstanceData`
         """
-        assert all(
-            isinstance(results, InstanceData) for results in instances_list)
+        assert all(isinstance(results, InstanceData) for results in instances_list)
         assert len(instances_list) > 0
         if len(instances_list) == 1:
             return instances_list[0]
@@ -176,7 +179,8 @@ class InstanceData(GeneralData):
                 values = list(itertools.chain(*values))
             else:
                 raise ValueError(
-                    f'Can not concat the {k} which is a {type(v0)}')
+                    f'Can not concat the {k} which is a {type(v0)}',
+                )
             new_data[k] = values
         return new_data
 

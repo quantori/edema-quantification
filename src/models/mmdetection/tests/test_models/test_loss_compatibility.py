@@ -16,6 +16,7 @@ def _get_config_directory():
     except NameError:
         # For IPython development when this __file__ is not defined
         import mmdet
+
         repo_dpath = dirname(dirname(mmdet.__file__))
     config_dpath = join(repo_dpath, 'configs')
     if not exists(config_dpath):
@@ -26,6 +27,7 @@ def _get_config_directory():
 def _get_config_module(fname):
     """Load a configuration as a python module."""
     from mmcv import Config
+
     config_dpath = _get_config_directory()
     config_fpath = join(config_dpath, fname)
     config_mod = Config.fromfile(config_fpath)
@@ -43,18 +45,21 @@ def _get_detector_cfg(fname):
     return model
 
 
-@pytest.mark.parametrize('loss_bbox', [
-    dict(type='L1Loss', loss_weight=1.0),
-    dict(type='GHMR', mu=0.02, bins=10, momentum=0.7, loss_weight=10.0),
-    dict(type='IoULoss', loss_weight=1.0),
-    dict(type='BoundedIoULoss', loss_weight=1.0),
-    dict(type='GIoULoss', loss_weight=1.0),
-    dict(type='DIoULoss', loss_weight=1.0),
-    dict(type='CIoULoss', loss_weight=1.0),
-    dict(type='MSELoss', loss_weight=1.0),
-    dict(type='SmoothL1Loss', loss_weight=1.0),
-    dict(type='BalancedL1Loss', loss_weight=1.0)
-])
+@pytest.mark.parametrize(
+    'loss_bbox',
+    [
+        dict(type='L1Loss', loss_weight=1.0),
+        dict(type='GHMR', mu=0.02, bins=10, momentum=0.7, loss_weight=10.0),
+        dict(type='IoULoss', loss_weight=1.0),
+        dict(type='BoundedIoULoss', loss_weight=1.0),
+        dict(type='GIoULoss', loss_weight=1.0),
+        dict(type='DIoULoss', loss_weight=1.0),
+        dict(type='CIoULoss', loss_weight=1.0),
+        dict(type='MSELoss', loss_weight=1.0),
+        dict(type='SmoothL1Loss', loss_weight=1.0),
+        dict(type='BalancedL1Loss', loss_weight=1.0),
+    ],
+)
 def test_bbox_loss_compatibility(loss_bbox):
     """Test loss_bbox compatibility.
 
@@ -76,6 +81,7 @@ def test_bbox_loss_compatibility(loss_bbox):
     cfg_model.roi_head.bbox_head.loss_bbox = loss_bbox
 
     from mmdet.models import build_detector
+
     detector = build_detector(cfg_model)
 
     loss = detector.forward(imgs, img_metas, return_loss=True, **mm_inputs)
@@ -84,17 +90,26 @@ def test_bbox_loss_compatibility(loss_bbox):
     assert float(loss.item()) > 0
 
 
-@pytest.mark.parametrize('loss_cls', [
-    dict(type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
-    dict(
-        type='FocalLoss',
-        use_sigmoid=True,
-        gamma=2.0,
-        alpha=0.25,
-        loss_weight=1.0),
-    dict(
-        type='GHMC', bins=30, momentum=0.75, use_sigmoid=True, loss_weight=1.0)
-])
+@pytest.mark.parametrize(
+    'loss_cls',
+    [
+        dict(type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
+        dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.25,
+            loss_weight=1.0,
+        ),
+        dict(
+            type='GHMC',
+            bins=30,
+            momentum=0.75,
+            use_sigmoid=True,
+            loss_weight=1.0,
+        ),
+    ],
+)
 def test_cls_loss_compatibility(loss_cls):
     """Test loss_cls compatibility.
 
@@ -115,6 +130,7 @@ def test_cls_loss_compatibility(loss_cls):
     cfg_model.roi_head.bbox_head.loss_cls = loss_cls
 
     from mmdet.models import build_detector
+
     detector = build_detector(cfg_model)
 
     loss = detector.forward(imgs, img_metas, return_loss=True, **mm_inputs)
@@ -123,9 +139,12 @@ def test_cls_loss_compatibility(loss_cls):
     assert float(loss.item()) > 0
 
 
-def _demo_mm_inputs(input_shape=(1, 3, 300, 300),
-                    num_items=None, num_classes=10,
-                    with_semantic=False):  # yapf: disable
+def _demo_mm_inputs(
+    input_shape=(1, 3, 300, 300),
+    num_items=None,
+    num_classes=10,
+    with_semantic=False,
+):  # yapf: disable
     """Create a superset of inputs needed to run test or train batches.
 
     Args:
@@ -146,15 +165,18 @@ def _demo_mm_inputs(input_shape=(1, 3, 300, 300),
 
     imgs = rng.rand(*input_shape)
 
-    img_metas = [{
-        'img_shape': (H, W, C),
-        'ori_shape': (H, W, C),
-        'pad_shape': (H, W, C),
-        'filename': '<demo>.png',
-        'scale_factor': np.array([1.1, 1.2, 1.1, 1.2]),
-        'flip': False,
-        'flip_direction': None,
-    } for _ in range(N)]
+    img_metas = [
+        {
+            'img_shape': (H, W, C),
+            'ori_shape': (H, W, C),
+            'pad_shape': (H, W, C),
+            'filename': '<demo>.png',
+            'scale_factor': np.array([1.1, 1.2, 1.1, 1.2]),
+            'flip': False,
+            'flip_direction': None,
+        }
+        for _ in range(N)
+    ]
 
     gt_bboxes = []
     gt_labels = []
@@ -194,8 +216,13 @@ def _demo_mm_inputs(input_shape=(1, 3, 300, 300),
     if with_semantic:
         # assume gt_semantic_seg using scale 1/8 of the img
         gt_semantic_seg = np.random.randint(
-            0, num_classes, (1, 1, H // 8, W // 8), dtype=np.uint8)
+            0,
+            num_classes,
+            (1, 1, H // 8, W // 8),
+            dtype=np.uint8,
+        )
         mm_inputs.update(
-            {'gt_semantic_seg': torch.ByteTensor(gt_semantic_seg)})
+            {'gt_semantic_seg': torch.ByteTensor(gt_semantic_seg)},
+        )
 
     return mm_inputs

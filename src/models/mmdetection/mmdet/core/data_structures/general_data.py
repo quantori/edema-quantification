@@ -3,7 +3,6 @@ import copy
 
 import numpy as np
 import torch
-
 from mmdet.utils.util_mixins import NiceRepr
 
 
@@ -85,7 +84,6 @@ class GeneralData(NiceRepr):
     """
 
     def __init__(self, meta_info=None, data=None):
-
         self._meta_info_fields = set()
         self._data_fields = set()
 
@@ -102,8 +100,10 @@ class GeneralData(NiceRepr):
                 of image. such as `img_shape`, `scale_factor`, etc.
                 Default: None.
         """
-        assert isinstance(meta_info,
-                          dict), f'meta should be a `dict` but get {meta_info}'
+        assert isinstance(
+            meta_info,
+            dict,
+        ), f'meta should be a `dict` but get {meta_info}'
         meta = copy.deepcopy(meta_info)
         for k, v in meta.items():
             # should be consistent with original meta_info
@@ -115,13 +115,15 @@ class GeneralData(NiceRepr):
                     else:
                         raise KeyError(
                             f'img_meta_info {k} has been set as '
-                            f'{getattr(self, k)} before, which is immutable ')
+                            f'{getattr(self, k)} before, which is immutable ',
+                        )
                 elif ori_value == v:
                     continue
                 else:
                     raise KeyError(
                         f'img_meta_info {k} has been set as '
-                        f'{getattr(self, k)} before, which is immutable ')
+                        f'{getattr(self, k)} before, which is immutable ',
+                    )
             else:
                 self._meta_info_fields.add(k)
                 self.__dict__[k] = v
@@ -133,8 +135,10 @@ class GeneralData(NiceRepr):
             data (dict): A dict contains annotations of image or
                 model predictions. Default: None.
         """
-        assert isinstance(data,
-                          dict), f'meta should be a `dict` but get {data}'
+        assert isinstance(
+            data,
+            dict,
+        ), f'meta should be a `dict` but get {data}'
         for k, v in data.items():
             self.__setattr__(k, v)
 
@@ -198,25 +202,27 @@ class GeneralData(NiceRepr):
                 super().__setattr__(name, val)
             else:
                 raise AttributeError(
-                    f'{name} has been used as a '
-                    f'private attribute, which is immutable. ')
+                    f'{name} has been used as a ' f'private attribute, which is immutable. ',
+                )
         else:
             if name in self._meta_info_fields:
-                raise AttributeError(f'`{name}` is used in meta information,'
-                                     f'which is immutable')
+                raise AttributeError(
+                    f'`{name}` is used in meta information,' f'which is immutable',
+                )
 
             self._data_fields.add(name)
             super().__setattr__(name, val)
 
     def __delattr__(self, item):
-
         if item in ('_meta_info_fields', '_data_fields'):
-            raise AttributeError(f'{item} has been used as a '
-                                 f'private attribute, which is immutable. ')
+            raise AttributeError(
+                f'{item} has been used as a ' f'private attribute, which is immutable. ',
+            )
 
         if item in self._meta_info_fields:
-            raise KeyError(f'{item} is used in meta information, '
-                           f'which is immutable.')
+            raise KeyError(
+                f'{item} is used in meta information, ' f'which is immutable.',
+            )
         super().__delattr__(item)
         if item in self._data_fields:
             self._data_fields.remove(item)
@@ -236,8 +242,9 @@ class GeneralData(NiceRepr):
         assert len(args) < 3, '`pop` get more than 2 arguments'
         name = args[0]
         if name in self._meta_info_fields:
-            raise KeyError(f'{name} is a key in meta information, '
-                           f'which is immutable')
+            raise KeyError(
+                f'{name} is a key in meta information, ' f'which is immutable',
+            )
 
         if args[0] in self._data_fields:
             self._data_fields.remove(args[0])
@@ -250,8 +257,7 @@ class GeneralData(NiceRepr):
             raise KeyError(f'{args[0]}')
 
     def __contains__(self, item):
-        return item in self._data_fields or \
-                    item in self._meta_info_fields
+        return item in self._data_fields or item in self._meta_info_fields
 
     # Tensor-like methods
     def to(self, *args, **kwargs):

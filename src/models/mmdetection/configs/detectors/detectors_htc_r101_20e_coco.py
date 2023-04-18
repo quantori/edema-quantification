@@ -6,7 +6,8 @@ model = dict(
         conv_cfg=dict(type='ConvAWS'),
         sac=dict(type='SAC', use_deform=True),
         stage_with_sac=(False, True, True, True),
-        output_img=True),
+        output_img=True,
+    ),
     neck=dict(
         type='RFP',
         rfp_steps=2,
@@ -25,4 +26,7 @@ model = dict(
             sac=dict(type='SAC', use_deform=True),
             stage_with_sac=(False, True, True, True),
             pretrained='torchvision://resnet101',
-            style='pytorch')))
+            style='pytorch',
+        ),
+    ),
+)

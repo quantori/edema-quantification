@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from ..base import modules as md
 
 
@@ -29,7 +30,7 @@ class PAB(nn.Module):
         x_bottom = x_bottom.flatten(2).transpose(1, 2)
 
         sp_map = torch.matmul(x_center, x_top)
-        sp_map = self.map_softmax(sp_map.view(bsize, -1)).view(bsize, h*w, h*w)
+        sp_map = self.map_softmax(sp_map.view(bsize, -1)).view(bsize, h * w, h * w)
         sp_map = torch.matmul(sp_map, x_bottom)
         sp_map = sp_map.reshape(bsize, self.in_channels, h, w)
         x = x + sp_map
@@ -54,7 +55,7 @@ class MFAB(nn.Module):
                 skip_channels,
                 kernel_size=1,
                 use_batchnorm=use_batchnorm,
-            )
+            ),
         )
         self.SE_ll = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
@@ -71,7 +72,8 @@ class MFAB(nn.Module):
             nn.Sigmoid(),
         )
         self.conv1 = md.Conv2dReLU(
-            skip_channels + skip_channels,  # we transform C-prime form high level to C from skip connection
+            skip_channels
+            + skip_channels,  # we transform C-prime form high level to C from skip connection
             out_channels,
             kernel_size=3,
             padding=1,
@@ -87,7 +89,7 @@ class MFAB(nn.Module):
 
     def forward(self, x, skip=None):
         x = self.hl_conv(x)
-        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = F.interpolate(x, scale_factor=2, mode='nearest')
         attention_hl = self.SE_hl(x)
         if skip is not None:
             attention_ll = self.SE_ll(skip)
@@ -101,11 +103,11 @@ class MFAB(nn.Module):
 
 class DecoderBlock(nn.Module):
     def __init__(
-            self,
-            in_channels,
-            skip_channels,
-            out_channels,
-            use_batchnorm=True
+        self,
+        in_channels,
+        skip_channels,
+        out_channels,
+        use_batchnorm=True,
     ):
         super().__init__()
         self.conv1 = md.Conv2dReLU(
@@ -124,7 +126,7 @@ class DecoderBlock(nn.Module):
         )
 
     def forward(self, x, skip=None):
-        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = F.interpolate(x, scale_factor=2, mode='nearest')
         if skip is not None:
             x = torch.cat([x, skip], dim=1)
         x = self.conv1(x)
@@ -134,21 +136,22 @@ class DecoderBlock(nn.Module):
 
 class MAnetDecoder(nn.Module):
     def __init__(
-            self,
-            encoder_channels,
-            decoder_channels,
-            n_blocks=5,
-            reduction=16,
-            use_batchnorm=True,
-            pab_channels=64
+        self,
+        encoder_channels,
+        decoder_channels,
+        n_blocks=5,
+        reduction=16,
+        use_batchnorm=True,
+        pab_channels=64,
     ):
         super().__init__()
 
         if n_blocks != len(decoder_channels):
             raise ValueError(
-                "Model depth is {}, but you provide `decoder_channels` for {} blocks.".format(
-                    n_blocks, len(decoder_channels)
-                )
+                'Model depth is {}, but you provide `decoder_channels` for {} blocks.'.format(
+                    n_blocks,
+                    len(decoder_channels),
+                ),
             )
 
         encoder_channels = encoder_channels[1:]  # remove first skip with same spatial resolution
@@ -165,16 +168,16 @@ class MAnetDecoder(nn.Module):
         # combine decoder keyword arguments
         kwargs = dict(use_batchnorm=use_batchnorm)  # no attention type here
         blocks = [
-            MFAB(in_ch, skip_ch, out_ch, reduction=reduction, **kwargs) if skip_ch > 0 else
-            DecoderBlock(in_ch, skip_ch, out_ch, **kwargs)
+            MFAB(in_ch, skip_ch, out_ch, reduction=reduction, **kwargs)
+            if skip_ch > 0
+            else DecoderBlock(in_ch, skip_ch, out_ch, **kwargs)
             for in_ch, skip_ch, out_ch in zip(in_channels, skip_channels, out_channels)
         ]
         # for the last we dont have skip connection -> use simple decoder block
         self.blocks = nn.ModuleList(blocks)
 
     def forward(self, *features):
-
-        features = features[1:]    # remove first skip with same spatial resolution
+        features = features[1:]  # remove first skip with same spatial resolution
         features = features[::-1]  # reverse channels to start from head of encoder
 
         head = features[0]
