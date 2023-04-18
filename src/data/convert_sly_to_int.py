@@ -1,26 +1,20 @@
-import argparse
 import logging
 import os
 from functools import partial
 from pathlib import Path
-from typing import List, Optional
 
 import cv2
+import hydra
 import pandas as pd
 import supervisely_lib as sly
 from joblib import Parallel, delayed
+from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-from settings import (
-    EXCLUDE_DIRS,
-    FIGURE_TYPE,
-    INCLUDE_DIRS,
-    INTERMEDIATE_SAVE_DIR,
-    SUPERVISELY_DATASET_DIR,
-)
 from src.data.utils_sly import (
     CLASS_MAP,
     FIGURE_MAP,
+    FIGURE_TYPE,
     METADATA_COLUMNS,
     get_box_sizes,
     get_class_name,
@@ -30,15 +24,8 @@ from src.data.utils_sly import (
     read_sly_project,
 )
 
-os.makedirs('logs', exist_ok=True)
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%d.%m.%Y %H:%M:%S',
-    filename='logs/{:s}.log'.format(Path(__file__).stem),
-    filemode='w',
-    level=logging.INFO,
-)
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 def process_image(
@@ -54,7 +41,7 @@ def process_image(
         dictionary with information about one image
     """
     (img_path, ann_path), row = row
-    logger.info(f'Cropping image {img_path}')
+    log.info(f'Cropping image {img_path}')
 
     img_stem = Path(img_path).stem
     subject_id, study_id, width_frontal, width_lateral = img_stem.split('_')
@@ -92,7 +79,7 @@ def process_annotation(
     Returns:
         meta: dataframe with metadata for one image
     """
-    logger.info('Preparing metadata')
+    log.info('Preparing metadata')
     (img_path, ann_path), row = row
     meta = pd.DataFrame(columns=METADATA_COLUMNS)
 
@@ -100,7 +87,7 @@ def process_annotation(
     class_name = get_class_name(ann)
 
     for obj in ann['objects']:
-        logger.debug(f'Processing object {obj}')
+        log.debug(f'Processing object {obj}')
 
         rp = get_tag_value(obj, tag_name='RP')
         mask_points = get_mask_points(obj)
@@ -170,12 +157,13 @@ def save_metadata(
     )
 
 
-def main(
-    dataset_dir: str,
-    save_dir: str,
-    include_dirs: Optional[List[str]] = None,
-    exclude_dirs: Optional[List[str]] = None,
-) -> None:
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), 'config'),
+    config_name='convert_sly_to_int',
+    version_base=None,
+)
+def main(cfg: DictConfig) -> None:
+    log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
     """Convert Supervisely dataset into Intermediate.
 
     Args:
@@ -187,16 +175,16 @@ def main(
         None
     """
     df = read_sly_project(
-        dataset_dir=dataset_dir,
-        include_dirs=include_dirs,
-        exclude_dirs=exclude_dirs,
+        dataset_dir=cfg.dataset_dir,
+        include_dirs=cfg.include_dirs,
+        exclude_dirs=cfg.exclude_dirs,
     )
 
-    logger.info('Processing annotations')
+    log.info('Processing annotations')
     groups = df.groupby(['img_path', 'ann_path'])
     processing_func = partial(
         process_sample,
-        save_dir=save_dir,
+        save_dir=cfg.save_dir,
     )
     result = Parallel(n_jobs=-1)(
         delayed(processing_func)(group)
@@ -206,22 +194,10 @@ def main(
     metadata = pd.concat(result)
     save_metadata(
         metadata=metadata,
-        save_dir=save_dir,
+        save_dir=cfg.save_dir,
     )
-    logger.info('Complete')
+    log.info('Complete')
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Supervisely-to-Intermediate dataset conversion')
-    parser.add_argument('--dataset_dir', default=SUPERVISELY_DATASET_DIR, type=str)
-    parser.add_argument('--include_dirs', nargs='+', default=INCLUDE_DIRS, type=str)
-    parser.add_argument('--exclude_dirs', nargs='+', default=EXCLUDE_DIRS, type=str)
-    parser.add_argument('--save_dir', default=INTERMEDIATE_SAVE_DIR, type=str)
-    args = parser.parse_args()
-
-    main(
-        dataset_dir=args.dataset_dir,
-        include_dirs=args.include_dirs,
-        exclude_dirs=args.exclude_dirs,
-        save_dir=args.save_dir,
-    )
+    main()

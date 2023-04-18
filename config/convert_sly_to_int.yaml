@@ -1,0 +1,8 @@
+defaults:
+- main
+- _self_
+
+dataset_dir: data/sly
+include_dirs: []
+exclude_dirs: []
+save_dir: data/interim
