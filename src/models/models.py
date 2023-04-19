@@ -22,20 +22,20 @@ class BorderExtractor:
 
     def __init__(
         self,
-        thresh_method: str,
-        thresh_val: int,
+        threshold_method: str,
+        threshold_val: int,
     ) -> None:
-        self.thresh_method = thresh_method
-        self.thresh_val = thresh_val
-        assert self.thresh_method in [
+        self.threshold_method = threshold_method
+        self.threshold_val = threshold_val
+        assert self.threshold_method in [
             'otsu',
             'triangle',
             'manual',
-        ], f'Invalid thresh_method: {self.thresh_method}'
+        ], f'Invalid threshold_method: {self.threshold_method}'
 
-        if thresh_method == 'manual' and not isinstance(thresh_val, int):
+        if threshold_method == 'manual' and not isinstance(threshold_val, int):
             raise ValueError(
-                f'Manual thresholding requires a thresholding value to be set. The thresh_val is {thresh_val}',
+                f'Manual thresholding requires a thresholding value to be set. The threshold_val is {threshold_val}',
             )
 
     def binarize(
@@ -43,24 +43,29 @@ class BorderExtractor:
         mask: np.ndarray,
     ) -> np.ndarray:
         mask_bin = mask.copy()
-        if self.thresh_method == 'otsu':
-            thresh_value, mask_bin = cv2.threshold(
+        if self.threshold_method == 'otsu':
+            threshold_val, mask_bin = cv2.threshold(
                 mask,
                 0,
                 255,
                 cv2.THRESH_BINARY + cv2.THRESH_OTSU,
             )
-        elif self.thresh_method == 'triangle':
-            thresh_value, mask_bin = cv2.threshold(
+        elif self.threshold_method == 'triangle':
+            threshold_val, mask_bin = cv2.threshold(
                 mask,
                 0,
                 255,
                 cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE,
             )
-        elif self.thresh_method == 'manual':
-            thresh_value, mask_bin = cv2.threshold(mask, self.thresh_val, 255, cv2.THRESH_BINARY)
+        elif self.threshold_method == 'manual':
+            threshold_val, mask_bin = cv2.threshold(
+                mask,
+                self.threshold_val,
+                255,
+                cv2.THRESH_BINARY,
+            )
         else:
-            logging.warning(f'Invalid threshold: {self.thresh_val}')
+            logging.warning(f'Invalid threshold: {self.threshold_val}')
 
         return mask_bin
 
