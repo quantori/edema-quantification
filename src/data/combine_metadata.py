@@ -13,7 +13,7 @@ log.setLevel(logging.INFO)
 
 @hydra.main(
     config_path=os.path.join(os.getcwd(), 'configs'),
-    config_name='combine_mimic_metadata',
+    config_name='combine_metadata',
     version_base=None,
 )
 def main(cfg: DictConfig) -> None:
