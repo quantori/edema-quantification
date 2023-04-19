@@ -31,6 +31,18 @@ FIGURE_MAP = {
 
 FIGURE_MAP_REVERSED = dict((v, k) for k, v in FIGURE_MAP.items())
 
+FIGURE_TYPE = {
+    'Cephalization': 'line',
+    'Artery': 'bitmap',
+    'Heart': 'rectangle',
+    'Kerley': 'line',
+    'Bronchus': 'bitmap',
+    'Effusion': 'polygon',
+    'Bat': 'polygon',
+    'Infiltrate': 'polygon',
+    'Cuffing': 'bitmap',
+}
+
 METADATA_COLUMNS = [
     'Image path',
     'Image name',

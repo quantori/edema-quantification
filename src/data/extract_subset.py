@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import shutil
@@ -6,19 +5,14 @@ from functools import partial
 from pathlib import Path
 from typing import Tuple
 
+import hydra
 import pandas as pd
 from joblib import Parallel, delayed
+from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-os.makedirs('logs', exist_ok=True)
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%d.%m.%Y %H:%M:%S',
-    filename='logs/{:s}.log'.format(Path(__file__).stem),
-    filemode='w',
-    level=logging.INFO,
-)
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 def process_single_study(
@@ -60,7 +54,7 @@ def process_single_study(
                 try:
                     shutil.copy(src_path, dst_path)
                 except Exception as e:
-                    logger.info(f'Error occurred while copying {img_name}')
+                    log.info(f'Error occurred while copying {img_name}')
             return df_study
 
         else:
@@ -79,16 +73,17 @@ def process_single_study(
             try:
                 shutil.copy(src_path, dst_path)
             except Exception as e:
-                logger.info(f'Error occurred while copying {img_name}')
+                log.info(f'Error occurred while copying {img_name}')
         return df_study
 
 
-def extract_subset(
-    dataset_dir: str,
-    finding: str,
-    save_pairs_only: bool,
-    save_dir: str,
-) -> None:
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), 'configs'),
+    config_name='extract_subset',
+    version_base=None,
+)
+def main(cfg: DictConfig) -> None:
+    log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
     """Extract a subset with a specified disease from the MIMIC dataset.
 
     Args:
@@ -99,23 +94,23 @@ def extract_subset(
     Returns:
         None
     """
-    logger.info(f'Dataset dir...............: {dataset_dir}')
-    logger.info(f'Finding...................: {finding}')
-    logger.info(f'Save pairs only...........: {save_pairs_only}')
-    logger.info(f'Save dir..................: {save_dir}')
+    log.info(f'Dataset dir...............: {cfg.dataset_dir}')
+    log.info(f'Finding...................: {cfg.finding}')
+    log.info(f'Save pairs only...........: {cfg.save_pairs_only}')
+    log.info(f'Save dir..................: {cfg.save_dir}')
 
     # Read the source data frame and filter it by the required disease
-    metadata_csv = os.path.join(dataset_dir, 'metadata.csv')
+    metadata_csv = os.path.join(cfg.dataset_dir, 'metadata.csv')
     df = pd.read_csv(metadata_csv)
-    df_finding = df[df[finding] == 1]
+    df_finding = df[df[cfg.finding] == 1]
 
     # Processing of the required dataframe
     groups = df_finding.groupby(['Study ID'])
     processing_func = partial(
         process_single_study,
-        dataset_dir=dataset_dir,
-        save_pairs_only=save_pairs_only,
-        save_dir=save_dir,
+        dataset_dir=cfg.dataset_dir,
+        save_pairs_only=cfg.save_pairs_only,
+        save_dir=cfg.save_dir,
     )
     result = Parallel(n_jobs=-1)(
         delayed(processing_func)(group)
@@ -124,48 +119,19 @@ def extract_subset(
     df_out = pd.concat(result)
     df_out.reset_index(drop=True, inplace=True)
     df_out.sort_values(['Subject ID', 'ID'], inplace=True)
-    save_path = os.path.join(save_dir, f'metadata.csv')
+    save_path = os.path.join(cfg.save_dir, f'metadata.csv')
     df_out.to_csv(
         save_path,
         index=False,
     )
-    logger.info(f'Source subjects...........: {len(df_finding["Subject ID"].unique())}')
-    logger.info(f'Output subjects...........: {len(df_out["Subject ID"].unique())}')
-    logger.info(f'Source studies............: {len(df_finding["Study ID"].unique())}')
-    logger.info(f'Output studies............: {len(df_out["Study ID"].unique())}')
-    logger.info(f'Source images.............: {len(df_finding["DICOM ID"].unique())}')
-    logger.info(f'Output images.............: {len(df_out["DICOM ID"].unique())}')
-    logger.info('Complete')
+    log.info(f'Source subjects...........: {len(df_finding["Subject ID"].unique())}')
+    log.info(f'Output subjects...........: {len(df_out["Subject ID"].unique())}')
+    log.info(f'Source studies............: {len(df_finding["Study ID"].unique())}')
+    log.info(f'Output studies............: {len(df_out["Study ID"].unique())}')
+    log.info(f'Source images.............: {len(df_finding["DICOM ID"].unique())}')
+    log.info(f'Output images.............: {len(df_out["DICOM ID"].unique())}')
+    log.info('Complete')
 
 
 if __name__ == '__main__':
-    DISEASES = [
-        'Atelectasis',
-        'Cardiomegaly',
-        'Consolidation',
-        'Edema',
-        'Enlarged Cardiomediastinum',
-        'Fracture',
-        'Lung Lesion',
-        'Lung Opacity',
-        'No Finding',
-        'Pleural Effusion',
-        'Pleural Other',
-        'Pneumonia',
-        'Pneumothorax',
-        'Support Devices',
-    ]
-
-    parser = argparse.ArgumentParser(description='Extract MIMIC subset')
-    parser.add_argument('--dataset_dir', default='data/raw', type=str)
-    parser.add_argument('--disease', default='Edema', type=str, choices=DISEASES)
-    parser.add_argument('--save_pairs_only', action='store_true')
-    parser.add_argument('--save_dir', default='data/edema', type=str)
-    args = parser.parse_args()
-
-    extract_subset(
-        dataset_dir=args.dataset_dir,
-        finding=args.disease,
-        save_pairs_only=args.save_pairs_only,
-        save_dir=args.save_dir,
-    )
+    main()

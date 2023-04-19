@@ -1,26 +1,19 @@
-import argparse
 import logging
 import os
 from functools import partial
-from pathlib import Path
 from typing import Tuple
 
 import cv2
+import hydra
 import imutils
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
+from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-os.makedirs('logs', exist_ok=True)
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%d.%m.%Y %H:%M:%S',
-    filename='logs/{:s}.log'.format(Path(__file__).stem),
-    filemode='w',
-    level=logging.INFO,
-)
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 def stack_single_study(
@@ -82,12 +75,13 @@ def stack_single_study(
     return df_out
 
 
-def stack_images(
-    dataset_dir: str,
-    exclude_devices: bool,
-    img_height: int,
-    save_dir: str,
-) -> None:
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), 'configs'),
+    config_name='stack_images',
+    version_base=None,
+)
+def main(cfg: DictConfig) -> None:
+    log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
     """Stack frontal and lateral images and save them.
 
     Args:
@@ -99,23 +93,23 @@ def stack_images(
         None
     """
     # Read dataset metadata
-    metadata_path = os.path.join(dataset_dir, 'metadata.csv')
+    metadata_path = os.path.join(cfg.dataset_dir, 'metadata.csv')
     df = pd.read_csv(metadata_path)
-    if exclude_devices:
+    if cfg.exclude_devices:
         df = df[df['Support Devices'] != 1]
     df['Image path'] = df.apply(
-        func=lambda row: os.path.join(dataset_dir, str(row['Image path'])),
+        func=lambda row: os.path.join(cfg.dataset_dir, str(row['Image path'])),
         axis=1,
     )
     groups = df.groupby(['Study ID'])
 
     # Multiprocessing of the dataset
-    img_dir = os.path.join(save_dir, 'files')
+    img_dir = os.path.join(cfg.save_dir, 'files')
     os.makedirs(img_dir, exist_ok=True)
     processing_func = partial(
         stack_single_study,
-        img_height=img_height,
-        save_dir=save_dir,
+        img_height=cfg.img_height,
+        save_dir=cfg.save_dir,
     )
     result = Parallel(n_jobs=-1)(
         delayed(processing_func)(group)
@@ -124,7 +118,7 @@ def stack_images(
     df_out = pd.concat(result)
     df_out.reset_index(drop=True, inplace=True)
     df_out.sort_values(['Subject ID', 'ID'], inplace=True)
-    save_path = os.path.join(save_dir, f'metadata.csv')
+    save_path = os.path.join(cfg.save_dir, f'metadata.csv')
     df_out.to_csv(
         save_path,
         index=False,
@@ -132,16 +126,4 @@ def stack_images(
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Stack frontal and lateral images')
-    parser.add_argument('--dataset_dir', default='data/edema', type=str)
-    parser.add_argument('--exclude_devices', action='store_true')
-    parser.add_argument('--img_height', default=2000, type=int)
-    parser.add_argument('--save_dir', default='data/edema_stacked', type=str)
-    args = parser.parse_args()
-
-    stack_images(
-        dataset_dir=args.dataset_dir,
-        exclude_devices=args.exclude_devices,
-        img_height=args.img_height,
-        save_dir=args.save_dir,
-    )
+    main()
