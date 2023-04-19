@@ -130,7 +130,7 @@ def prepare_coco(
         for img_id, (img_path, sample) in tqdm(
             enumerate(img_groups),
             desc=f'{subset.capitalize()} subset processing',
-            unit=' sample',
+            unit=' images',
         ):
             img_data = get_img_info(
                 img_path=img_path,
