@@ -158,7 +158,7 @@ def save_metadata(
 
 
 @hydra.main(
-    config_path=os.path.join(os.getcwd(), 'config'),
+    config_path=os.path.join(os.getcwd(), 'configs'),
     config_name='convert_sly_to_int',
     version_base=None,
 )

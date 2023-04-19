@@ -173,7 +173,7 @@ def prepare_coco(
 
 
 @hydra.main(
-    config_path=os.path.join(os.getcwd(), 'config'),
+    config_path=os.path.join(os.getcwd(), 'configs'),
     config_name='convert_int_to_coco',
     version_base=None,
 )
