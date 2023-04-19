@@ -1,0 +1,9 @@
+defaults:
+- main
+- _self_
+
+metadata_csv: data/raw/mimic-cxr-2.0.0-metadata.csv.gz
+findings_csv: data/raw/mimic-cxr-2.0.0-chexpert.csv.gz
+split_csv: data/raw/mimic-cxr-2.0.0-split.csv.gz
+dataset_dir:
+save_dir: data/raw

@@ -1,46 +1,41 @@
-import argparse
 import logging
 import os
 from pathlib import Path
 
+import hydra
 import pandas as pd
+from omegaconf import DictConfig, OmegaConf
 from utils import get_file_list
 
-os.makedirs('logs', exist_ok=True)
-logging.basicConfig(
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%d.%m.%Y %H:%M:%S',
-    filename='logs/{:s}.log'.format(Path(__file__).stem),
-    filemode='w',
-    level=logging.INFO,
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
+
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), 'configs'),
+    config_name='combine_mimic_metadata',
+    version_base=None,
 )
-logger = logging.getLogger(__name__)
+def main(cfg: DictConfig) -> None:
+    log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
 
-
-def combine_metadata(
-    metadata_csv: str,
-    findings_csv: str,
-    split_csv: str,
-    save_dir: str,
-    dataset_dir: str = None,
-) -> None:
-    df_findings = pd.read_csv(findings_csv, compression='gzip')
-    df_metadata = pd.read_csv(metadata_csv, compression='gzip')
-    df_split = pd.read_csv(split_csv, compression='gzip')
-    os.makedirs(save_dir, exist_ok=True)
+    df_findings = pd.read_csv(cfg.findings_csv, compression='gzip')
+    df_metadata = pd.read_csv(cfg.metadata_csv, compression='gzip')
+    df_split = pd.read_csv(cfg.split_csv, compression='gzip')
+    os.makedirs(cfg.save_dir, exist_ok=True)
 
     _df_out = df_metadata.merge(df_findings, on=['subject_id', 'study_id'], how='left')
     df_out = _df_out.join(df_split['split'])
 
-    logger.info(f'Metadata CSV..............: {metadata_csv}')
-    logger.info(f'Findings CSV..............: {findings_csv}')
-    logger.info(f'Split CSV.................: {split_csv}')
-    logger.info(f'Dataset dir...............: {dataset_dir}')
-    logger.info(f'Save dir..................: {save_dir}')
+    log.info(f'Metadata CSV..............: {cfg.metadata_csv}')
+    log.info(f'Findings CSV..............: {cfg.findings_csv}')
+    log.info(f'Split CSV.................: {cfg.split_csv}')
+    log.info(f'Dataset dir...............: {cfg.dataset_dir}')
+    log.info(f'Save dir..................: {cfg.save_dir}')
 
-    if dataset_dir:
+    if cfg.dataset_dir:
         img_paths = get_file_list(
-            src_dirs=dataset_dir,
+            src_dirs=cfg.dataset_dir,
             ext_list=[
                 '.png',
                 '.jpg',
@@ -53,7 +48,7 @@ def combine_metadata(
         dicom_ids = [str(Path(img_path).stem) for img_path in img_paths]
         df_paths = pd.DataFrame(list(zip(dicom_ids, img_paths)), columns=['dicom_id', 'Image path'])
         df_paths['Image path'] = df_paths.apply(
-            func=lambda row: os.path.relpath(str(row['Image path']), start=save_dir),
+            func=lambda row: os.path.relpath(str(row['Image path']), start=cfg.save_dir),
             axis=1,
         )
         df_paths['Image name'] = df_paths.apply(
@@ -64,9 +59,9 @@ def combine_metadata(
     else:
         num_images = None
 
-    logger.info(f'Number of images..........: {num_images}')
+    log.info(f'Number of images..........: {num_images}')
 
-    meta_path = os.path.join(save_dir, 'metadata.csv')
+    meta_path = os.path.join(cfg.save_dir, 'metadata.csv')
     cols = {
         'dicom_id': 'DICOM ID',
         'subject_id': 'Subject ID',
@@ -90,30 +85,8 @@ def combine_metadata(
         index_label='ID',
         encoding='utf-8',
     )
-    logger.info('Complete')
+    log.info('Complete')
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Combine metadata')
-    parser.add_argument(
-        '--metadata_csv',
-        default='data/raw/mimic-cxr-2.0.0-metadata.csv.gz',
-        type=str,
-    )
-    parser.add_argument(
-        '--findings_csv',
-        default='data/raw/mimic-cxr-2.0.0-chexpert.csv.gz',
-        type=str,
-    )
-    parser.add_argument('--split_csv', default='data/raw/mimic-cxr-2.0.0-split.csv.gz', type=str)
-    parser.add_argument('--dataset_dir', default=None, type=str)
-    parser.add_argument('--save_dir', default='data/raw', type=str)
-    args = parser.parse_args()
-
-    combine_metadata(
-        metadata_csv=args.metadata_csv,
-        findings_csv=args.findings_csv,
-        split_csv=args.split_csv,
-        save_dir=args.save_dir,
-        dataset_dir=args.dataset_dir,
-    )
+    main()
