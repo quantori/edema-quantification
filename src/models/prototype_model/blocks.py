@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional, Sequence, Dict, Union, Tuple
+from typing import List, Optional, Sequence, Dict, Union, Tuple, TypeVar
 from abc import ABC, abstractmethod
 
 import torch
@@ -14,6 +14,8 @@ import cv2
 from src.models.prototype_model.utils import _make_layers
 from utils import ImageSaver, copy_tensor_to_nparray
 from loggers import PrototypeLogger
+
+T_co = TypeVar('T_co', covariant=True)
 
 
 class SqueezeNet(nn.Module):
@@ -134,7 +136,7 @@ class TransientLayers(nn.Sequential):
         self.requires_grad_(False)
 
 
-class PrototypeLayer(nn.Parameter):
+class PrototypeLayer(nn.Parameter[np.ndarray]):
     def __init__(
         self,
         num_classes: int,
@@ -273,19 +275,35 @@ class PrototypeLayer(nn.Parameter):
                     original_img_for_shortest_proto_dist, rf_prototype
                 )
                 self._save_info_in_proto_rf_boxes(prototype_idx, rf_prototype, labels, batch_index)
-                high_proto_activation_roi = self._find_high_activation_roi(
-                    proto_distances,
-                    batch_index,
-                    prototype_idx,
-                    original_img_for_shortest_proto_dist.shape[-1],
+                prototype_distances = PrototypeLayer._get_prototype_distances(
+                    proto_distances, batch_index, prototype_idx
+                )
+                prototype_distances_act = self._activate(prototype_distances)
+                upsampled_act_distances = _upsample(
+                    prototype_distances_act, original_img_for_shortest_proto_dist.shape[-1]
+                )
+                high_proto_activation_roi_coords = _find_high_activation_roi(
+                    upsampled_act_distances
                 )
                 high_proto_activation_roi_crop = _get_roi_crop(
-                    original_img_for_shortest_proto_dist, high_proto_activation_roi
+                    original_img_for_shortest_proto_dist, high_proto_activation_roi_coords
                 )
-                self._save_info_in_proto_bound_boxes(prototype_idx, high_proto_activation_roi)
+                self._save_info_in_proto_bound_boxes(
+                    prototype_idx, high_proto_activation_roi_coords
+                )
 
                 if logger is not None:
-                    logger.save_prototype_distances()
+                    logger.save_prototype_distances(
+                        proto_distances, prototype_idx, model.current_epoch
+                    )
+                    logger.save_graphics(
+                        prototype_idx,
+                        rf_proto=img_crop_of_proto_rf,
+                        act_roi=high_proto_activation_roi_crop,
+                        original_img=original_img_for_shortest_proto_dist,
+                        upsampled_act_distances=upsampled_act_distances,
+                        masks=masks_for_shortest_proto_dist,
+                    )
 
     def _get_input_output_of_proto_layer(
         self, model: pl.LightningModule, images: torch.Tensor
@@ -438,25 +456,16 @@ class PrototypeLayer(nn.Parameter):
         self._proto_rf_boxes[prototype_idx]['width_end_index'] = rf_prototype[4]
         self._proto_rf_boxes[prototype_idx]['class_indentities'] = labels[rf_prototype[0]].tolist()
 
-    def _find_high_activation_roi(
-        self,
-        proto_distances: np.ndarray,
-        batch_index: int,
-        prototype_idx: int,
-        original_img_size: int,
-    ) -> Tuple[int, int, int, int]:
-        # find the highly activated region of the original image
-        proto_dist_img = proto_distances[batch_index, prototype_idx, :, :]
-        # the activation function of the distances is log
-        proto_act_img = np.log((proto_dist_img + 1) / (proto_dist_img + self.epsilon))
-        # upsample the matrix with distances (e.g., (14x14)->(224x224))
-        upsampled_act_img = cv2.resize(
-            proto_act_img,
-            dsize=(original_img_size, original_img_size),
-            interpolation=cv2.INTER_CUBIC,
-        )
-        # find a high activation ROI (default treshold = 95 %)
-        return _find_high_activation_crop(upsampled_act_img)
+    @staticmethod
+    def _get_prototype_distances(
+        distances: np.ndarray, batch_idx: int, prototype_idx: int
+    ) -> np.ndarray:
+        # Get the embeddings array of prototype distances
+        return distances[batch_idx, prototype_idx, :, :]
+
+    def _activate(self, distances: np.ndarray) -> np.ndarray:
+        # The activation function of the distances is log
+        return np.log((distances + 1) / (distances + self.epsilon))
 
     def _save_info_in_proto_bound_boxes(
         self,
@@ -606,12 +615,13 @@ def _compute_layer_rf_info(
     return [n_out, j_out, r_out, start_out]
 
 
-def _find_high_activation_crop(
-    activation_map: np.ndarray, percentile: int = 95
+def _find_high_activation_roi(
+    act_img: np.ndarray, percentile: int = 95
 ) -> Tuple[int, int, int, int]:
-    threshold = np.percentile(activation_map, percentile)
-    mask = np.ones(activation_map.shape)
-    mask[activation_map < threshold] = 0
+    # Find a high activation ROI (default treshold = 95 %)
+    threshold = np.percentile(act_img, percentile)
+    mask = np.ones(act_img.shape)
+    mask[act_img < threshold] = 0
     lower_y = _find_lower_y(mask)
     upper_y = _find_upper_y(mask)
     lower_x = _find_lower_x(mask)
@@ -655,6 +665,11 @@ def _get_roi_crop(original_img: np.ndarray, roi: Tuple[int, int, int, int]) -> n
     # Crop out the ROI with high activation from the image where the distnce for j protoype turned
     # out to be the smallest the dimensions' order of original_img_j, e.g., (224, 224, 3)
     return original_img[:, roi[0] : roi[1], roi[2] : roi[3]]
+
+
+def _upsample(embeddings: T_co, img_size: int) -> T_co:
+    # Upsample embeddings (e.g., (14x14)->(224x224))
+    return cv2.resize(embeddings, dsize=(img_size, img_size), interpolation=cv2.INTER_CUBIC)
 
 
 class LastLayer(nn.Linear):
