@@ -10,19 +10,33 @@ env:
   NO_COLOR: '\033[0m'
 
 jobs:
-  pre-commit:
+  lint-testing:
     runs-on: ubuntu-latest
+    name: Lint testing
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
     - name: Setup Python
       uses: actions/setup-python@v4
+      id: cache
       with:
         python-version: '3.8'
         cache: 'pip'
+
+    - name: Setting up caching
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements/tests.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Setup dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         pip install -r requirements/tests.txt
+
     - name: Linting
       run: |
         pre-commit run check-yaml --all-files --verbose
@@ -42,19 +56,33 @@ jobs:
         echo -e "${GREEN}Job completed successfully${NC}"
 
   unit-testing:
-    needs: [pre-commit]
+    needs: [lint-testing]
     runs-on: ubuntu-latest
+    name: Unit testing
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
     - name: Setup Python
       uses: actions/setup-python@v4
+      id: cache
       with:
         python-version: '3.8'
         cache: 'pip'
+
+    - name: Setting up caching
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements/tests.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Setup dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         pip install -r requirements/tests.txt
+
     - name: Unit testing
       run: |
         export PYTHONPATH=${PWD}
@@ -65,14 +93,17 @@ jobs:
   reporting:
     needs: [unit-testing]
     runs-on: ubuntu-latest
+    name: Reporting
     # optionally use a convenient Ubuntu LTS + DVC + CML image
     # container: ghcr.io/iterative/cml:0-dvc2-base1
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
     - name: Setup CML
       uses: iterative/setup-cml@v1
-    - name: Reporting
+
+    - name: CML reporting
       env:
         REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
