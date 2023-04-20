@@ -129,55 +129,6 @@ def check_dimensions(conv_info: Dict[str, int]) -> None:
         raise Exception("The number of kernels has to be equla to the number of paddings")
 
 
-def _make_layers(
-    encoder: nn.Module, prototype_shape: Sequence[Union[int, float]]
-) -> List[nn.Module]:
-    if encoder.__class__.__name__ == "SqueezeNet":
-        first_transient_layer_in_channels = (
-            2 * [i for i in encoder.modules() if isinstance(i, nn.Conv2d)][-1].out_channels
-        )
-    else:
-        first_transient_layer_in_channels = [
-            i for i in encoder.modules() if isinstance(i, nn.Conv2d)
-        ][-1].out_channels
-
-    # automatic adjustment of the transient-layer channels for matching with the prototype
-    # channels. The activation functions of the intermediate and last transient layers are ReLU
-    # and sigmoid, respectively
-    # if self.transient_layers_type == "bottleneck":
-    transient_layers = []
-    current_in_channels = first_transient_layer_in_channels
-
-    while (current_in_channels > prototype_shape[1]) or (len(transient_layers) == 0):
-        current_out_channels = max(prototype_shape[1], (current_in_channels // 2))
-        transient_layers.append(
-            nn.Conv2d(
-                in_channels=current_in_channels,
-                out_channels=current_out_channels,
-                kernel_size=1,
-            )
-        )
-        transient_layers.append(nn.ReLU())
-        transient_layers.append(
-            nn.Conv2d(
-                in_channels=current_out_channels,
-                out_channels=current_out_channels,
-                kernel_size=1,
-            )
-        )
-
-        if current_out_channels > prototype_shape[1]:
-            transient_layers.append(nn.ReLU())
-
-        else:
-            assert current_out_channels == prototype_shape[1]
-            transient_layers.append(nn.Sigmoid())
-
-        current_in_channels = current_in_channels // 2
-
-    return transient_layers
-
-
 def warm(**kwargs) -> None:
     for arg in kwargs.values():
         arg.warm()

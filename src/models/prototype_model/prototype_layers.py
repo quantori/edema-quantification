@@ -1,139 +1,18 @@
-import math
 from typing import List, Optional, Sequence, Dict, Union, Tuple, TypeVar
-from abc import ABC, abstractmethod
+import math
 
 import torch
 from torch import nn
-from torchvision import transforms
-from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
 import numpy as np
+from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import cv2
+from tqdm.auto import tqdm
 
-from src.models.prototype_model.utils import _make_layers
-from utils import ImageSaver, copy_tensor_to_nparray
 from loggers import PrototypeLogger
+from utils import copy_tensor_to_nparray
 
 T_co = TypeVar('T_co', covariant=True)
-
-
-class SqueezeNet(nn.Module):
-    """SqueezeNet encoder.
-
-    The pre-trained model expects input images normalized in the same way, i.e. mini-batches of
-    3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The
-    images have to be loaded in to a range of [0, 1] and then normalized using
-    mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
-    """
-
-    def __init__(
-        self,
-        preprocessed: bool = False,
-        pretrained: bool = True,
-    ):
-        """SqueezeNet encoder.
-
-        Args:
-            preprocessed (bool, optional): _description_. Defaults to True.
-            pretrained (bool, optional): _description_. Defaults to True.
-        """
-
-        super().__init__()
-
-        self.model = torch.hub.load(
-            "pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=True, verbose=False
-        )
-        del self.model.classifier
-
-        self.preprocessed = preprocessed
-
-    def forward(self, x) -> torch.Tensor:
-        """Forward implementation.
-
-        Uses only the model.features component of SqueezeNet without model.classifier.
-
-        Args:
-            x: raw input in format (batch, channels, spatial, spatial)
-
-        Returns:
-            torch.Tensor: convolution layers after passing the SqueezNet backbone
-        """
-        if self.preprocessed:
-            x = self.preprocess(x)
-
-        return self.model.features(x)
-
-    def preprocess(self, x):
-        """Image preprocessing function.
-
-        To make image preprocessing model specific and modular.
-
-        Args:
-            x: input image.
-
-        Returns:
-            preprocessed image.
-        """
-
-        preprocess = transforms.Compose(
-            [
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                # transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
-
-        return preprocess(x)
-
-    def conv_info(self) -> Dict[str, int]:
-        features = {}
-        features['kernel_sizes'] = []
-        features['strides'] = []
-        features['paddings'] = []
-
-        for module in self.modules():
-            if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
-                if isinstance(module.kernel_size, tuple):
-                    features['kernel_sizes'].append(module.kernel_size[0])
-                else:
-                    features['kernel_sizes'].append(module.kernel_size)
-
-                if isinstance(module.stride, tuple):
-                    features['strides'].append(module.stride[0])
-                else:
-                    features['strides'].append(module.stride)
-
-                if isinstance(module.padding, tuple):
-                    features['paddings'].append(module.padding[0])
-                else:
-                    features['paddings'].append(module.padding)
-
-        return features
-
-    def warm(self) -> None:
-        self.requires_grad_(False)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(False)
-
-
-class TransientLayers(nn.Sequential):
-    def __init__(self, encoder: nn.Module, prototype_shape: Sequence = (9, 512, 1, 1)):
-        super().__init__(*_make_layers(encoder, prototype_shape))
-
-    def warm(self) -> None:
-        self.requires_grad_(True)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(False)
 
 
 class PrototypeLayer(nn.Parameter[np.ndarray]):
@@ -244,37 +123,47 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
         class_to_img_index_dict = _form_class_to_img_index_dict(self.num_classes, labels)
 
         for prototype_idx in range(self.num_prototypes):
+
             one_proto_dists = self._get_one_prototype_distances(
                 prototype_idx, class_to_img_index_dict, proto_distances
             )
             if one_proto_dists is None:
                 continue
+
             batch_min_proto_dist = np.amin(one_proto_dists)
             if batch_min_proto_dist < self._global_min_proto_dists[prototype_idx]:
+
                 batch_argmin_proto_dist = PrototypeLayer._get_batch_argmin_proto_dist(
                     one_proto_dists
                 )
                 batch_argmin_proto_dist_indexed = self._change_to_batch_index(
                     prototype_idx, batch_argmin_proto_dist, class_to_img_index_dict
                 )
+
                 batch_min_fmap_patch = self._get_fmap_patch(
                     batch_argmin_proto_dist_indexed, proto_layer_input
                 )
+
                 self._global_min_proto_dists[prototype_idx] = batch_min_proto_dist
                 self._global_min_fmap_patches[prototype_idx] = batch_min_fmap_patch
+
                 rf_prototype = self._compute_rf_prototype(
                     images.size(2),
                     batch_argmin_proto_dist_indexed,
                     self._compute_proto_layer_rf_info(images.size(2), model.encoder.conv_info()),
                 )
+
                 original_img_for_shortest_proto_dist = _get_img(images, rf_prototype[0])
                 masks_for_shortest_proto_dist = _get_masks(
                     masks, original_img_for_shortest_proto_dist[0]
                 )
+
                 img_crop_of_proto_rf = _crop_out_rf(
                     original_img_for_shortest_proto_dist, rf_prototype
                 )
+
                 self._save_info_in_proto_rf_boxes(prototype_idx, rf_prototype, labels, batch_index)
+
                 prototype_distances = PrototypeLayer._get_prototype_distances(
                     proto_distances, batch_index, prototype_idx
                 )
@@ -282,12 +171,14 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
                 upsampled_act_distances = _upsample(
                     prototype_distances_act, original_img_for_shortest_proto_dist.shape[-1]
                 )
+
                 high_proto_activation_roi_coords = _find_high_activation_roi(
                     upsampled_act_distances
                 )
                 high_proto_activation_roi_crop = _get_roi_crop(
                     original_img_for_shortest_proto_dist, high_proto_activation_roi_coords
                 )
+
                 self._save_info_in_proto_bound_boxes(
                     prototype_idx, high_proto_activation_roi_coords
                 )
@@ -298,6 +189,7 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
                     )
                     logger.save_graphics(
                         prototype_idx,
+                        model.current_epoch,
                         rf_proto=img_crop_of_proto_rf,
                         act_roi=high_proto_activation_roi_crop,
                         original_img=original_img_for_shortest_proto_dist,
@@ -327,7 +219,7 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
         class_to_img_index_dict: Dict[int, Sequence[int]],
         proto_distances: np.ndarray,
     ) -> Optional[np.ndarray]:
-        # if there is not images of the target_class from this batch we go on to the next prototype
+        # If there is not images of the target_class from this batch we go on to the next prototype
         if len(class_to_img_index_dict[self._get_target_class(prototype_idx)]) == 0:
             return None
         one_proto_dists = proto_distances[
@@ -670,14 +562,3 @@ def _get_roi_crop(original_img: np.ndarray, roi: Tuple[int, int, int, int]) -> n
 def _upsample(embeddings: T_co, img_size: int) -> T_co:
     # Upsample embeddings (e.g., (14x14)->(224x224))
     return cv2.resize(embeddings, dsize=(img_size, img_size), interpolation=cv2.INTER_CUBIC)
-
-
-class LastLayer(nn.Linear):
-    def warm(self) -> None:
-        self.requires_grad_(True)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(True)
