@@ -1,4 +1,4 @@
-"""Models for the edema classification project.
+"""Model for the edema classification project.
 
 The description to be filled...
 """
@@ -19,20 +19,15 @@ from torch.utils.data import DataLoader
 from torchmetrics.functional.classification import multilabel_f1_score
 from tqdm.auto import tqdm
 
-from src.models.prototype_model.blocks import ENCODERS, LastLayer, PrototypeLayer, TransientLayers
-from src.models.prototype_model.utils import (
-    compute_proto_layer_rf_info,
-    get_encoder,
-    joint,
-    last,
-    print_status_bar,
-    warm,
-    ImageSaver,
-)
+from encoders import IEncoderEdema
+from transient_layers import ITransientLayers
+from prototype_layers import IPrototypeLayer
+from last_layers import ILastLayers
+from loggers import IPrototypeLogger
 
 
 class EdemaPrototypeNet(pl.LightningModule):
-    """PyTorch Lightning model class.
+    """Prototype edema model class.
 
     A complete model is implemented (includes the encoder, transient, prototype and fully connected
     layers). The transient layers are required to concatenate the main encoder layers with the
@@ -41,12 +36,12 @@ class EdemaPrototypeNet(pl.LightningModule):
 
     def __init__(
         self,
-        encoder: Union[nn.Module, nn.Sequential],
-        transient_layers: Union[nn.Module, nn.Sequential],
-        prototype_layer: Union[nn.Parameter, nn.Module, nn.Sequential],
-        last_layer: Union[nn.Module, nn.Sequential],
+        encoder: IEncoderEdema,
+        transient_layers: ITransientLayers,
+        prototype_layer: IPrototypeLayer,
+        last_layer: ILastLayers,
         settings_model: DictConfig,
-        # figure_logger: ... = None,
+        prototype_logger: Optional[IPrototypeLogger] = None,
     ) -> None:
         """Pytorch Lightning model class.
 
@@ -61,9 +56,8 @@ class EdemaPrototypeNet(pl.LightningModule):
         self.push_start = settings_model.push_start
         self.push_epochs = settings_model.push_epochs
 
-        # TODO: implement the Logger class
-        # if figure_logger is not None:
-        #     self.figure_logger = ...
+        if prototype_logger is not None:
+            self._prototype_logger = prototype_logger
 
         # cross entropy cost function
         self.cross_entropy_cost = nn.BCEWithLogitsLoss()
@@ -148,17 +142,19 @@ class EdemaPrototypeNet(pl.LightningModule):
 
     def on_train_epoch_start(self):
         if self.current_epoch < self.num_warm_epochs:
-            warm(**self.blocks)
-            print_status_bar(self.trainer, self.blocks, status='WARM')
+            _warm(**self.blocks)
+            _print_status_bar(self.trainer, self.blocks, status='WARM')
         else:
-            joint(**self.blocks)
-            print_status_bar(self.trainer, self.blocks, status='JOINT')
+            _joint(**self.blocks)
+            _print_status_bar(self.trainer, self.blocks, status='JOINT')
 
     def training_epoch_end(self, outputs):
         # here, we have to put push_prototypes function
         # logs costs after a training epoch
         if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
-            self.prototype_layer.update(self, self.trainer.train_dataloader.loaders)
+            self.prototype_layer.update(
+                self, self.trainer.train_dataloader.loaders, self._prototype_logger
+            )
             # self.update_prototypes(self.trainer.train_dataloader.loaders, )
             self.val_epoch(self.trainer.val_dataloaders[0], position=3)
             # TODO: save the model if the performance metric is better
@@ -170,8 +166,6 @@ class EdemaPrototypeNet(pl.LightningModule):
             # save model performance
             # TODO: calculate performance and update the global performance criterium, if it is
             # worse
-
-            # optionally (plot something)
 
     def validation_step(self, batch, batch_idx):
         loss, f1_val = self.train_val_test(batch)
@@ -220,8 +214,8 @@ class EdemaPrototypeNet(pl.LightningModule):
         val_dataloader: DataLoader,
         epochs: int = 2,
     ) -> None:
-        last(**self.blocks)
-        print_status_bar(self.trainer, self.blocks, status='LAST')
+        _last(**self.blocks)
+        _print_status_bar(self.trainer, self.blocks, status='LAST')
         with tqdm(
             leave=False,
             dynamic_ncols=True,
@@ -893,3 +887,42 @@ class EdemaPrototypeNet(pl.LightningModule):
     #                         vmin=0.0,
     #                         vmax=1.0,
     #                     )
+
+
+def _warm(**kwargs) -> None:
+    for arg in kwargs.values():
+        arg.warm()
+
+
+def _joint(**kwargs) -> None:
+    for arg in kwargs.values():
+        arg.joint()
+
+
+def _last(**kwargs) -> None:
+    for arg in kwargs.values():
+        arg.last()
+
+
+def _print_status_bar(trainer: pl.Trainer, blocks: Dict, status: str = '') -> None:
+    trainer.progress_bar_callback.status_bar.set_description_str(
+        '{status}, REQUIRES GRAD: Encoder ({encoder}), Transient layers ({trans}),'
+        ' Protorype layer ({prot}), Last layer ({last})'.format(
+            status=status,
+            encoder=_get_grad_status(blocks['encoder']),
+            trans=_get_grad_status(blocks['transient_layers']),
+            # protoype layer is inhereted from Tensor and, therefore, has the requires_grad attr
+            prot=blocks['prototype_layer'].requires_grad,
+            last=_get_grad_status(blocks['last_layer']),
+        )
+    )
+
+
+def _get_grad_status(block: nn.Module) -> bool:
+    first_param = next(block.parameters())
+    if all(param.requires_grad == first_param.requires_grad for param in block.parameters()):
+        return first_param.requires_grad
+    else:
+        raise Exception(
+            f'Not all the parmaters in {block.__class__.__name__} have the same grad status'
+        )

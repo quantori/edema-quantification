@@ -9,13 +9,32 @@ import pytorch_lightning as pl
 import cv2
 from tqdm.auto import tqdm
 
-from loggers import PrototypeLogger
+from loggers import IPrototypeLogger
 from utils import copy_tensor_to_nparray
 
-T_co = TypeVar('T_co', covariant=True)
+T = TypeVar('T')
 
 
-class PrototypeLayer(nn.Parameter[np.ndarray]):
+class IPrototypeLayer(nn.Parameter):
+    """Abstract base class for edema protoype layers."""
+
+    def update(self) -> None:
+        """Exchanges the prototypes with the embeddings of real images with the closest distance"""
+
+    def warm(self) -> None:
+        """Sets grad policy for the warm training stage."""
+        raise NotImplementedError
+
+    def joint(self) -> None:
+        """Sets grad policy for the joint training stage."""
+        raise NotImplementedError
+
+    def last(self) -> None:
+        """Sets grad policy for the last training stage."""
+        raise NotImplementedError
+
+
+class PrototypeLayer(IPrototypeLayer):
     def __init__(
         self,
         num_classes: int,
@@ -96,7 +115,7 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
         self,
         model: pl.LightningModule,
         dataloader: DataLoader,
-        logger: Optional[PrototypeLogger] = None,
+        logger: Optional[IPrototypeLogger] = None,
     ) -> None:
         self._global_min_proto_dists = self._create_global_min_proto_dist()
         self._global_min_fmap_patches = self._create_global_min_fmap_patches()
@@ -106,7 +125,7 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
             for iter, batch in enumerate(dataloader):
                 batch_index = _get_batch_index(iter, dataloader.batch_size)
                 self._update_prototypes_on_batch(model, batch, batch_index, logger)
-        self.copy_to_protoytpe_layer()
+        self._copy_to_protoytpe_layer()
         if logger is not None:
             logger.save_boxes(self._proto_rf_boxes, 'rf', model.current_epoch)
             logger.save_boxes(self._proto_bound_boxes, 'bound', model.current_epoch)
@@ -116,7 +135,7 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
         model: pl.LightningModule,
         batch: torch.Tensor,
         batch_index: int,
-        logger: Optional[PrototypeLogger] = None,
+        logger: Optional[IPrototypeLogger] = None,
     ):
         images, masks, labels = _split_batch(batch)
         proto_layer_input, proto_distances = self._get_input_output_of_proto_layer(model, images)
@@ -272,9 +291,9 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
     def _compute_proto_layer_rf_info(
         self, img_size: int, conv_info: Dict[str, int]
     ) -> List[Union[int, float]]:
-        # receptive-field information that is needed to cut out the chosen upsampled fmap patch
+        # Receptive-field information that is needed to cut out the chosen upsampled fmap patch
         _check_dimensions(conv_info)
-        # receptive field parameters for the first layer (image itself)
+        # Receptive field parameters for the first layer (image itself)
         rf_info = [img_size, 1, 1, 0.5]
         rf_info = _extract_network_rf_info(conv_info, rf_info)
         proto_layer_rf_info = _compute_layer_rf_info(
@@ -381,7 +400,7 @@ class PrototypeLayer(nn.Parameter[np.ndarray]):
             rf_prototype[0]
         ].tolist()
 
-    def copy_to_protoytpe_layer(self):
+    def _copy_to_protoytpe_layer(self):
         prototype_update = np.reshape(self._global_min_fmap_patches, tuple(self.shape))
         self.data.copy_(torch.tensor(prototype_update, dtype=torch.float32).cuda())
 
@@ -559,6 +578,6 @@ def _get_roi_crop(original_img: np.ndarray, roi: Tuple[int, int, int, int]) -> n
     return original_img[:, roi[0] : roi[1], roi[2] : roi[3]]
 
 
-def _upsample(embeddings: T_co, img_size: int) -> T_co:
+def _upsample(embeddings: T, img_size: int) -> T:
     # Upsample embeddings (e.g., (14x14)->(224x224))
     return cv2.resize(embeddings, dsize=(img_size, img_size), interpolation=cv2.INTER_CUBIC)

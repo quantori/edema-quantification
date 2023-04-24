@@ -1,6 +1,7 @@
 defaults:
 - _self_
 - pm_model_config@model
+- pm_logger_config@logger
 
 hydra:
   run:

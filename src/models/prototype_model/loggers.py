@@ -13,7 +13,7 @@ DIST_co = TypeVar('DIST_co', covariant=True)
 BOXES_co = TypeVar('BOXES_co', covariant=True)
 
 
-class PrototypeLogger(ABC, Generic[DIST_co, BOXES_co]):
+class IPrototypeLogger(ABC, Generic[DIST_co, BOXES_co]):
     """Abstract base class for prototype loggers."""
 
     @abstractclassmethod
@@ -35,7 +35,7 @@ class PrototypeLogger(ABC, Generic[DIST_co, BOXES_co]):
 
 
 class PrototypeLoggerCompNumpy(
-    PrototypeLogger[np.ndarray, Dict[int, Dict[str, Union[int, Sequence[int]]]]]
+    IPrototypeLogger[np.ndarray, Dict[int, Dict[str, Union[int, Sequence[int]]]]]
 ):
     """Logger for prototypes data.
 

@@ -1,4 +1,4 @@
-from typing import Dict, TypeVar, Generic, Mapping
+from typing import Dict, TypeVar, Generic
 
 from torch import nn
 import torch
@@ -7,7 +7,7 @@ from torchvision import transforms
 T_co = TypeVar('T_co', covariant=True)
 
 
-class EncoderEdema(nn.Module, Generic[T_co]):
+class IEncoderEdema(nn.Module, Generic[T_co]):
     """Abstract class for edema encoders."""
 
     def forward(self, x: T_co) -> T_co:
@@ -18,8 +18,20 @@ class EncoderEdema(nn.Module, Generic[T_co]):
         """Reterns convolutional information on the encoder."""
         raise NotImplementedError
 
+    def warm(self) -> None:
+        """Sets grad policy for the warm training stage."""
+        raise NotImplementedError
 
-class SqueezeNet(EncoderEdema[torch.Tensor]):
+    def joint(self) -> None:
+        """Sets grad policy for the joint training stage."""
+        raise NotImplementedError
+
+    def last(self) -> None:
+        """Sets grad policy for the last training stage."""
+        raise NotImplementedError
+
+
+class SqueezeNet(IEncoderEdema[torch.Tensor]):
     """SqueezeNet encoder.
 
     The pre-trained model expects input images normalized in the same way, i.e. mini-batches of
@@ -71,6 +83,7 @@ class SqueezeNet(EncoderEdema[torch.Tensor]):
         return preprocess(x)
 
     def conv_info(self) -> Dict[str, int]:
+        """Reterns info about the convolutional layers of the encoder."""
         features = {}
         features['kernel_sizes'] = []
         features['strides'] = []
@@ -103,5 +116,5 @@ class SqueezeNet(EncoderEdema[torch.Tensor]):
         self.requires_grad_(False)
 
 
-class EncoderFactory:
-    pass
+ENCODERS = {}
+ENCODERS.update({'squezee_net': SqueezeNet})

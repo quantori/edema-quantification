@@ -1,10 +1,28 @@
-from typing import Sequence, Union, List
+from typing import Iterable, Union, List
 
 from torch import nn
 
 
-class TransientLayers(nn.Sequential):
-    def __init__(self, encoder: nn.Module, prototype_shape: Sequence = (9, 512, 1, 1)):
+class ITransientLayers(nn.Sequential):
+    """Abstract class for the transient layers of the edema model."""
+
+    def warm(self) -> None:
+        """Sets grad policy for the warm training stage."""
+        raise NotImplementedError
+
+    def joint(self) -> None:
+        """Sets grad policy for the joint training stage."""
+        raise NotImplementedError
+
+    def last(self) -> None:
+        """Sets grad policy for the last training stage."""
+        raise NotImplementedError
+
+
+class TransientLayers(ITransientLayers):
+    """Transient layers."""
+
+    def __init__(self, encoder: nn.Module, prototype_shape: Iterable = (9, 512, 1, 1)):
         super().__init__(*_make_layers(encoder, prototype_shape))
 
     def warm(self) -> None:
@@ -18,7 +36,7 @@ class TransientLayers(nn.Sequential):
 
 
 def _make_layers(
-    encoder: nn.Module, prototype_shape: Sequence[Union[int, float]]
+    encoder: nn.Module, prototype_shape: Iterable[Union[int, float]]
 ) -> List[nn.Module]:
     if encoder.__class__.__name__ == "SqueezeNet":
         first_transient_layer_in_channels = (
