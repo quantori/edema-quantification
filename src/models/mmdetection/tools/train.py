@@ -192,10 +192,7 @@ def main():
     try:
         cfg.model.bbox_head.num_classes = len(CLASSES)
     except Exception:
-        try:
-            cfg.model.roi_head.bbox_head.num_classes = len(CLASSES)
-        except Exception as ex:
-            print(f'\nError: {ex}')
+        cfg.model.roi_head.bbox_head.num_classes = len(CLASSES)
 
     cfg.data.train.type = args.dataset_type
     cfg.data.train.classes = cfg.classes
