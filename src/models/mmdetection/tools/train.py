@@ -390,29 +390,29 @@ def main():
         )
 
         # Compute complexity
-        try:
-            tmp_model = build_detector(
-                cfg.model,
-                train_cfg=cfg.get('train_cfg'),
-                test_cfg=cfg.get('test_cfg'),
-            )
-            tmp_model.eval()
-
-            if hasattr(tmp_model, 'forward_dummy'):
-                tmp_model.forward = tmp_model.forward_dummy
-            else:
-                raise NotImplementedError(
-                    f'FLOPs counter is not currently supported for {tmp_model.__class__.__name__}',
-                )
-
-            input_shape = (3, *cfg.data.train.pipeline[2].img_scale)
-            flops, params = get_model_complexity_info(tmp_model, input_shape)
-            ml_flow_logger['params']['flops'] = flops
-            ml_flow_logger['params']['params'] = params
-        except Exception as err:
-            print(f'Error: {err}')
-            ml_flow_logger['params']['flops'] = 'NA'
-            ml_flow_logger['params']['params'] = 'NA'
+        # try:
+        #     tmp_model = build_detector(
+        #         cfg.model,
+        #         train_cfg=cfg.get('train_cfg'),
+        #         test_cfg=cfg.get('test_cfg'),
+        #     )
+        #     tmp_model.eval()
+        #
+        #     if hasattr(tmp_model, 'forward_dummy'):
+        #         tmp_model.forward = tmp_model.forward_dummy
+        #     else:
+        #         raise NotImplementedError(
+        #             f'FLOPs counter is not currently supported for {tmp_model.__class__.__name__}',
+        #         )
+        #
+        #     input_shape = (3, *cfg.data.train.pipeline[2].img_scale)
+        #     flops, params = get_model_complexity_info(tmp_model, input_shape)
+        #     ml_flow_logger['params']['flops'] = flops
+        #     ml_flow_logger['params']['params'] = params
+        # except Exception as err:
+        #     print(f'Error: {err}')
+        #     ml_flow_logger['params']['flops'] = 'NA'
+        #     ml_flow_logger['params']['params'] = 'NA'
 
     train_detector(
         model,
