@@ -42,7 +42,7 @@ class PrototypeLayer(IPrototypeLayer):
         prototype_shape: Sequence[int],
         prototype_layer_stride: int = 1,
         epsilon: float = 1e-4,
-    ):
+    ) -> None:
         super().__init__()
         self._num_classes = num_classes
         self._num_prototypes = num_prototypes

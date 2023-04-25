@@ -31,8 +31,8 @@ def main(cfg: DictConfig):
         cfg.model.num_classes,
         cfg.model.num_prototypes,
         cfg.model.prototype_shape,
-        cfg.model.prototype_layer_stride,
-        cfg.model.epsilon,
+        prototype_layer_stride=cfg.model.prototype_layer_stride,
+        epsilon=cfg.model.epsilon,
     )
     last_layers = LastLayers(cfg.model.num_prototypes, cfg.model.num_classes, bias=False)
     prototype_logger = PrototypeLoggerCompNumpy(logger_config=cfg.logger)
