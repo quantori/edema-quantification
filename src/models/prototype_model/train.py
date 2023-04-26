@@ -6,8 +6,8 @@ import torch
 from omegaconf import DictConfig
 
 from src.data.data_classes import EdemaDataModule
-from src.models.prototype_model.model_edema import EdemaPrototypeNet
-from src.models.prototype_model.utils import PNetProgressBar
+from model_edema import EdemaPrototypeNet
+from utils import PNetProgressBar
 from encoders import ENCODERS
 from transient_layers import TransientLayers
 from prototype_layers import PrototypeLayer
