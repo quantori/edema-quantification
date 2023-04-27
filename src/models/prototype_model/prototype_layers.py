@@ -15,7 +15,7 @@ from utils import copy_tensor_to_nparray
 T = TypeVar('T')
 
 
-class IPrototypeLayer(nn.Parameter):
+class IPrototypeLayer:
     """Abstract base class for edema protoype layers."""
 
     def update(self) -> None:
@@ -34,23 +34,30 @@ class IPrototypeLayer(nn.Parameter):
         raise NotImplementedError
 
 
-class PrototypeLayer(IPrototypeLayer):
-    def __init__(
-        self,
+class PrototypeLayer(nn.Parameter, IPrototypeLayer):
+    """Prtotype layer based on nn.Parameter class.
+    
+    Args:
+        to be filled
+    """
+
+
+    def __new__(
+        cls,
         num_classes: int,
         num_prototypes: int,
         prototype_shape: Sequence[int],
         prototype_layer_stride: int = 1,
         epsilon: float = 1e-4,
-    ) -> None:
-        super().__init__()
-        self._num_classes = num_classes
-        self._num_prototypes = num_prototypes
-        self._shape = prototype_shape
-        self._layer_stride = prototype_layer_stride
-        self._epsilon = epsilon
-        self._global_min_proto_dists: Optional[np.ndarray] = None
-        self._global_min_fmap_patches: Optional[np.ndarray] = None
+    ):
+        instance = super().__new__(cls, data=torch.rand(*prototype_shape))
+        instance._num_classes = num_classes
+        instance._num_prototypes = num_prototypes
+        instance._shape = prototype_shape
+        instance._layer_stride = prototype_layer_stride
+        instance._epsilon = epsilon
+        instance._global_min_proto_dists: Optional[np.ndarray] = None
+        instance._global_min_fmap_patches: Optional[np.ndarray] = None
 
         # Dicts for storing the receptive-field and bound boxes of the prototypes. They are
         # supposed to have the following structure:
@@ -60,8 +67,10 @@ class PrototypeLayer(IPrototypeLayer):
         #     3: width start index
         #     4: width end index
         #     5: class identities
-        self._proto_rf_boxes: Optional[Dict[int, Dict[str, Union[int, Sequence[int]]]]] = None
-        self._proto_bound_boxes: Optional[Dict[int, Dict[str, Union[int, Sequence[int]]]]] = None
+        instance._proto_rf_boxes: Optional[Dict[int, Dict[str, Union[int, Sequence[int]]]]] = None
+        instance._proto_bound_boxes: Optional[
+            Dict[int, Dict[str, Union[int, Sequence[int]]]]
+        ] = None
 
     @property
     def num_classes(self) -> int:

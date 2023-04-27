@@ -16,7 +16,7 @@ from loggers import PrototypeLoggerCompNumpy
 
 
 @hydra.main(
-    config_path=os.path.join(os.getcwd(), 'config'),
+    config_path=os.path.join(os.getcwd(), 'configs'),
     config_name='pm_config',
     version_base=None,
 )
