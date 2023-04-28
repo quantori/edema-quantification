@@ -207,9 +207,9 @@ def get_mask_points(
 
     """
     if obj['geometryType'] == 'bitmap':
-        return {'Mask': obj['bitmap']['data'], 'Points': obj['bitmap']['origin']}
+        return {'Mask': obj['bitmap']['data'], 'Points': [int(s) for s in obj['bitmap']['origin']]}
     else:
-        return {'Mask': None, 'Points': obj['points']['exterior']}
+        return {'Mask': None, 'Points': [[int(s) for s in lst] for lst in obj['points']['exterior']]}
 
 
 def get_object_box(
