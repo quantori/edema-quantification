@@ -49,8 +49,8 @@ def main(cfg: DictConfig):
         normalize_tensors=False,
     )
     datamaodlule.setup('fit')
-    train_dataloader = datamaodlule.train_dataloader(num_workers=4)
-    test_dataloader = datamaodlule.test_dataloader(num_workers=4)
+    train_dataloader = datamaodlule.train_dataloader(num_workers=1)
+    test_dataloader = datamaodlule.test_dataloader(num_workers=1)
 
     # create trainer and start training
     trainer = pl.Trainer(

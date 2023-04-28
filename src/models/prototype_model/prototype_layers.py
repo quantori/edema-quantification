@@ -36,11 +36,10 @@ class IPrototypeLayer:
 
 class PrototypeLayer(nn.Parameter, IPrototypeLayer):
     """Prtotype layer based on nn.Parameter class.
-    
+
     Args:
         to be filled
     """
-
 
     def __new__(
         cls,
@@ -71,6 +70,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         instance._proto_bound_boxes: Optional[
             Dict[int, Dict[str, Union[int, Sequence[int]]]]
         ] = None
+        return instance
 
     @property
     def num_classes(self) -> int:

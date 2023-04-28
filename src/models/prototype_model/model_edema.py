@@ -287,7 +287,7 @@ class EdemaPrototypeNet(pl.LightningModule):
         )
         prototypes_of_correct_class = torch.matmul(
             labels,
-            self.prototype_class_identity.permute(1, 0),
+            self.prototype_layer.prototype_class_identity.permute(1, 0),
         )
         cluster_cost = self.cluster_cost(max_dist, min_distances, prototypes_of_correct_class)
 
