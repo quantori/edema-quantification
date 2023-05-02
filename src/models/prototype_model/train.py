@@ -21,10 +21,10 @@ from loggers import PrototypeLoggerCompNumpy
     version_base=None,
 )
 def main(cfg: DictConfig):
-    # clean the gpu cache
+    # Clean the gpu cache
     torch.cuda.empty_cache()
 
-    # create blocks and model
+    # Create blocks and model
     encoder = ENCODERS['squezee_net']()
     transient_layers = TransientLayers(encoder, cfg.model.prototype_shape)
     prototype_layer = PrototypeLayer(

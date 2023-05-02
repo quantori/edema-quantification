@@ -182,9 +182,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
                 )
 
                 original_img_for_shortest_proto_dist = _get_img(images, rf_prototype[0])
-                masks_for_shortest_proto_dist = _get_masks(
-                    masks, original_img_for_shortest_proto_dist[0]
-                )
+                masks_for_shortest_proto_dist = _get_masks(masks, rf_prototype[0])
 
                 img_crop_of_proto_rf = _crop_out_rf(
                     original_img_for_shortest_proto_dist, rf_prototype
@@ -208,7 +206,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
                 )
 
                 self._save_info_in_proto_bound_boxes(
-                    prototype_idx, high_proto_activation_roi_coords
+                    prototype_idx, high_proto_activation_roi_coords, labels, rf_prototype 
                 )
 
                 if logger is not None:
@@ -247,7 +245,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         class_to_img_index_dict: Dict[int, Sequence[int]],
         proto_distances: np.ndarray,
     ) -> Optional[np.ndarray]:
-        # If there is not images of the target_class from this batch we go on to the next prototype
+        # If there are not images of the target_class from this batch we go on to the next prototype
         if len(class_to_img_index_dict[self._get_target_class(prototype_idx)]) == 0:
             return None
         one_proto_dists = proto_distances[
@@ -256,12 +254,12 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         return one_proto_dists
 
     def _get_target_class(self, prototype_idx: int) -> int:
-        # target_class is the class of the class_specific prototype
+        # Target_class is the class of the class_specific prototype
         return torch.argmax(self.prototype_class_identity[prototype_idx]).item()
 
     @staticmethod
     def _get_batch_argmin_proto_dist(one_proto_dists: np.ndarray) -> List[int]:
-        # find arguments of the smallest distance in a matrix shape
+        # Find arguments of the smallest distance in a matrix shape
         arg_min_flat = np.argmin(one_proto_dists)
         arg_min_matrix = np.unravel_index(arg_min_flat, one_proto_dists.shape)
         batch_argmin_proto_dist = list(arg_min_matrix)
@@ -273,7 +271,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         batch_argmin_proto_dist: Sequence[int],
         class_to_img_index_dict: Dict[int, Sequence[int]],
     ) -> List[int]:
-        # change the index of the smallest distance from the class specific index to the whole
+        # Change the index of the smallest distance from the class specific index to the whole
         # search batch index
         batch_argmin_proto_dist[0] = class_to_img_index_dict[self._get_target_class(prototype_idx)][
             batch_argmin_proto_dist[0]
@@ -283,7 +281,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
     def _get_fmap_patch(
         self, batch_argmin_proto_dist_indexed: Sequence[int], proto_layer_input: np.ndarray
     ) -> np.ndarray:
-        # retrieve the corresponding feature map patch
+        # Retrieve the corresponding feature map patch
         img_index_in_batch = batch_argmin_proto_dist_indexed[0]
         fmap_height_start_index = batch_argmin_proto_dist_indexed[1] * self.layer_stride
         fmap_height_end_index = fmap_height_start_index + self.shape[2]
@@ -471,7 +469,7 @@ def _get_masks(batch_masks: torch.Tensor, num_masks: int) -> np.ndarray:
 def _crop_out_rf(
     original_img_for_shortest_proto_dist: torch.Tensor, rf_prototype: Sequence[int]
 ) -> np.ndarray:
-    # crop out the prototype receptive field from the original image
+    # Crop out the prototype receptive field from the original image
     return original_img_for_shortest_proto_dist[
         :, rf_prototype[1] : rf_prototype[2], rf_prototype[3] : rf_prototype[4]
     ]
