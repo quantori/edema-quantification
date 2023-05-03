@@ -54,7 +54,7 @@ class PrototypeLoggerCompNumpy(
         self.heatmap_mask_weight = logger_config.heatmap_mask_weight
 
     def _get_epoch_dir(self, epoch_num: int) -> str:
-        return os.getcwd() + self._dir + '/' + str(epoch_num) + '/'
+        return os.getcwd() + self._dir + '/' + 'epoch_' + str(epoch_num) + '/'
 
     @staticmethod
     def _make_heatmap(upsampled_act_distances: np.ndarray) -> np.ndarray:
@@ -64,6 +64,24 @@ class PrototypeLoggerCompNumpy(
         heatmap = cv2.applyColorMap(np.uint8(255 * rescaled_act_img_j), cv2.COLORMAP_JET)
         heatmap = np.float32(heatmap) / 255
         return heatmap[..., ::-1]
+
+    @staticmethod
+    def _make_imagable_mask(one_img_mask: np.ndarray) -> np.ndarray:
+        # Turn 2D grayscale mask into 3D
+        stacked_mask = np.stack((one_img_mask,) * 3, axis=-1)
+        if np.amax(stacked_mask) > 0:
+            inverted_stacked_mask = 1 - stacked_mask
+            inverted_stacked_mask[:, :, 0] *= 1
+            inverted_stacked_mask[:, :, 1] *= 0
+            inverted_stacked_mask[:, :, 2] *= 0
+            return inverted_stacked_mask
+        else:
+            return stacked_mask
+        # rescaled_mask = one_image_rgb_mask - np.amin(one_image_rgb_mask)
+        # rescaled_mask_norm = rescaled_mask / np.amax(rescaled_mask)
+        # colored_mask = cv2.applyColorMap(np.uint8(255 * rescaled_mask_norm), cv2.COLORMAP_JET)
+        # colored_mask_rescaled = np.float32(colored_mask) / 255
+        # return colored_mask_rescaled[..., ::-1]
 
     def _get_overlayed_act_img(
         self, original_img_trasnposed: np.ndarray, upsampled_act_distances: np.ndarray
@@ -76,43 +94,57 @@ class PrototypeLoggerCompNumpy(
         )
         return overlayed_act_img
 
-    def _get_overlayed_mask_img(self, original_img: np.ndarray, masks: np.ndarray) -> np.ndarray:
+    def _get_overlayed_mask_img(
+        self, original_img: np.ndarray, prototype_class: int, masks: np.ndarray
+    ) -> np.ndarray:
         # Overlay masks on the original image
-        one_img_mask = np.sum(masks, axis=0)
+        one_img_mask = masks[prototype_class]
+        imagable_mask = PrototypeLoggerCompNumpy._make_imagable_mask(one_img_mask)
         overlayed_mask_img = (
-            self.orig_mask_img_weight * original_img + self.heatmap_mask_weight * one_img_mask
+            self.orig_mask_img_weight * original_img + self.heatmap_mask_weight * imagable_mask
         )
         return overlayed_mask_img
 
-    def _make_composition(self, composition_items: Mapping[str, np.ndarray]) -> Image:
-        # Transpose the orig image to match the heatmap (e.g., 400x400x3)
+    def _make_composition(
+        self, prototype_class: int, composition_items: Mapping[str, np.ndarray]
+    ) -> Image:
+        # Transpose the orig image to match the heatmap dimensions (e.g., 400x400x3)
         original_img_transposed = np.transpose(composition_items['original_img'], (1, 2, 0))
         overlayed_act_img = self._get_overlayed_act_img(
             original_img_transposed, composition_items['upsampled_act_distances']
         )
         overlayed_mask_img = self._get_overlayed_mask_img(
-            original_img_transposed, composition_items['masks']
+            original_img_transposed, prototype_class, composition_items['masks']
         )
         # Make composition: original image + overlay (activated distances) + overlay (masks)
         composition_numpy = np.concatenate(
             (original_img_transposed, overlayed_act_img, overlayed_mask_img), axis=1
         )
-        composition_pil = Image.fromarray(composition_numpy)
+        # Adjust the values of the composition_numpy array in 0..255 and change float32->uint8
+        composition_pil = Image.fromarray((composition_numpy * 255).astype(np.uint8))
         return composition_pil
 
-    def _save_composition(self, prototype_idx: int, epoch_num: int, **composition_items) -> None:
+    def _save_composition(
+        self,
+        prototype_idx: int,
+        prototype_class: int,
+        epoch_num: int,
+        composition_items: Mapping[str, np.ndarray],
+    ) -> None:
         # Save the composition of images
-        composition = self._make_composition(composition_items)
+        composition = self._make_composition(prototype_class, composition_items)
         composition.save(self._get_epoch_dir(epoch_num) + f'composition_proto_{prototype_idx}.png')
 
     def _save_rf_prototype(self, rf_proto: np.ndarray, prototype_idx: int, epoch_num: int) -> None:
         # Save the prototype receptive field
-        rf_image = Image.fromarray(rf_proto)
+        rf_proto_t = np.transpose(rf_proto, (1, 2, 0))
+        rf_image = Image.fromarray((rf_proto_t * 255).astype(np.uint8))
         rf_image.save(self._get_epoch_dir(epoch_num) + f'rf_proto_{prototype_idx}.png')
 
     def _save_act_roi(self, act_roi: np.ndarray, prototype_idx: int, epoch_num: int) -> None:
         # Save the highly activated ROI (highly activated region of the whole image)
-        rf_image = Image.fromarray(act_roi)
+        act_roi_t = np.transpose(act_roi, (1, 2, 0))
+        rf_image = Image.fromarray((act_roi_t * 255).astype(np.uint8))
         rf_image.save(self._get_epoch_dir(epoch_num) + f'act_roi_{prototype_idx}.png')
 
     def _make_dir(self, epoch_num: int) -> str:
@@ -126,12 +158,13 @@ class PrototypeLoggerCompNumpy(
     def save_graphics(
         self,
         prototype_idx: int,
+        prototype_class: int,
         epoch_num: int,
         rf_proto: np.ndarray,
         act_roi: np.ndarray,
         **composition_items,
     ) -> None:
-        self._save_composition(prototype_idx, epoch_num, **composition_items)
+        self._save_composition(prototype_idx, prototype_class, epoch_num, composition_items)
         self._save_rf_prototype(rf_proto, prototype_idx, epoch_num)
         self._save_act_roi(act_roi, prototype_idx, epoch_num)
 
@@ -160,7 +193,7 @@ class PrototypeLoggerCompNumpy(
         f = open(
             os.path.join(
                 self._get_epoch_dir(epoch_num),
-                prefix + str(epoch_num) + '.json',
+                prefix + '_' + str(epoch_num) + '.json',
             ),
             'w',
         )

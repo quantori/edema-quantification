@@ -1,5 +1,5 @@
 dir: /savings
 orig_act_img_weight: 0.5
 heatmap_act_weight: 0.3
-orig_mask_img_weight: 0.5
-heatmap_mask_weight: 0.3
+orig_mask_img_weight: 1
+heatmap_mask_weight: 1

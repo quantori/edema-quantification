@@ -191,7 +191,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
                 self._save_info_in_proto_rf_boxes(prototype_idx, rf_prototype, labels, batch_index)
 
                 prototype_distances = PrototypeLayer._get_prototype_distances(
-                    proto_distances, batch_index, prototype_idx
+                    proto_distances, batch_argmin_proto_dist_indexed[0], prototype_idx
                 )
                 prototype_distances_act = self._activate(prototype_distances)
                 upsampled_act_distances = _upsample(
@@ -215,7 +215,8 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
                     )
                     logger.save_graphics(
                         prototype_idx,
-                        model.current_epoch,
+                        prototype_class=self._get_target_class(prototype_idx),
+                        epoch_num=model.current_epoch,
                         rf_proto=img_crop_of_proto_rf,
                         act_roi=high_proto_activation_roi_crop,
                         original_img=original_img_for_shortest_proto_dist,
@@ -376,10 +377,10 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
 
     @staticmethod
     def _get_prototype_distances(
-        distances: np.ndarray, batch_idx: int, prototype_idx: int
+        distances: np.ndarray, img_index_in_batch: int, prototype_idx: int
     ) -> np.ndarray:
         # Get the embeddings array of prototype distances
-        return distances[batch_idx, prototype_idx, :, :]
+        return distances[img_index_in_batch, prototype_idx, :, :]
 
     def _activate(self, distances: np.ndarray) -> np.ndarray:
         # The activation function of the distances is log
