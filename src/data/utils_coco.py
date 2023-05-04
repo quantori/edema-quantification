@@ -52,6 +52,6 @@ def get_ann_info(
             ann_data.append(label)
             ann_id += 1
         else:
-            return [], 0
+            return [], ann_id
 
     return ann_data, ann_id
