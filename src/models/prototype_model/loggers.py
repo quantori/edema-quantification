@@ -70,18 +70,16 @@ class PrototypeLoggerCompNumpy(
         # Turn 2D grayscale mask into 3D
         stacked_mask = np.stack((one_img_mask,) * 3, axis=-1)
         if np.amax(stacked_mask) > 0:
+            # image_mask are the weaights for multiplying the original image
+            image_mask = np.where(stacked_mask == 0, 0.3, 1)  # weight 0.3
             inverted_stacked_mask = 1 - stacked_mask
-            inverted_stacked_mask[:, :, 0] *= 1
+            inverted_stacked_mask[:, :, 0] *= 0.7
             inverted_stacked_mask[:, :, 1] *= 0
             inverted_stacked_mask[:, :, 2] *= 0
-            return inverted_stacked_mask
+            return inverted_stacked_mask, image_mask
         else:
-            return stacked_mask
-        # rescaled_mask = one_image_rgb_mask - np.amin(one_image_rgb_mask)
-        # rescaled_mask_norm = rescaled_mask / np.amax(rescaled_mask)
-        # colored_mask = cv2.applyColorMap(np.uint8(255 * rescaled_mask_norm), cv2.COLORMAP_JET)
-        # colored_mask_rescaled = np.float32(colored_mask) / 255
-        # return colored_mask_rescaled[..., ::-1]
+            image_mask = 1 - stacked_mask
+            return stacked_mask, image_mask
 
     def _get_overlayed_act_img(
         self, original_img_trasnposed: np.ndarray, upsampled_act_distances: np.ndarray
@@ -99,10 +97,8 @@ class PrototypeLoggerCompNumpy(
     ) -> np.ndarray:
         # Overlay masks on the original image
         one_img_mask = masks[prototype_class]
-        imagable_mask = PrototypeLoggerCompNumpy._make_imagable_mask(one_img_mask)
-        overlayed_mask_img = (
-            self.orig_mask_img_weight * original_img + self.heatmap_mask_weight * imagable_mask
-        )
+        imagable_mask, image_mask = PrototypeLoggerCompNumpy._make_imagable_mask(one_img_mask)
+        overlayed_mask_img = image_mask * original_img + imagable_mask
         return overlayed_mask_img
 
     def _make_composition(

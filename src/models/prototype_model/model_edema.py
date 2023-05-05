@@ -155,8 +155,8 @@ class EdemaPrototypeNet(pl.LightningModule):
             self.prototype_layer.update(
                 self, self.trainer.train_dataloader.loaders, self._prototype_logger
             )
-            # self.update_prototypes(self.trainer.train_dataloader.loaders, )
-            self.val_epoch(self.trainer.val_dataloaders[0], position=3)
+            self.trainer.validate(ckpt_path=None)
+            # self.val_epoch(self.trainer.val_dataloaders[0], position=3)
             # TODO: save the model if the performance metric is better
             self.train_last_only(
                 self.trainer.train_dataloader.loaders,
