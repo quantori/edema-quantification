@@ -56,7 +56,6 @@ class SignDetector:
             device=device_,
         )
         self.classes = self.model.CLASSES
-        # TODO: make sure the same model argument is used for other networks
         self.model.test_cfg.rcnn.score_thr = conf_threshold
 
         # Log the device that is used for the prediction
