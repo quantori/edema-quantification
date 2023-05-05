@@ -8,7 +8,8 @@ from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
 from src.data.utils import get_file_list
-from src.models.models import BorderExtractor, LungSegmentation
+from src.models.border_extractor import BorderExtractor
+from src.models.lung_segmenter import LungSegmenter
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -51,7 +52,7 @@ def main(cfg: DictConfig) -> None:
     )
     log.info(f'Number of images..........: {len(img_paths)}')
 
-    model = LungSegmentation(
+    model = LungSegmenter(
         model_dir=cfg.model_dir,
         threshold=0.50,
         device='auto',

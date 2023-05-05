@@ -1,100 +1,17 @@
 import json
 import logging
 import os
-from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any
 
 import cv2
 import numpy as np
-import pandas as pd
 import torch
 import torchvision.transforms as transforms
-from cpuinfo import get_cpu_info
-from mmdet.apis import inference_detector, init_detector
-from PIL import Image, ImageFilter
 
-from src.data.utils import get_file_list
 from src.models import smp
 
 
-class BorderExtractor:
-    """Class used to extract the binary mask, delineate the region of interest and save it."""
-
-    def __init__(
-        self,
-        threshold_method: str,
-        threshold_val: int,
-    ) -> None:
-        self.threshold_method = threshold_method
-        self.threshold_val = threshold_val
-        assert self.threshold_method in [
-            'otsu',
-            'triangle',
-            'manual',
-        ], f'Invalid threshold_method: {self.threshold_method}'
-
-        if threshold_method == 'manual' and not isinstance(threshold_val, int):
-            raise ValueError(
-                f'Manual thresholding requires a thresholding value to be set. The threshold_val is {threshold_val}',
-            )
-
-    def binarize(
-        self,
-        mask: np.ndarray,
-    ) -> np.ndarray:
-        mask_bin = mask.copy()
-        if self.threshold_method == 'otsu':
-            threshold_val, mask_bin = cv2.threshold(
-                mask,
-                0,
-                255,
-                cv2.THRESH_BINARY + cv2.THRESH_OTSU,
-            )
-        elif self.threshold_method == 'triangle':
-            threshold_val, mask_bin = cv2.threshold(
-                mask,
-                0,
-                255,
-                cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE,
-            )
-        elif self.threshold_method == 'manual':
-            threshold_val, mask_bin = cv2.threshold(
-                mask,
-                self.threshold_val,
-                255,
-                cv2.THRESH_BINARY,
-            )
-        else:
-            logging.warning(f'Invalid threshold: {self.threshold_val}')
-
-        return mask_bin
-
-    @staticmethod
-    def extract_boundary(
-        mask: np.ndarray,
-    ) -> np.ndarray:
-        _mask = Image.fromarray(mask)
-        _mask = _mask.filter(ImageFilter.ModeFilter(size=7))
-        _mask = np.asarray(_mask)
-        mask_border = cv2.Canny(image=_mask, threshold1=100, threshold2=200)
-        return mask_border
-
-    @staticmethod
-    def overlay_mask(
-        image: np.ndarray,
-        mask: np.ndarray,
-        output_size: Tuple[int, int] = (1024, 1024),
-        color: Tuple[int, int, int] = (255, 255, 0),
-    ) -> np.ndarray:
-        mask = cv2.resize(mask, dsize=output_size, interpolation=cv2.INTER_NEAREST)
-        image = cv2.resize(image, dsize=output_size, interpolation=cv2.INTER_CUBIC)
-        image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        image[mask == 255] = color
-
-        return image
-
-
-class LungSegmentation:
+class LungSegmenter:
     """Class used to predict lungs on X-ray images."""
 
     def __init__(
@@ -265,128 +182,10 @@ class LungSegmentation:
         return mask
 
 
-class SignDetector:
-    """A class used for the detection of radiological signs.."""
-
-    def __init__(
-        self,
-        model_dir: str,
-        conf_threshold: float = 0.01,
-        device: str = 'auto',
-    ):
-        # Get config path
-        # TODO: two options available:
-        #       (1) specify a path to a directory with the config and a checkpoint in it
-        #       (2) specify both a path to a config and a path to a checkpoint
-        config_list = get_file_list(
-            src_dirs=model_dir,
-            ext_list='.py',
-        )
-        assert len(config_list) == 1, 'Keep only one config file in the model directory'
-        config_path = config_list[0]
-
-        # Get checkpoint path
-        # TODO: I think there will be several checkpoints
-        #       If the path is not specified, use a default checkpoint
-        checkpoint_list = get_file_list(
-            src_dirs=model_dir,
-            ext_list='.pth',
-        )
-        assert len(checkpoint_list) == 1, 'Keep only one checkpoint file in the model directory'
-        checkpoint_path = checkpoint_list[0]
-
-        # Load the model
-        if device == 'cpu':
-            device_ = 'cpu'
-        elif device == 'gpu':
-            device_ = 'cuda'
-        elif device == 'auto':
-            device_ = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        else:
-            raise ValueError(f'Unknown device: {device}')
-
-        self.model = init_detector(
-            config=config_path,
-            checkpoint=checkpoint_path,
-            device=device_,
-        )
-        self.classes = self.model.CLASSES
-        self.model.test_cfg.rcnn.score_thr = conf_threshold
-
-        # Log the device that is used for the prediction
-        if device_ == 'cuda':
-            logging.info(f'Device..............: {torch.cuda.get_device_name(0)}')
-        else:
-            info = get_cpu_info()
-            logging.info(f'Device..............: {info["brand_raw"]}')
-
-    # TODO: test if this method works properly
-    def predict(
-        self,
-        img_paths: List[str],
-    ) -> List[List[np.ndarray]]:
-        detections = inference_detector(
-            model=self.model,
-            imgs=img_paths,
-        )
-
-        return detections
-
-    # TODO: test if this method works properly
-    def process_detections(
-        self,
-        img_paths: List[str],
-        detections: List[List[np.ndarray]],
-    ) -> pd.DataFrame:
-        columns = [
-            'img_path',
-            'img_name',
-            'img_height',
-            'img_width',
-            'x1',
-            'y1',
-            'x2',
-            'y2',
-            'class_id',
-            'class',
-            'confidence',
-        ]
-
-        # Iterate over images
-        df = pd.DataFrame(columns=columns)
-        for image_idx, (img_path, detections_image) in enumerate(zip(img_paths, detections)):
-            # Iterate over class detections
-            for class_idx, detections_class in enumerate(detections_image):
-                if detections_class.size == 0:
-                    num_detections = 1
-                else:
-                    num_detections = detections_class.shape[0]
-
-                # Iterate over boxes on a single image
-                df_ = pd.DataFrame(index=range(num_detections), columns=columns)
-                df_['img_path'] = img_path
-                df_['img_name'] = Path(img_path).name
-                for idx, box in enumerate(detections_class):
-                    # box -> array(x_min, y_min, x_max, y_max, confidence)
-                    df_.at[idx, 'x1'] = int(box[0])
-                    df_.at[idx, 'y1'] = int(box[1])
-                    df_.at[idx, 'x2'] = int(box[2])
-                    df_.at[idx, 'y2'] = int(box[3])
-                    df_.at[idx, 'class_id'] = class_idx
-                    df_.at[idx, 'class'] = self.classes[class_idx]
-                    df_.at[idx, 'confidence'] = box[4]
-                df = pd.concat([df, df_])
-
-        df.sort_values('img_path', inplace=True)
-        df.reset_index(drop=True, inplace=True)
-
-        return df
-
-
 if __name__ == '__main__':
     model_name = 'DeepLabV3+'
     img_path = 'data/demo/input/10000032_50414267.png'
-    model = LungSegmentation(
+    model = LungSegmenter(
         model_dir=f'models/lung_segmentation/{model_name}',
         threshold=0.50,
         device='auto',
