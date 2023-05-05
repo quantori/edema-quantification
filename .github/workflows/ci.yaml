@@ -11,7 +11,7 @@ env:
   NO_COLOR: '\033[0m'
 
 jobs:
-  lint-testing:
+  linting:
     runs-on: ubuntu-latest
     name: Lint testing
     steps:
@@ -48,7 +48,7 @@ jobs:
         echo -e "${GREEN}Job completed successfully${NC}"
 
   unit-testing:
-    needs: [lint-testing]
+    needs: [linting]
     runs-on: ubuntu-latest
     name: Unit testing
     steps:
@@ -89,10 +89,13 @@ jobs:
       env:
         REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo ":white_check_mark: **pre-commit**" >> report.md
+        echo ":white_check_mark: **linting**" >> report.md
         echo ">  complete" >> report.md
         echo " " >> report.md
-        echo ":white_check_mark: **unit-testing**" >> report.md
+        echo ":white_check_mark: **testing**" >> report.md
+        echo ">  complete" >> report.md
+        echo " " >> report.md
+        echo ":white_check_mark: **reporting**" >> report.md
         echo ">  complete" >> report.md
         cml comment create report.md
         echo -e "${GREEN}Job completed successfully${NC}"
