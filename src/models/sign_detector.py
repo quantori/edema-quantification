@@ -1,8 +1,10 @@
 import logging
+import os
 import os.path as osp
 from pathlib import Path
 from typing import List
 
+import cv2
 import numpy as np
 import pandas as pd
 import torch
@@ -22,9 +24,6 @@ class SignDetector:
         device: str = 'auto',
     ):
         # Get config path
-        # TODO: two options available:
-        #       + (1) specify a path to a directory with the config and a checkpoint in it
-        #       (2) specify both a path to a config and a path to a checkpoint
         config_list = get_file_list(
             src_dirs=model_dir,
             ext_list='.py',
@@ -34,14 +33,10 @@ class SignDetector:
         self.config_name, _ = osp.splitext(osp.basename(config_path))
 
         # Get checkpoint path
-        # TODO: I think there will be several checkpoints
-        #       If the path is not specified, use a default checkpoint
         checkpoint_list = get_file_list(
             src_dirs=model_dir,
             ext_list='.pth',
         )
-        if len(checkpoint_list) > 1:
-            checkpoint_list = [cp for cp in checkpoint_list if 'latest' in cp]
         assert len(checkpoint_list) == 1, 'Keep only one checkpoint file in the model directory'
         checkpoint_path = checkpoint_list[0]
 
@@ -61,6 +56,7 @@ class SignDetector:
             device=device_,
         )
         self.classes = self.model.CLASSES
+        # TODO: make sure the same model argument is used for other networks
         self.model.test_cfg.rcnn.score_thr = conf_threshold
 
         # Log the device that is used for the prediction
@@ -70,8 +66,6 @@ class SignDetector:
             info = get_cpu_info()
             logging.info(f'Device..............: {info["brand_raw"]}')
 
-    # TODO: test if this method works properly
-    # changed predict -> call
     def __call__(
         self,
         img_paths: List[str],
@@ -83,7 +77,6 @@ class SignDetector:
 
         return detections
 
-    # TODO: test if this method works properly
     def process_detections(
         self,
         img_paths: List[str],
@@ -107,6 +100,7 @@ class SignDetector:
         df = pd.DataFrame(columns=columns)
         for image_idx, (img_path, detections_image) in enumerate(zip(img_paths, detections)):
             # Iterate over class detections
+            img_height, img_width = cv2.imread(img_path).shape[:2]
             for class_idx, detections_class in enumerate(detections_image):
                 if detections_class.size == 0:
                     num_detections = 1
@@ -117,6 +111,8 @@ class SignDetector:
                 df_ = pd.DataFrame(index=range(num_detections), columns=columns)
                 df_['img_path'] = img_path
                 df_['img_name'] = Path(img_path).name
+                df_['img_height'] = img_height
+                df_['img_width'] = img_width
                 for idx, box in enumerate(detections_class):
                     # box -> array(x_min, y_min, x_max, y_max, confidence)
                     df_.at[idx, 'x1'] = int(box[0])
@@ -136,12 +132,18 @@ class SignDetector:
 
 if __name__ == '__main__':
     img_paths = ['data/demo/input/10000032_50414267.png']
+    save_dir = 'data/demo/output/detection'
     model = SignDetector(
-        model_dir=f'models/sign_detection/FasterRCNN_213957_260423',
+        model_dir=f'models/sign_detection/FasterRCNN_014121_110323',
         conf_threshold=0.01,
         device='auto',
     )
-    mask = model(img_paths)
-    res_det = model.process_detections(img_paths=img_paths, detections=mask)
-
-    res_det.to_csv(f'data/sigh_detector/mask_{model.config_name}.csv')
+    dets = model(img_paths)
+    res_det = model.process_detections(img_paths=img_paths, detections=dets)
+    os.makedirs(save_dir, exist_ok=True)
+    res_det.to_excel(
+        os.path.join(save_dir, f'{model.config_name}.xlsx'),
+        sheet_name='Detections',
+        index=True,
+        index_label='ID',
+    )
