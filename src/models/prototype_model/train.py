@@ -56,7 +56,7 @@ def main(cfg: DictConfig):
     trainer = pl.Trainer(
         max_epochs=10,
         logger=True,
-        enable_checkpointing=False,
+        enable_checkpointing=True,
         gpus=1,
         log_every_n_steps=5,
         callbacks=[PNetProgressBar()],
