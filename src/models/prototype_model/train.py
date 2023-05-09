@@ -4,6 +4,7 @@ import hydra
 import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from src.data.data_classes import EdemaDataModule
 from model_edema import EdemaPrototypeNet
@@ -52,7 +53,8 @@ def main(cfg: DictConfig):
     train_dataloader = datamaodlule.train_dataloader(num_workers=1)
     test_dataloader = datamaodlule.test_dataloader(num_workers=1)
 
-    # create trainer and start training
+    # create model checkpoint and trainer and start training
+    checkpoint = ModelCheckpoint(monitor=)
     trainer = pl.Trainer(
         max_epochs=10,
         logger=True,
