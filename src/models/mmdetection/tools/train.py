@@ -142,6 +142,12 @@ def parse_args():
         action='store_true',
         help='enable automatically scaling LR.',
     )
+    parser.add_argument(
+        '--use-augmentation',
+        action='store_true',
+        default=True,
+        help='use augmentation for the train dataset.',
+    )
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -232,6 +238,38 @@ def main():
 
     cfg.runner.max_epochs = args.epochs
     cfg.total_epochs = args.epochs
+
+    # augmentation settings
+    if args.use_augmentation:
+        cfg.train_pipeline = [
+            dict(type='LoadImageFromFile', to_float32=True),
+            dict(type='LoadAnnotations', with_bbox=True),
+            dict(
+                type='Resize',
+                img_scale=[(1333, 480), (1333, 960)],
+                multiscale_mode='range',
+                keep_ratio=True,
+            ),
+            dict(
+                type='RandomCenterCropPad',
+                crop_size=(1250, 450),
+                test_pad_mode=None,
+                mean=[123.675, 116.28, 103.53],
+                std=[58.395, 57.12, 57.375],
+                to_rgb=True,
+            ),
+            dict(type='RandomFlip', flip_ratio=0.5, direction='horizontal'),
+            dict(type='PhotoMetricDistortion', hue_delta=0),
+            dict(
+                type='Normalize',
+                mean=[123.675, 116.28, 103.53],
+                std=[58.395, 57.12, 57.375],
+                to_rgb=True,
+            ),
+            dict(type='Pad', size_divisor=32),
+            dict(type='DefaultFormatBundle'),
+            dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+        ]
 
     # Final config used for training
     print(f'Config:\n{cfg.pretty_text}')
