@@ -13,7 +13,7 @@ train_pipeline = [
         multiscale_mode='range',
         keep_ratio=True,
     ),
-    dict(type='RandomCenterCropPad', crop_size=(1250, 450), test_pad_mode=None, **img_norm_cfg),
+    dict(type='RandomCenterCropPad', crop_size=(1250, 450), test_pad_mode=None),
     dict(type='RandomFlip', flip_ratio=0.5, direction='horizontal'),
     dict(type='PhotoMetricDistortion', hue_delta=0),
 
