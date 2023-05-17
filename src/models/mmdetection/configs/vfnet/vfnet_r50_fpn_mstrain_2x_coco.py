@@ -5,8 +5,7 @@ img_norm_cfg = dict(
     to_rgb=True,
 )
 train_pipeline = [
-    # dict(type='LoadImageFromFile'),
-    dict(type='LoadImageFromFile', to_float32=True),
+    dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='Resize',
