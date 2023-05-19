@@ -56,7 +56,10 @@ class SignDetector:
             device=device_,
         )
         self.classes = self.model.CLASSES
-        self.model.test_cfg.rcnn.score_thr = conf_threshold
+        try:
+            self.model.test_cfg.rcnn.score_thr = conf_threshold
+        except:
+            self.model.test_cfg.score_thr = conf_threshold
 
         # Log the device that is used for the prediction
         if device_ == 'cuda':
