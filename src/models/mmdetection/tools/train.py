@@ -10,7 +10,6 @@ import mmcv
 import torch
 import torch.distributed as dist
 from mmcv import Config, DictAction
-from mmcv.cnn import get_model_complexity_info
 from mmcv.runner import get_dist_info, init_dist
 from mmcv.utils import get_git_hash
 from mmdet import __version__
@@ -145,8 +144,7 @@ def parse_args():
     parser.add_argument(
         '--use-augmentation',
         action='store_true',
-        default=True,
-        help='use augmentation for the train dataset.',
+        help='use augmentation for the train dataset',
     )
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
@@ -239,17 +237,25 @@ def main():
     cfg.runner.max_epochs = args.epochs
     cfg.total_epochs = args.epochs
 
-    # augmentation settings
+    # Augmentation settings
+    # Docs: https://mmdetection.readthedocs.io/en/v2.15.1/api.html
     if args.use_augmentation:
         cfg.train_pipeline = [
-            dict(type='LoadImageFromFile', to_float32=True),
-            dict(type='LoadAnnotations', with_bbox=True),
+            dict(
+                type='LoadImageFromFile',
+                to_float32=True,
+            ),
+            dict(
+                type='LoadAnnotations',
+                with_bbox=True,
+            ),
             dict(
                 type='Resize',
                 img_scale=cfg.data.train.pipeline[2].img_scale,
-                ratio_range=[0.9, 1],
                 multiscale_mode='range',
+                ratio_range=[0.8, 1],
                 keep_ratio=True,
+                bbox_clip_border=True,
             ),
             dict(
                 type='MinIoURandomCrop',
@@ -257,21 +263,54 @@ def main():
                 min_crop_size=0.3,
                 bbox_clip_border=True,
             ),
-            dict(type='RandomFlip', flip_ratio=0.5, direction='horizontal'),
-            dict(type='Rotate', level=1, max_rotate_angle=5),
-            dict(type='Translate', level=1, max_translate_offset=150),
-            dict(type='EqualizeTransform'),
-            dict(type='BrightnessTransform', level=1),
-            dict(type='ContrastTransform', level=1),
+            dict(
+                type='RandomFlip',
+                direction='horizontal',
+                flip_ratio=0.5,
+            ),
+            dict(
+                type='Rotate',
+                level=1,
+                max_rotate_angle=20,
+                prob=0.2,
+            ),
+            dict(
+                type='Translate',
+                level=1,
+                max_translate_offset=int(0.1 * min(cfg.data.train.pipeline[2].img_scale)),
+                prob=0.2,
+            ),
+            dict(
+                type='EqualizeTransform',
+                prob=0.2,
+            ),
+            dict(
+                type='BrightnessTransform',
+                level=1,
+                prob=0.2,
+            ),
+            dict(
+                type='ContrastTransform',
+                level=1,
+                prob=0.2,
+            ),
             dict(
                 type='Normalize',
                 mean=[123.675, 116.28, 103.53],
                 std=[58.395, 57.12, 57.375],
                 to_rgb=True,
             ),
-            dict(type='Pad', size_divisor=32),
-            dict(type='DefaultFormatBundle'),
-            dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+            dict(
+                type='Pad',
+                size_divisor=32,
+            ),
+            dict(
+                type='DefaultFormatBundle',
+            ),
+            dict(
+                type='Collect',
+                keys=['img', 'gt_bboxes', 'gt_labels'],
+            ),
         ]
 
     # Final config used for training
