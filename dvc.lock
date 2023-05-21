@@ -33,10 +33,10 @@ stages:
       size: 4424592880
       nfiles: 1001
     - path: src/data/convert_int_to_coco.py
-      md5: e230489e54dba3998276cfdd89e7284c
-      size: 6991
+      md5: f3591bd2591fa6ac1e6aee9099d1ea7e
+      size: 8139
     outs:
     - path: data/coco
-      md5: 78261165b4aaf5b9eef7b24a3d6e148c.dir
-      size: 4425292503
-      nfiles: 1003
+      md5: c2a25bcdc3daedcfc3179d5955d09c5e.dir
+      size: 4425284710
+      nfiles: 1005
