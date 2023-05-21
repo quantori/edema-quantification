@@ -5,6 +5,7 @@ stages:
     - python src/data/convert_sly_to_int.py
     deps:
     - src/data/convert_sly_to_int.py
+    - src/data/utils_sly.py
     - configs/convert_sly_to_int.yaml
     - data/sly
     outs:
@@ -15,6 +16,7 @@ stages:
     - python src/data/convert_int_to_coco.py
     deps:
     - src/data/convert_int_to_coco.py
+    - src/data/utils_coco.py
     - configs/convert_int_to_coco.yaml
     - data/interim
     outs:
