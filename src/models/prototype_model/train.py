@@ -46,7 +46,7 @@ def main(cfg: DictConfig):
     datamaodlule = EdemaDataModule(
         data_dir='data/interim',
         batch_size=16,
-        resize=(400, 400),
+        resize=(cfg.model.img_size, cfg.model.img_size),
         normalize_tensors=False,
     )
     datamaodlule.setup('fit')
@@ -54,7 +54,7 @@ def main(cfg: DictConfig):
     test_dataloader = datamaodlule.test_dataloader(num_workers=1)
 
     # create model checkpoint and trainer and start training
-    checkpoint = ModelCheckpoint(monitor=)
+    # checkpoint = ModelCheckpoint(monitor=)
     trainer = pl.Trainer(
         max_epochs=10,
         logger=True,
