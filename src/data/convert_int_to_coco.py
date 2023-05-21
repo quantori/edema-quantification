@@ -103,7 +103,7 @@ def prepare_coco(
     df: pd.DataFrame,
     box_extension: dict,
     save_dir: str,
-) -> None:
+) -> pd.DataFrame:
     """Prepare and save training and test subsets in COCO format.
 
     Args:
@@ -111,7 +111,7 @@ def prepare_coco(
         box_extension: a value used to extend or contract object box sizes
         save_dir: directory where split datasets are stored
     Returns:
-        None
+        df: updated COCO dataframe with training and test subsets
     """
     categories_coco = []
     for idx, (key, value) in enumerate(FIGURE_MAP.items()):
@@ -161,6 +161,20 @@ def prepare_coco(
         with open(save_ann_path, 'w') as file:
             json.dump(dataset, file)
 
+    # Update dataframe structure
+    columns_to_drop = [
+        'Source type',
+        'Reference type',
+        'Match',
+        'Mask',
+        'Points',
+    ]
+    df = df.drop(labels=columns_to_drop, axis=1)
+    df['Image path'] = df.apply(
+        lambda row: os.path.join(save_dir, row['Split'], 'data', row['Image name']),
+        axis=1,
+    )
+
     # Save COCO metadata
     save_path = os.path.join(save_dir, 'metadata.xlsx')
     df.index += 1
@@ -170,6 +184,29 @@ def prepare_coco(
         index=True,
         index_label='ID',
     )
+
+    return df
+
+
+def save_subset_metadata(
+    df: pd.DataFrame,
+    save_dir: str,
+) -> None:
+    df['Confidence'] = 1.0
+    subset_list = list(df['Split'].unique())
+    for subset in subset_list:
+        df_subset = df[df['Split'] == subset]
+        df_subset = df_subset.drop(labels='Split', axis=1)
+        df_subset.reset_index(drop=True, inplace=True)
+        save_path = os.path.join(save_dir, f'{subset}', 'labels.xlsx')
+        df_subset.index += 1
+        df_subset.to_excel(
+            save_path,
+            sheet_name='Metadata',
+            index=True,
+            index_label='ID',
+        )
+        log.info(f'{subset.capitalize()} labels saved to.....: {save_path}')
 
 
 @hydra.main(
@@ -202,7 +239,9 @@ def main(cfg: DictConfig) -> None:
 
     metadata_split = split_dataset(metadata, cfg.train_size, cfg.seed)
 
-    prepare_coco(metadata_split, cfg.box_extension, cfg.save_dir)
+    df = prepare_coco(metadata_split, cfg.box_extension, cfg.save_dir)
+
+    save_subset_metadata(df, cfg.save_dir)
 
     log.info('Complete')
 
