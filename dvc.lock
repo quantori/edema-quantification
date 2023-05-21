@@ -15,10 +15,13 @@ stages:
     - path: src/data/convert_sly_to_int.py
       md5: 4465ae582b50529429a49430439e5ec5
       size: 5479
+    - path: src/data/utils_sly.py
+      md5: 939ed9d1d6f4fce672519b58f060cbc3
+      size: 7093
     outs:
     - path: data/interim
-      md5: 199ed5a7394d5913c413f4c8603782c0.dir
-      size: 4424592880
+      md5: 2231498c61d7d00cd001fdbce432a99e.dir
+      size: 4424655618
       nfiles: 1001
   int_to_coco:
     cmd:
@@ -29,14 +32,17 @@ stages:
       md5: 029b1261e1393a3af569eeaa4de25f7f
       size: 329
     - path: data/interim
-      md5: 199ed5a7394d5913c413f4c8603782c0.dir
-      size: 4424592880
+      md5: 2231498c61d7d00cd001fdbce432a99e.dir
+      size: 4424655618
       nfiles: 1001
     - path: src/data/convert_int_to_coco.py
       md5: f3591bd2591fa6ac1e6aee9099d1ea7e
       size: 8139
+    - path: src/data/utils_coco.py
+      md5: 216ed7f6c8c9975a44f76475bc8658a6
+      size: 1680
     outs:
     - path: data/coco
-      md5: c2a25bcdc3daedcfc3179d5955d09c5e.dir
-      size: 4425284710
+      md5: 0d22ae4dd950fdeca447d78174c96c60.dir
+      size: 4425406580
       nfiles: 1005
