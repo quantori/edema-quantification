@@ -64,6 +64,8 @@ METADATA_COLUMNS = [
     'yc',
     'Box width',
     'Box height',
+    'Box area',
+    'Box label',
     'RP',
     'Mask',
     'Points',
@@ -266,5 +268,19 @@ def get_box_sizes(
     box_height = y2 - y1
     xc = x1 + box_width // 2
     yc = y1 + box_height // 2
+    box_area = box_height * box_width
+    if box_area < 32 * 32:
+        box_label = 'Small'
+    elif 32 * 32 <= box_area <= 96 * 96:
+        box_label = 'Medium'
+    else:
+        box_label = 'Large'
 
-    return {'xc': xc, 'yc': yc, 'Box width': box_width, 'Box height': box_height}
+    return {
+        'xc': xc,
+        'yc': yc,
+        'Box width': box_width,
+        'Box height': box_height,
+        'Box area': box_height * box_width,
+        'Box label': box_label,
+    }
