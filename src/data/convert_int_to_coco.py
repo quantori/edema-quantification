@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from src.data.utils import copy_files
 from src.data.utils_coco import get_ann_info, get_img_info
-from src.data.utils_sly import FIGURE_MAP
+from src.data.utils_sly import FEATURE_MAP
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -19,18 +19,19 @@ log.setLevel(logging.INFO)
 
 def process_metadata(
     dataset_dir: str,
-    exclude_classes: List[str] = None,
+    exclude_features: List[str] = None,
 ) -> pd.DataFrame:
     """Extract additional meta.
 
     Args:
         dataset_dir: path to directory containing series with images and labels inside
-        exclude_classes: a list of classes to exclude from the COCO dataset
+        exclude_features: a list of features to exclude from the COCO dataset
     Returns:
         meta: data frame derived from a meta file
     """
     metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
-    metadata = metadata[~metadata['Class'].isin(exclude_classes)]
+    metadata = metadata[metadata['View'] == 'Frontal']
+    metadata = metadata[~metadata['Feature'].isin(exclude_features)]
     metadata = metadata.dropna(subset=['Class ID'])
 
     return metadata
@@ -114,7 +115,7 @@ def prepare_coco(
         df: updated COCO dataframe with training and test subsets
     """
     categories_coco = []
-    for idx, (key, value) in enumerate(FIGURE_MAP.items()):
+    for idx, (key, value) in enumerate(FEATURE_MAP.items()):
         categories_coco.append({'id': value, 'name': key})
 
     # Iterate over subsets
@@ -221,7 +222,7 @@ def main(cfg: DictConfig) -> None:
     Args:
         dataset_dir: path to directory containing series with images and labels inside
         save_dir: directory where split datasets are saved to
-        exclude_classes: a list of classes to exclude from the COCO dataset
+        exclude_features: a list of features to exclude from the COCO dataset
         train_size: a fraction used to split dataset into train and test subsets
         box_extension: a value used to extend or contract object box sizes
         seed: random value for splitting train and test subsets
@@ -229,13 +230,13 @@ def main(cfg: DictConfig) -> None:
         None
     """
     log.info(f'Input directory...........: {cfg.dataset_dir}')
-    log.info(f'Excluded classes...........: {cfg.exclude_classes}')
+    log.info(f'Excluded features.........: {cfg.exclude_features}')
     log.info(f'Train/Test split..........: {cfg.train_size:.2f} / {(1 - cfg.train_size):.2f}')
     log.info(f'Box extension.............: {cfg.box_extension}')
     log.info(f'Seed......................: {cfg.seed}')
     log.info(f'Output directory..........: {cfg.save_dir}')
 
-    metadata = process_metadata(cfg.dataset_dir, cfg.exclude_classes)
+    metadata = process_metadata(cfg.dataset_dir, cfg.exclude_features)
 
     metadata_split = split_dataset(metadata, cfg.train_size, cfg.seed)
 
