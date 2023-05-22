@@ -51,6 +51,7 @@ METADATA_COLUMNS = [
     'Dataset',
     'Image width',
     'Image height',
+    'Image ratio',
     'Figure ID',
     'Figure',
     'Source type',
@@ -65,6 +66,7 @@ METADATA_COLUMNS = [
     'Box width',
     'Box height',
     'Box area',
+    'Box ratio',
     'Box label',
     'RP',
     'Mask',
@@ -269,6 +271,7 @@ def get_box_sizes(
     xc = x1 + box_width // 2
     yc = y1 + box_height // 2
     box_area = box_height * box_width
+    box_ratio = box_height / box_width
     if box_area < 32 * 32:
         box_label = 'Small'
     elif 32 * 32 <= box_area <= 96 * 96:
@@ -281,6 +284,7 @@ def get_box_sizes(
         'yc': yc,
         'Box width': box_width,
         'Box height': box_height,
-        'Box area': box_height * box_width,
+        'Box area': box_area,
+        'Box ratio': box_ratio,
         'Box label': box_label,
     }

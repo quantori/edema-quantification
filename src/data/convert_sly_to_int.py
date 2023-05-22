@@ -47,9 +47,10 @@ def process_image(
     subject_id, study_id, width_frontal, width_lateral = img_stem.split('_')
     dataset = Path(img_path).parts[-3]
     img = cv2.imread(img_path)
-    height = img.shape[0]
-    width = int(width_frontal)
-    img = img[0:height, 0:width]
+    img_height = img.shape[0]
+    img_width = int(width_frontal)
+    img = img[0:img_height, 0:img_width]
+    img_ratio = img_height / img_width
 
     save_dir_img = os.path.join(save_dir, 'img')
     os.makedirs(save_dir_img, exist_ok=True)
@@ -62,8 +63,9 @@ def process_image(
         'Subject ID': subject_id,
         'Study ID': study_id,
         'Dataset': dataset,
-        'Image width': width,
-        'Image height': height,
+        'Image width': img_width,
+        'Image height': img_height,
+        'Image ratio': img_ratio,
     }
 
 
