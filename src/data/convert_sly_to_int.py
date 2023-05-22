@@ -13,8 +13,8 @@ from tqdm import tqdm
 
 from src.data.utils_sly import (
     CLASS_MAP,
-    FIGURE_MAP,
-    FIGURE_TYPE,
+    FEATURE_MAP,
+    FEATURE_TYPE,
     METADATA_COLUMNS,
     get_box_sizes,
     get_class_name,
@@ -96,14 +96,16 @@ def process_annotation(
         xy = get_object_box(obj)
         box = get_box_sizes(*xy.values())
         mask_points = get_mask_points(obj)
+        view = 'Lateral' if xy['x1'] > img_info['Image width'] else 'Frontal'
 
         obj_info = {
-            'Figure ID': FIGURE_MAP[figure_name],
-            'Figure': figure_name,
+            'Feature ID': FEATURE_MAP[figure_name],
+            'Feature': figure_name,
             'Source type': obj['geometryType'],
-            'Reference type': FIGURE_TYPE[figure_name],
-            'Match': int(obj['geometryType'] == FIGURE_TYPE[figure_name]),
+            'Reference type': FEATURE_TYPE[figure_name],
+            'Match': int(obj['geometryType'] == FEATURE_TYPE[figure_name]),
             'RP': rp,
+            'View': view,
             'Class ID': CLASS_MAP[class_name],
             'Class': class_name,
         }
