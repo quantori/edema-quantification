@@ -148,15 +148,15 @@ class EdemaPrototypeNet(pl.LightningModule):
             _joint(**self.blocks)
             _print_status_bar(self.trainer, self.blocks, status='JOINT')
 
-    def training_epoch_end(self, outputs):
+    def on_train_epoch_end(self):
         # here, we have to put push_prototypes function
         # logs costs after a training epoch
         if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
             self.prototype_layer.update(
                 self, self.trainer.train_dataloader.loaders, self._prototype_logger
             )
-            # self.val_epoch(self.trainer.val_dataloaders[0], position=3)
-            self.trainer.validate(self, self.trainer.train_dataloader.loaders)
+            self.val_epoch(self.trainer.val_dataloaders[0], position=3)
+            # self.trainer.validate(self, self.trainer.train_dataloader.loaders)
             # TODO: save the model if the performance metric is better
             self.train_last_only(
                 self.trainer.train_dataloader.loaders,
@@ -169,7 +169,7 @@ class EdemaPrototypeNet(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         loss, f1_val = self.train_val_test(batch)
-        self.log('f1_val', f1_val, prog_bar=True)
+        self.log('f1_val', f1_val, prog_bar=True, on_epoch=True)
         self.log('val_loss', loss)
         return {'loss': loss, 'f1_val': f1_val}
 
@@ -185,6 +185,7 @@ class EdemaPrototypeNet(pl.LightningModule):
     ) -> None:
         with tqdm(total=len(dataloader), desc='Validating', position=position, leave=False) as t1:
             for idx, batch in enumerate(dataloader):
+                # TODO: implement custom train and val steps
                 preds = self.validation_step(batch, idx)
                 t1.update()
             if t:

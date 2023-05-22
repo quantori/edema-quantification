@@ -54,14 +54,16 @@ def main(cfg: DictConfig):
     test_dataloader = datamaodlule.test_dataloader(num_workers=1)
 
     # create model checkpoint and trainer and start training
-    # checkpoint = ModelCheckpoint(monitor=)
+    checkpoint = ModelCheckpoint(
+        monitor='f1_val', mode='max', save_top_k=1, save_on_train_epoch_end=False
+    )
     trainer = pl.Trainer(
         max_epochs=10,
         logger=True,
         enable_checkpointing=True,
         gpus=1,
         log_every_n_steps=5,
-        callbacks=[PNetProgressBar()],
+        callbacks=[PNetProgressBar(), checkpoint],
     )
     trainer.fit(edema_net, train_dataloaders=train_dataloader, val_dataloaders=test_dataloader)
 
