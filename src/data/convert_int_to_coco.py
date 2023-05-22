@@ -99,6 +99,62 @@ def split_dataset(
     return df_out
 
 
+def prepare_subset(
+    save_dir: str,
+    subset: str,
+    df_subset: pd.DataFrame,
+    box_extension: dict,
+    categories_coco: list,
+) -> None:
+    imgs_coco = []
+    anns_coco = []
+    ann_id = 0
+    save_img_dir = os.path.join(save_dir, subset, 'data')
+    os.makedirs(save_img_dir, exist_ok=True)
+    img_groups = df_subset.groupby('Image path')
+
+    for img_id, (img_path, sample) in tqdm(
+        enumerate(img_groups),
+        desc=f'{subset.capitalize()} subset processing',
+        unit=' images',
+    ):
+        img_data = get_img_info(
+            img_path=img_path,
+            img_id=img_id,
+        )
+        imgs_coco.append(img_data)
+
+        ann_data, ann_id = get_ann_info(
+            df=sample,
+            img_id=img_id,
+            ann_id=ann_id,
+            box_extension=box_extension,
+        )
+
+        if len(ann_data) > 0:
+            anns_coco.extend(ann_data)
+
+    dataset = {
+        'images': imgs_coco,
+        'annotations': anns_coco,
+        'categories': categories_coco,
+    }
+
+    # Save JSONs with annotations
+    save_img_dir = os.path.join(save_dir, subset, 'data')
+    copy_files(file_list=list(df_subset['Image path']), save_dir=save_img_dir)
+    save_ann_path = os.path.join(save_dir, subset, 'labels.json')
+    with open(save_ann_path, 'w') as file:
+        json.dump(dataset, file)
+
+
+def get_categories_coco() -> list:
+    categories_coco = []
+    for idx, (key, value) in enumerate(FIGURE_MAP.items()):
+        categories_coco.append({'id': value, 'name': key})
+    return categories_coco
+
+
 def prepare_coco(
     df: pd.DataFrame,
     box_extension: dict,
@@ -113,53 +169,19 @@ def prepare_coco(
     Returns:
         None
     """
-    categories_coco = []
-    for idx, (key, value) in enumerate(FIGURE_MAP.items()):
-        categories_coco.append({'id': value, 'name': key})
+    categories_coco = get_categories_coco()
 
     # Iterate over subsets
     subset_list = list(df['Split'].unique())
     for subset in subset_list:
         df_subset = df[df['Split'] == subset]
-        imgs_coco = []
-        anns_coco = []
-        ann_id = 0
-        save_img_dir = os.path.join(save_dir, subset, 'data')
-        os.makedirs(save_img_dir, exist_ok=True)
-        img_groups = df_subset.groupby('Image path')
-        for img_id, (img_path, sample) in tqdm(
-            enumerate(img_groups),
-            desc=f'{subset.capitalize()} subset processing',
-            unit=' images',
-        ):
-            img_data = get_img_info(
-                img_path=img_path,
-                img_id=img_id,
-            )
-            imgs_coco.append(img_data)
-
-            ann_data, ann_id = get_ann_info(
-                df=sample,
-                img_id=img_id,
-                ann_id=ann_id,
-                box_extension=box_extension,
-            )
-
-            if len(ann_data) > 0:
-                anns_coco.extend(ann_data)
-
-        dataset = {
-            'images': imgs_coco,
-            'annotations': anns_coco,
-            'categories': categories_coco,
-        }
-
-        # Save JSONs with annotations
-        save_img_dir = os.path.join(save_dir, subset, 'data')
-        copy_files(file_list=list(df_subset['Image path']), save_dir=save_img_dir)
-        save_ann_path = os.path.join(save_dir, subset, 'labels.json')
-        with open(save_ann_path, 'w') as file:
-            json.dump(dataset, file)
+        prepare_subset(
+            save_dir=save_dir,
+            subset=subset,
+            df_subset=df_subset,
+            box_extension=box_extension,
+            categories_coco=categories_coco,
+        )
 
     # Save COCO metadata
     save_path = os.path.join(save_dir, 'metadata.xlsx')
