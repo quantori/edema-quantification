@@ -14,7 +14,7 @@ from mmdet.apis import inference_detector, init_detector
 from src.data.utils import get_file_list
 
 
-class SignDetector:
+class FeatureDetector:
     """A class used for the detection of radiological signs."""
 
     def __init__(
@@ -135,8 +135,8 @@ class SignDetector:
 if __name__ == '__main__':
     img_paths = ['data/demo/input/10000032_50414267.png']
     save_dir = 'data/demo/output/detection'
-    model = SignDetector(
-        model_dir=f'models/sign_detection/FasterRCNN_014121_110323',
+    model = FeatureDetector(
+        model_dir=f'models/feature_detection/FasterRCNN_014121_110323',
         conf_threshold=0.01,
         device='auto',
     )
