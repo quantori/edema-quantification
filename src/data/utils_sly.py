@@ -233,8 +233,8 @@ def get_object_box(
     if obj['geometryType'] == 'bitmap':
         bitmap = convert_base64_to_image(obj['bitmap']['data'])
         x1, y1 = obj['bitmap']['origin'][0], obj['bitmap']['origin'][1]
-        x2 = x1 + bitmap.shape[0]
-        y2 = y1 + bitmap.shape[1]
+        x2 = x1 + bitmap.shape[1]
+        y2 = y1 + bitmap.shape[0]
     else:
         xs = [x[0] for x in obj['points']['exterior']]
         ys = [x[1] for x in obj['points']['exterior']]

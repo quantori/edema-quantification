@@ -89,11 +89,11 @@ def process_annotation(
     for obj in ann['objects']:
         log.debug(f'Processing object {obj}')
 
+        figure_name = obj['classTitle']
         rp = get_tag_value(obj, tag_name='RP')
-        mask_points = get_mask_points(obj)
         xy = get_object_box(obj)
         box = get_box_sizes(*xy.values())
-        figure_name = obj['classTitle']
+        mask_points = get_mask_points(obj)
 
         obj_info = {
             'Figure ID': FIGURE_MAP[figure_name],
