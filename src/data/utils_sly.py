@@ -17,7 +17,7 @@ CLASS_MAP = {
     'Alveolar edema': 3,
 }
 
-FIGURE_MAP = {
+FEATURE_MAP = {
     'Cephalization': 1,
     'Heart': 2,
     'Artery': 3,
@@ -29,9 +29,9 @@ FIGURE_MAP = {
     'Infiltrate': 9,
 }
 
-FIGURE_MAP_REVERSED = dict((v, k) for k, v in FIGURE_MAP.items())
+FEATURE_MAP_REVERSED = dict((v, k) for k, v in FEATURE_MAP.items())
 
-FIGURE_TYPE = {
+FEATURE_TYPE = {
     'Cephalization': 'line',
     'Artery': 'bitmap',
     'Heart': 'rectangle',
@@ -52,8 +52,8 @@ METADATA_COLUMNS = [
     'Image width',
     'Image height',
     'Image ratio',
-    'Figure ID',
-    'Figure',
+    'Feature ID',
+    'Feature',
     'Source type',
     'Reference type',
     'Match',
@@ -71,6 +71,7 @@ METADATA_COLUMNS = [
     'RP',
     'Mask',
     'Points',
+    'View',
     'Class ID',
     'Class',
 ]
