@@ -19,10 +19,13 @@ stages:
       md5: 3a6be524582737cb8e10ce78bc664363
       size: 7204
     outs:
-    - path: data/interim
-      md5: c45e405fb1dd618a8fe7a64329ebf082.dir
-      size: 4424780965
-      nfiles: 1001
+    - path: data/interim/img
+      md5: bbfe62305cf388907a4e2bc6e49497ac.dir
+      size: 4423453676
+      nfiles: 1000
+    - path: data/interim/metadata.xlsx
+      md5: 7fb5e2c2029d82fc2273c51835dec34c
+      size: 1327288
   int_to_coco:
     cmd:
     - rm -rf data/coco
@@ -31,10 +34,13 @@ stages:
     - path: configs/convert_int_to_coco.yaml
       md5: 1a5f420db7c924fd7d626782c5c9acd9
       size: 330
-    - path: data/interim
-      md5: c45e405fb1dd618a8fe7a64329ebf082.dir
-      size: 4424780965
-      nfiles: 1001
+    - path: data/interim/img
+      md5: bbfe62305cf388907a4e2bc6e49497ac.dir
+      size: 4423453676
+      nfiles: 1000
+    - path: data/interim/metadata.xlsx
+      md5: 7fb5e2c2029d82fc2273c51835dec34c
+      size: 1327288
     - path: src/data/convert_int_to_coco.py
       md5: 29efa43ca98ed8f81647ab7d4df16034
       size: 8205
@@ -42,7 +48,14 @@ stages:
       md5: 7f75fc2154f6eecaaa6e0662fda163a4
       size: 1684
     outs:
-    - path: data/coco
-      md5: c77443d6e6f40467263423011760ae6b.dir
-      size: 4425579989
-      nfiles: 1005
+    - path: data/coco/train
+      md5: 9bc2afc1b11bd702694d64cd005d67fb.dir
+      size: 3560664829
+      nfiles: 802
+    - path: data/coco/test
+      md5: 0aa5b6f56da2c06b4ccc06dc60eecca8.dir
+      size: 864182794
+      nfiles: 202
+    - path: data/coco/metadata.xlsx
+      md5: 1422442a6080afe3b90f50d13affb7c1
+      size: 732366
