@@ -5,7 +5,8 @@ The description to be filled...
 import json
 import os
 import sys
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
+from statistics import mean
 
 import cv2
 import matplotlib.pyplot as plt
@@ -177,24 +178,44 @@ class EdemaPrototypeNet(pl.LightningModule):
         cost, f1_score = self.train_val_test(batch)
         return cost
 
+    def custom_val_step(self, batch: torch.Tensor) -> Dict[str, torch.Tensor]:
+        loss, f1_val = self.train_val_test(batch)
+        self.log('val_loss', loss)
+        return {'loss': loss, 'f1_val': f1_val}
+
     def val_epoch(
         self,
         dataloader: DataLoader,
         t: Optional[tqdm] = None,
         position: int = 4,
     ) -> None:
-        with tqdm(total=len(dataloader), desc='Validating', position=position, leave=False) as t1:
-            for idx, batch in enumerate(dataloader):
-                # TODO: implement custom train and val steps
-                preds = self.validation_step(batch, idx)
-                t1.update()
-            if t:
-                preds = self.refactor_val_dict(preds)
-                to_postfix = self.str_to_dict(t.postfix)
-                to_postfix.update({'f1_val': round(preds['f1_val'], 3)})
-                t.set_postfix(to_postfix)
-                t.n += idx + 1
-                t.refresh()
+        f1_all = []
+        self.eval()
+        with torch.no_grad():
+            with tqdm(
+                total=len(dataloader), desc='Validating', position=position, leave=False
+            ) as t1:
+                for idx, batch in enumerate(dataloader):
+                    preds = self.custom_val_step(batch)
+                    f1_all.append(preds['f1_val'].item())
+                    t1.update()
+                if t:
+                    preds = self.refactor_val_dict(preds)
+                    to_postfix = self.str_to_dict(t.postfix)
+                    to_postfix.update({'f1_val': round(preds['f1_val'], 3)})
+                    t.set_postfix(to_postfix)
+                    t.n += idx + 1
+                    t.refresh()
+        if mean(f1_all) > self.trainer.logged_metrics['f1_val']:
+            # TODO: implement a fucn to exchange the best model
+            os.remove(self.trainer.checkpoint_callback.best_model_path)
+            self.trainer.save_checkpoint(
+                self.trainer.checkpoint_callback.format_checkpoint_name(
+                    dict(epoch=self.current_epoch, step=self.global_step)
+                )
+            )
+        self.log('f1_val', mean(f1_all), prog_bar=True)
+        self.train()
 
     def train_epoch(self, dataloader: DataLoader, t: tqdm):
         for idx, batch in enumerate(dataloader):
