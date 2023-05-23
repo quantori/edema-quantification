@@ -65,8 +65,8 @@ METADATA_COLUMNS = [
     'yc',
     'Box width',
     'Box height',
-    'Box area',
     'Box ratio',
+    'Box area',
     'Box label',
     'RP',
     'Mask',
@@ -285,7 +285,7 @@ def get_box_sizes(
         'yc': yc,
         'Box width': box_width,
         'Box height': box_height,
-        'Box area': box_area,
         'Box ratio': box_ratio,
+        'Box area': box_area,
         'Box label': box_label,
     }
