@@ -118,7 +118,7 @@ def main(cfg: DictConfig) -> None:
     df_out = pd.concat(result)
     df_out.reset_index(drop=True, inplace=True)
     df_out.sort_values(['Subject ID', 'ID'], inplace=True)
-    save_path = os.path.join(cfg.save_dir, f'metadata.csv')
+    save_path = os.path.join(cfg.save_dir, 'metadata.csv')
     df_out.to_csv(
         save_path,
         index=False,

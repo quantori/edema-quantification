@@ -58,7 +58,7 @@ class FeatureDetector:
         self.classes = self.model.CLASSES
         try:
             self.model.test_cfg.rcnn.score_thr = conf_threshold
-        except:
+        except Exception:
             self.model.test_cfg.score_thr = conf_threshold
 
         # Log the device that is used for the prediction
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     img_paths = ['data/demo/input/10000032_50414267.png']
     save_dir = 'data/demo/output/detection'
     model = FeatureDetector(
-        model_dir=f'models/feature_detection/FasterRCNN_014121_110323',
+        model_dir='models/feature_detection/FasterRCNN_014121_110323',
         conf_threshold=0.01,
         device='auto',
     )

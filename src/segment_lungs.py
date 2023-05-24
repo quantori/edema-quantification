@@ -34,7 +34,7 @@ def main(cfg: DictConfig) -> None:
     os.makedirs(mask_dir, exist_ok=True)
     os.makedirs(border_dir, exist_ok=True)
 
-    log.info(f'Settings..................:')
+    log.info('Settings..................:')
     log.info(f'Image directory...........: {cfg.img_dir}')
     log.info(f'Output directory..........: {cfg.save_dir}')
     log.info(f'Output size...............: {cfg.output_size}')

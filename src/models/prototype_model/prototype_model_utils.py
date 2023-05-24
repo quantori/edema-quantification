@@ -37,7 +37,7 @@ class PNetProgressBar(TQDMProgressBar):
 def get_encoder(encoders: dict, name: str = 'squezeenet') -> nn.Module:
     try:
         return encoders[name]
-    except:
+    except Exception:
         print(f'{name} encoder is not implemented')
 
 
