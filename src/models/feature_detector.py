@@ -5,19 +5,16 @@ from pathlib import Path
 from typing import List
 
 import cv2
-import hydra
 import numpy as np
 import pandas as pd
 import torch
 from cpuinfo import get_cpu_info
 from mmdet.apis import inference_detector, init_detector
-from omegaconf import DictConfig
 
-from data.convert_int_to_coco import get_categories_coco, prepare_subset
 from src.data.utils import get_file_list
 
 
-class SignDetector:
+class FeatureDetector:
     """A class used for the detection of radiological signs."""
 
     def __init__(
@@ -61,7 +58,7 @@ class SignDetector:
         self.classes = self.model.CLASSES
         try:
             self.model.test_cfg.rcnn.score_thr = conf_threshold
-        except:
+        except Exception:
             self.model.test_cfg.score_thr = conf_threshold
 
         # Log the device that is used for the prediction
@@ -81,21 +78,6 @@ class SignDetector:
         )
 
         return detections
-
-    @staticmethod
-    def convert_detections_to_coco(
-        cfg: DictConfig,
-        save_dir: str,
-        df_subset: pd.DataFrame,
-    ) -> None:
-        categories_coco = get_categories_coco()
-        prepare_subset(
-            save_dir=save_dir,
-            subset='test',
-            df_subset=df_subset,
-            box_extension=cfg.box_extension,
-            categories_coco=categories_coco,
-        )
 
     def process_detections(
         self,
@@ -146,25 +128,19 @@ class SignDetector:
 
         df.sort_values('Image path', inplace=True)
         df.reset_index(drop=True, inplace=True)
-        df[['Figure ID']] = df[['Figure ID']].astype('Int64', errors='ignore')
 
         return df
 
 
-@hydra.main(
-    config_path=os.path.join(os.getcwd(), 'configs'),
-    config_name='convert_int_to_coco',
-    version_base=None,
-)
-def main(cfg: DictConfig) -> None:
+if __name__ == '__main__':
     img_paths = get_file_list(
         src_dirs='data/coco/test/data',
         ext_list='.png',
     )
     img_paths = img_paths[:2]
     save_dir = 'data/sigh_detector'
-    model = SignDetector(
-        model_dir=f'models/sign_detection/VFNet',
+    model = FeatureDetector(
+        model_dir='models/feature_detection/FasterRCNN_014121_110323',
         conf_threshold=0.01,
         device='auto',
     )
@@ -180,16 +156,3 @@ def main(cfg: DictConfig) -> None:
         index=True,
         index_label='ID',
     )
-
-    # COCO
-    coco_path = os.path.join(save_dir, 'coco')
-    os.makedirs(coco_path, exist_ok=True)
-    model.convert_detections_to_coco(
-        cfg=cfg,
-        save_dir=coco_path,
-        df_subset=res_det,
-    )
-
-
-if __name__ == '__main__':
-    main()

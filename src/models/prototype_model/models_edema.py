@@ -592,8 +592,8 @@ class EdemaNet(pl.LightningModule):
         proto_bound_boxes = {}
 
         # making a directory for saving prototypes
-        if root_dir_for_saving_prototypes != None:
-            if self.current_epoch != None:
+        if root_dir_for_saving_prototypes is not None:
+            if self.current_epoch is not None:
                 proto_epoch_dir = os.path.join(
                     root_dir_for_saving_prototypes,
                     'epoch-' + str(self.current_epoch),
@@ -631,7 +631,7 @@ class EdemaNet(pl.LightningModule):
                 )
                 t.update()
 
-        if proto_epoch_dir != None and proto_bound_boxes_filename_prefix != None:
+        if proto_epoch_dir is not None and proto_bound_boxes_filename_prefix is not None:
             proto_rf_boxes_json = json.dumps(proto_rf_boxes)
             f = open(
                 os.path.join(
@@ -704,7 +704,7 @@ class EdemaNet(pl.LightningModule):
         proto_h = prototype_shape[2]
         proto_w = prototype_shape[3]
         # max_dist is chosen arbitrarly
-        max_dist = prototype_shape[1] * prototype_shape[2] * prototype_shape[3]
+        prototype_shape[1] * prototype_shape[2] * prototype_shape[3]
 
         for j in range(n_prototypes):
             # target_class is the class of the class_specific prototype

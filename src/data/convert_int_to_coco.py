@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from src.data.utils import copy_files
 from src.data.utils_coco import get_ann_info, get_img_info
-from src.data.utils_sly import FIGURE_MAP
+from src.data.utils_sly import FEATURE_MAP
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -19,18 +19,19 @@ log.setLevel(logging.INFO)
 
 def process_metadata(
     dataset_dir: str,
-    exclude_classes: List[str] = None,
+    exclude_features: List[str] = None,
 ) -> pd.DataFrame:
     """Extract additional meta.
 
     Args:
         dataset_dir: path to directory containing series with images and labels inside
-        exclude_classes: a list of classes to exclude from the COCO dataset
+        exclude_features: a list of features to exclude from the COCO dataset
     Returns:
         meta: data frame derived from a meta file
     """
     metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
-    metadata = metadata[~metadata['Class'].isin(exclude_classes)]
+    metadata = metadata[metadata['View'] == 'Frontal']
+    metadata = metadata[~metadata['Feature'].isin(exclude_features)]
     metadata = metadata.dropna(subset=['Class ID'])
 
     return metadata
@@ -103,7 +104,7 @@ def prepare_coco(
     df: pd.DataFrame,
     box_extension: dict,
     save_dir: str,
-) -> None:
+) -> pd.DataFrame:
     """Prepare and save training and test subsets in COCO format.
 
     Args:
@@ -111,10 +112,10 @@ def prepare_coco(
         box_extension: a value used to extend or contract object box sizes
         save_dir: directory where split datasets are stored
     Returns:
-        None
+        df: updated COCO dataframe with training and test subsets
     """
     categories_coco = []
-    for idx, (key, value) in enumerate(FIGURE_MAP.items()):
+    for idx, (key, value) in enumerate(FEATURE_MAP.items()):
         categories_coco.append({'id': value, 'name': key})
 
     # Iterate over subsets
@@ -161,6 +162,20 @@ def prepare_coco(
         with open(save_ann_path, 'w') as file:
             json.dump(dataset, file)
 
+    # Update dataframe structure
+    columns_to_drop = [
+        'Source type',
+        'Reference type',
+        'Match',
+        'Mask',
+        'Points',
+    ]
+    df = df.drop(labels=columns_to_drop, axis=1)
+    df['Image path'] = df.apply(
+        lambda row: os.path.join(save_dir, row['Split'], 'data', row['Image name']),
+        axis=1,
+    )
+
     # Save COCO metadata
     save_path = os.path.join(save_dir, 'metadata.xlsx')
     df.index += 1
@@ -170,6 +185,29 @@ def prepare_coco(
         index=True,
         index_label='ID',
     )
+
+    return df
+
+
+def save_subset_metadata(
+    df: pd.DataFrame,
+    save_dir: str,
+) -> None:
+    df['Confidence'] = 1.0
+    subset_list = list(df['Split'].unique())
+    for subset in subset_list:
+        df_subset = df[df['Split'] == subset]
+        df_subset = df_subset.drop(labels='Split', axis=1)
+        df_subset.reset_index(drop=True, inplace=True)
+        save_path = os.path.join(save_dir, f'{subset}', 'labels.xlsx')
+        df_subset.index += 1
+        df_subset.to_excel(
+            save_path,
+            sheet_name='Metadata',
+            index=True,
+            index_label='ID',
+        )
+        log.info(f'{subset.capitalize()} labels saved to.....: {save_path}')
 
 
 @hydra.main(
@@ -184,7 +222,7 @@ def main(cfg: DictConfig) -> None:
     Args:
         dataset_dir: path to directory containing series with images and labels inside
         save_dir: directory where split datasets are saved to
-        exclude_classes: a list of classes to exclude from the COCO dataset
+        exclude_features: a list of features to exclude from the COCO dataset
         train_size: a fraction used to split dataset into train and test subsets
         box_extension: a value used to extend or contract object box sizes
         seed: random value for splitting train and test subsets
@@ -192,17 +230,19 @@ def main(cfg: DictConfig) -> None:
         None
     """
     log.info(f'Input directory...........: {cfg.dataset_dir}')
-    log.info(f'Excluded classes...........: {cfg.exclude_classes}')
+    log.info(f'Excluded features.........: {cfg.exclude_features}')
     log.info(f'Train/Test split..........: {cfg.train_size:.2f} / {(1 - cfg.train_size):.2f}')
     log.info(f'Box extension.............: {cfg.box_extension}')
     log.info(f'Seed......................: {cfg.seed}')
     log.info(f'Output directory..........: {cfg.save_dir}')
 
-    metadata = process_metadata(cfg.dataset_dir, cfg.exclude_classes)
+    metadata = process_metadata(cfg.dataset_dir, cfg.exclude_features)
 
     metadata_split = split_dataset(metadata, cfg.train_size, cfg.seed)
 
-    prepare_coco(metadata_split, cfg.box_extension, cfg.save_dir)
+    df = prepare_coco(metadata_split, cfg.box_extension, cfg.save_dir)
+
+    save_subset_metadata(df, cfg.save_dir)
 
     log.info('Complete')
 

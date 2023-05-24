@@ -17,7 +17,7 @@ CLASS_MAP = {
     'Alveolar edema': 3,
 }
 
-FIGURE_MAP = {
+FEATURE_MAP = {
     'Cephalization': 1,
     'Heart': 2,
     'Artery': 3,
@@ -29,9 +29,9 @@ FIGURE_MAP = {
     'Infiltrate': 9,
 }
 
-FIGURE_MAP_REVERSED = dict((v, k) for k, v in FIGURE_MAP.items())
+FEATURE_MAP_REVERSED = dict((v, k) for k, v in FEATURE_MAP.items())
 
-FIGURE_TYPE = {
+FEATURE_TYPE = {
     'Cephalization': 'line',
     'Artery': 'bitmap',
     'Heart': 'rectangle',
@@ -51,8 +51,9 @@ METADATA_COLUMNS = [
     'Dataset',
     'Image width',
     'Image height',
-    'Figure ID',
-    'Figure',
+    'Image ratio',
+    'Feature ID',
+    'Feature',
     'Source type',
     'Reference type',
     'Match',
@@ -64,9 +65,13 @@ METADATA_COLUMNS = [
     'yc',
     'Box width',
     'Box height',
+    'Box ratio',
+    'Box area',
+    'Box label',
     'RP',
     'Mask',
     'Points',
+    'View',
     'Class ID',
     'Class',
 ]
@@ -231,8 +236,8 @@ def get_object_box(
     if obj['geometryType'] == 'bitmap':
         bitmap = convert_base64_to_image(obj['bitmap']['data'])
         x1, y1 = obj['bitmap']['origin'][0], obj['bitmap']['origin'][1]
-        x2 = x1 + bitmap.shape[0]
-        y2 = y1 + bitmap.shape[1]
+        x2 = x1 + bitmap.shape[1]
+        y2 = y1 + bitmap.shape[0]
     else:
         xs = [x[0] for x in obj['points']['exterior']]
         ys = [x[1] for x in obj['points']['exterior']]
@@ -266,5 +271,21 @@ def get_box_sizes(
     box_height = y2 - y1
     xc = x1 + box_width // 2
     yc = y1 + box_height // 2
+    box_area = box_height * box_width
+    box_ratio = box_height / box_width
+    if box_area < 32 * 32:
+        box_label = 'Small'
+    elif 32 * 32 <= box_area <= 96 * 96:
+        box_label = 'Medium'
+    else:
+        box_label = 'Large'
 
-    return {'xc': xc, 'yc': yc, 'Box width': box_width, 'Box height': box_height}
+    return {
+        'xc': xc,
+        'yc': yc,
+        'Box width': box_width,
+        'Box height': box_height,
+        'Box ratio': box_ratio,
+        'Box area': box_area,
+        'Box label': box_label,
+    }

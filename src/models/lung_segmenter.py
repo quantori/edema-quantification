@@ -81,7 +81,7 @@ class LungSegmenter:
         self.model.eval()
 
         # Log model parameters
-        logging.info(f'Model.....................:')
+        logging.info('Model.....................:')
         logging.info(f'Model dir.................: {model_dir}')
         logging.info(f'Model name................: {self.model_name}')
         logging.info(f'Input size................: {self.input_size}')

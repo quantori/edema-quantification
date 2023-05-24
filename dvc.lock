@@ -1,6 +1,6 @@
 schema: '2.0'
 stages:
-  sly_to_int:
+  convert_sly_to_int:
     cmd:
     - rm -rf data/interim
     - python src/data/convert_sly_to_int.py
@@ -9,34 +9,53 @@ stages:
       md5: 370c899ba0c5fcea7f28b46d00a38298
       size: 106
     - path: data/sly
-      md5: ef84515f9f19efacd1572154b70d9ebd.dir
-      size: 8210599801
-      nfiles: 2002
+      md5: 9c3485f0efb66595e951fc7ac7dbfa71.dir
+      size: 8210582398
+      nfiles: 2001
     - path: src/data/convert_sly_to_int.py
-      md5: 4465ae582b50529429a49430439e5ec5
-      size: 5479
+      md5: 2333302ecd56099f0efaafd60884ec2c
+      size: 5687
+    - path: src/data/utils_sly.py
+      md5: 03ac95e00a1a1a9b21ec527fbd18e07b
+      size: 7204
     outs:
-    - path: data/interim
-      md5: 199ed5a7394d5913c413f4c8603782c0.dir
-      size: 4424592880
-      nfiles: 1001
-  int_to_coco:
+    - path: data/interim/img
+      md5: bbfe62305cf388907a4e2bc6e49497ac.dir
+      size: 4423453676
+      nfiles: 1000
+    - path: data/interim/metadata.xlsx
+      md5: 93dce8a5b9c21d6746305b853c8e2ee0
+      size: 1327798
+  convert_int_to_coco:
     cmd:
     - rm -rf data/coco
     - python src/data/convert_int_to_coco.py
     deps:
     - path: configs/convert_int_to_coco.yaml
-      md5: 029b1261e1393a3af569eeaa4de25f7f
-      size: 329
-    - path: data/interim
-      md5: 199ed5a7394d5913c413f4c8603782c0.dir
-      size: 4424592880
-      nfiles: 1001
+      md5: 1a5f420db7c924fd7d626782c5c9acd9
+      size: 330
+    - path: data/interim/img
+      md5: bbfe62305cf388907a4e2bc6e49497ac.dir
+      size: 4423453676
+      nfiles: 1000
+    - path: data/interim/metadata.xlsx
+      md5: 93dce8a5b9c21d6746305b853c8e2ee0
+      size: 1327798
     - path: src/data/convert_int_to_coco.py
-      md5: e230489e54dba3998276cfdd89e7284c
-      size: 6991
+      md5: 29efa43ca98ed8f81647ab7d4df16034
+      size: 8205
+    - path: src/data/utils_coco.py
+      md5: 7f75fc2154f6eecaaa6e0662fda163a4
+      size: 1684
     outs:
-    - path: data/coco
-      md5: 78261165b4aaf5b9eef7b24a3d6e148c.dir
-      size: 4425292503
-      nfiles: 1003
+    - path: data/coco/metadata.xlsx
+      md5: b963394f2e13b33363356a23db2b339a
+      size: 732986
+    - path: data/coco/test
+      md5: 7738ac736c50b080fa385ef6554879dc.dir
+      size: 864183067
+      nfiles: 202
+    - path: data/coco/train
+      md5: 628e1937c1bef034dfccee9ea6adac43.dir
+      size: 3560665061
+      nfiles: 802
