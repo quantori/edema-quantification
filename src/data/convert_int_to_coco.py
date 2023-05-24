@@ -4,6 +4,7 @@ import os
 from typing import List
 
 import albumentations as A
+import cv2
 import hydra
 import pandas as pd
 from omegaconf import DictConfig, OmegaConf
@@ -22,7 +23,7 @@ def _modify_box_geometry(
     df: pd.DataFrame,
     box_extension: dict,
 ) -> pd.DataFrame:
-    for idx in df.index:
+    for idx in tqdm(df.index, desc='Modify box geometry', unit=' boxes'):
         box_extension_feature = box_extension[FEATURE_MAP_REVERSED[df.at[idx, 'Feature ID']]]
         df.at[idx, 'x1'] -= box_extension_feature[0]
         df.at[idx, 'y1'] -= box_extension_feature[1]
@@ -47,12 +48,55 @@ def _modify_image_geometry(
     output_size: List[int],
 ) -> pd.DataFrame:
     # TODO: update sizes of images and boxes
-    A.Compose(
+    transform = A.Compose(
         [
-            A.LongestMaxSize(max_size=1024, interpolation=1),
-            A.PadIfNeeded(min_height=1024, min_width=1024, border_mode=0, value=(0, 0, 0)),
+            A.LongestMaxSize(
+                max_size=max(output_size),
+                interpolation=1,
+                p=1.0,
+            ),
+            A.PadIfNeeded(
+                min_width=output_size[0],
+                min_height=output_size[1],
+                position='center',
+                border_mode=cv2.BORDER_CONSTANT,
+                value=0,
+                p=1.0,
+            ),
+            # FIXME: CenterCrop sometimes cut out a part of the lungs
+            A.CenterCrop(
+                width=output_size[0],
+                height=output_size[1],
+            ),
         ],
+        bbox_params=A.BboxParams(
+            format='pascal_voc',
+            min_area=0,
+            min_visibility=0,
+            label_fields=['class_labels'],
+        ),
     )
+
+    for idx in tqdm(df.index):
+        img_path = df.at[idx, 'Image path']
+        img = cv2.imread(img_path)
+        box = [
+            int(df.at[idx, 'x1']),
+            int(df.at[idx, 'y1']),
+            int(df.at[idx, 'x2']),
+            int(df.at[idx, 'y2']),
+        ]
+        feature = df.at[idx, 'Feature']
+
+        trans = transform(
+            image=img,
+            bboxes=[box],
+            class_labels=[feature],
+        )
+        img_trans = trans['image']
+        box_trans = [round(val) for val in trans['bboxes'][0]]
+        print(img_trans)
+        print(box_trans)
 
     return df
 
@@ -63,7 +107,7 @@ def process_metadata(
     box_extension: dict,
     excluded_features: List[str] = None,
 ) -> pd.DataFrame:
-    """Extract additional meta.
+    """Process dataset metadata.
 
     Args:
         dataset_dir: a path to the directory containing series with images and labels
