@@ -3,6 +3,7 @@ import logging
 import os
 from typing import List
 
+import albumentations as A
 import hydra
 import pandas as pd
 from omegaconf import DictConfig, OmegaConf
@@ -11,28 +12,83 @@ from tqdm import tqdm
 
 from src.data.utils import copy_files
 from src.data.utils_coco import get_ann_info, get_img_info
-from src.data.utils_sly import FEATURE_MAP
+from src.data.utils_sly import FEATURE_MAP, FEATURE_MAP_REVERSED, get_box_sizes
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 
+def _modify_box_geometry(
+    df: pd.DataFrame,
+    box_extension: dict,
+) -> pd.DataFrame:
+    for idx in df.index:
+        box_extension_feature = box_extension[FEATURE_MAP_REVERSED[df.at[idx, 'Feature ID']]]
+        df.at[idx, 'x1'] -= box_extension_feature[0]
+        df.at[idx, 'y1'] -= box_extension_feature[1]
+        df.at[idx, 'x2'] += box_extension_feature[0]
+        df.at[idx, 'y2'] += box_extension_feature[1]
+        box_sizes = get_box_sizes(
+            x1=df.at[idx, 'x1'],
+            y1=df.at[idx, 'y1'],
+            x2=df.at[idx, 'x2'],
+            y2=df.at[idx, 'y2'],
+        )
+        df.at[
+            idx,
+            ['xc', 'yc', 'Box width', 'Box height', 'Box ratio', 'Box area', 'Box label'],
+        ] = box_sizes
+
+    return df
+
+
+def _modify_image_geometry(
+    df: pd.DataFrame,
+    output_size: List[int],
+) -> pd.DataFrame:
+    # TODO: update sizes of images and boxes
+    A.Compose(
+        [
+            A.LongestMaxSize(max_size=1024, interpolation=1),
+            A.PadIfNeeded(min_height=1024, min_width=1024, border_mode=0, value=(0, 0, 0)),
+        ],
+    )
+
+    return df
+
+
 def process_metadata(
     dataset_dir: str,
-    exclude_features: List[str] = None,
+    output_size: List[int],
+    box_extension: dict,
+    excluded_features: List[str] = None,
 ) -> pd.DataFrame:
     """Extract additional meta.
 
     Args:
-        dataset_dir: path to directory containing series with images and labels inside
-        exclude_features: a list of features to exclude from the COCO dataset
+        dataset_dir: a path to the directory containing series with images and labels
+        output_size: a list specifying the desired image size
+        box_extension: a dictionary specifying box offsets for each feature
+        excluded_features: a list of features to be excluded from the COCO dataset
     Returns:
-        meta: data frame derived from a meta file
+        metadata: an updated metadata dataframe
     """
     metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
     metadata = metadata[metadata['View'] == 'Frontal']
-    metadata = metadata[~metadata['Feature'].isin(exclude_features)]
+    metadata = metadata[~metadata['Feature'].isin(excluded_features)]
     metadata = metadata.dropna(subset=['Class ID'])
+    metadata = _modify_box_geometry(
+        df=metadata,
+        box_extension=box_extension,
+    )
+    if output_size:
+        assert len(output_size) == 2 and all(
+            isinstance(val, int) for val in output_size
+        ), 'output_size must be a list of two integers'
+        metadata = _modify_image_geometry(
+            df=metadata,
+            output_size=output_size,
+        )
 
     return metadata
 
@@ -222,7 +278,7 @@ def main(cfg: DictConfig) -> None:
     Args:
         dataset_dir: path to directory containing series with images and labels inside
         save_dir: directory where split datasets are saved to
-        exclude_features: a list of features to exclude from the COCO dataset
+        excluded_features: a list of features to exclude from the COCO dataset
         train_size: a fraction used to split dataset into train and test subsets
         box_extension: a value used to extend or contract object box sizes
         seed: random value for splitting train and test subsets
@@ -230,19 +286,37 @@ def main(cfg: DictConfig) -> None:
         None
     """
     log.info(f'Input directory...........: {cfg.dataset_dir}')
-    log.info(f'Excluded features.........: {cfg.exclude_features}')
+    log.info(f'Output size...............: {cfg.output_size}')
+    log.info(f'Excluded features.........: {cfg.excluded_features}')
     log.info(f'Train/Test split..........: {cfg.train_size:.2f} / {(1 - cfg.train_size):.2f}')
     log.info(f'Box extension.............: {cfg.box_extension}')
     log.info(f'Seed......................: {cfg.seed}')
     log.info(f'Output directory..........: {cfg.save_dir}')
 
-    metadata = process_metadata(cfg.dataset_dir, cfg.exclude_features)
+    metadata = process_metadata(
+        dataset_dir=cfg.dataset_dir,
+        output_size=cfg.output_size,
+        box_extension=cfg.box_extension,
+        excluded_features=cfg.excluded_features,
+    )
 
-    metadata_split = split_dataset(metadata, cfg.train_size, cfg.seed)
+    metadata_split = split_dataset(
+        metadata=metadata,
+        train_size=cfg.train_size,
+        seed=cfg.seed,
+    )
 
-    df = prepare_coco(metadata_split, cfg.box_extension, cfg.save_dir)
+    # TODO: remove box_extension, as it is used in process_metadata
+    df = prepare_coco(
+        df=metadata_split,
+        box_extension=cfg.box_extension,
+        save_dir=cfg.save_dir,
+    )
 
-    save_subset_metadata(df, cfg.save_dir)
+    save_subset_metadata(
+        df=df,
+        save_dir=cfg.save_dir,
+    )
 
     log.info('Complete')
 
