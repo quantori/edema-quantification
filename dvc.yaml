@@ -1,5 +1,6 @@
 stages:
-  sly_to_int:
+
+  convert_sly_to_int:
     cmd:
     - rm -rf data/interim
     - python src/data/convert_sly_to_int.py
@@ -11,7 +12,8 @@ stages:
     outs:
     - data/interim/img
     - data/interim/metadata.xlsx
-  int_to_coco:
+
+  convert_int_to_coco:
     cmd:
     - rm -rf data/coco
     - python src/data/convert_int_to_coco.py
