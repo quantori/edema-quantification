@@ -267,8 +267,8 @@ def get_box_sizes(
     Returns:
         dictionary which contains coordinates for rectangle (a center point and a width/height)
     """
-    box_width = x2 - x1
-    box_height = y2 - y1
+    box_width = abs(x2 - x1 + 1)
+    box_height = abs(y2 - y1 + 1)
     xc = x1 + box_width // 2
     yc = y1 + box_height // 2
     box_area = box_height * box_width
