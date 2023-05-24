@@ -55,7 +55,11 @@ def main(cfg: DictConfig):
 
     # create model checkpoint and trainer and start training
     checkpoint = ModelCheckpoint(
-        monitor='f1_val', mode='max', save_top_k=1, save_on_train_epoch_end=False
+        filename='{epoch}-{step}-{f1_val:.3f}',
+        monitor='f1_val',
+        mode='max',
+        save_top_k=1,
+        save_on_train_epoch_end=False,
     )
     trainer = pl.Trainer(
         max_epochs=10,

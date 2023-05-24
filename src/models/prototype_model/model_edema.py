@@ -207,14 +207,10 @@ class EdemaPrototypeNet(pl.LightningModule):
                     t.n += idx + 1
                     t.refresh()
         if mean(f1_all) > self.trainer.logged_metrics['f1_val']:
-            # TODO: implement a fucn to exchange the best model
-            os.remove(self.trainer.checkpoint_callback.best_model_path)
-            self.trainer.save_checkpoint(
-                self.trainer.checkpoint_callback.format_checkpoint_name(
-                    dict(epoch=self.current_epoch, step=self.global_step)
-                )
+            _save_new_checkpoint(
+                self.trainer.checkpoint_callback.best_model_path, self.trainer, mean(f1_all)
             )
-        self.log('f1_val', mean(f1_all), prog_bar=True)
+        self.log('f1_val', mean(f1_all), on_step=False, prog_bar=True)
         self.train()
 
     def train_epoch(self, dataloader: DataLoader, t: tqdm):
@@ -948,3 +944,12 @@ def _get_grad_status(block: nn.Module) -> bool:
         raise Exception(
             f'Not all the parmaters in {block.__class__.__name__} have the same grad status'
         )
+
+
+def _save_new_checkpoint(path_best_model: str, trainer: pl.Trainer, f1_val: float = 0) -> None:
+    os.remove(path_best_model)
+    new_checkpoint = trainer.checkpoint_callback.format_checkpoint_name(
+        dict(epoch=trainer.current_epoch, step=trainer.global_step, f1_val=f1_val)
+    )
+    trainer.save_checkpoint(new_checkpoint)
+    trainer.checkpoint_callback.best_model_path = new_checkpoint
