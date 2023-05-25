@@ -4,7 +4,6 @@ import os.path as osp
 from argparse import ArgumentParser
 
 from mmcv import Config
-
 from mmdet.apis import inference_detector, init_detector, show_result_pyplot
 from mmdet.utils import get_root_logger
 
@@ -21,11 +20,19 @@ def parse_args():
         '--wait-time',
         type=float,
         default=1,
-        help='the interval of show (s), 0 is block')
+        help='the interval of show (s), 0 is block',
+    )
     parser.add_argument(
-        '--device', default='cuda:0', help='Device used for inference')
+        '--device',
+        default='cuda:0',
+        help='Device used for inference',
+    )
     parser.add_argument(
-        '--score-thr', type=float, default=0.3, help='bbox score threshold')
+        '--score-thr',
+        type=float,
+        default=0.3,
+        help='bbox score threshold',
+    )
     args = parser.parse_args()
     return args
 
@@ -52,7 +59,8 @@ def inference_model(config_name, checkpoint, args, logger=None):
             args.img,
             result,
             score_thr=args.score_thr,
-            wait_time=args.wait_time)
+            wait_time=args.wait_time,
+        )
     return result
 
 
@@ -69,8 +77,10 @@ def main(args):
             model_info = model_infos[0]
             config_name = model_info['config'].strip()
             print(f'processing: {config_name}', flush=True)
-            checkpoint = osp.join(args.checkpoint_root,
-                                  model_info['checkpoint'].strip())
+            checkpoint = osp.join(
+                args.checkpoint_root,
+                model_info['checkpoint'].strip(),
+            )
             # build the model from a config file and a checkpoint file
             inference_model(config_name, checkpoint, args)
             return
@@ -79,7 +89,9 @@ def main(args):
 
     # test all model
     logger = get_root_logger(
-        log_file='benchmark_test_image.log', log_level=logging.ERROR)
+        log_file='benchmark_test_image.log',
+        log_level=logging.ERROR,
+    )
 
     for model_key in config:
         model_infos = config[model_key]
@@ -88,8 +100,10 @@ def main(args):
         for model_info in model_infos:
             print('processing: ', model_info['config'], flush=True)
             config_name = model_info['config'].strip()
-            checkpoint = osp.join(args.checkpoint_root,
-                                  model_info['checkpoint'].strip())
+            checkpoint = osp.join(
+                args.checkpoint_root,
+                model_info['checkpoint'].strip(),
+            )
             try:
                 # build the model from a config file and a checkpoint file
                 inference_model(config_name, checkpoint, args, logger)

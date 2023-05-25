@@ -27,8 +27,11 @@ def smooth_l1_loss(pred, target, beta=1.0):
 
     assert pred.size() == target.size()
     diff = torch.abs(pred - target)
-    loss = torch.where(diff < beta, 0.5 * diff * diff / beta,
-                       diff - 0.5 * beta)
+    loss = torch.where(
+        diff < beta,
+        0.5 * diff * diff / beta,
+        diff - 0.5 * beta,
+    )
     return loss
 
 
@@ -70,13 +73,9 @@ class SmoothL1Loss(nn.Module):
         self.reduction = reduction
         self.loss_weight = loss_weight
 
-    def forward(self,
-                pred,
-                target,
-                weight=None,
-                avg_factor=None,
-                reduction_override=None,
-                **kwargs):
+    def forward(
+        self, pred, target, weight=None, avg_factor=None, reduction_override=None, **kwargs
+    ):
         """Forward function.
 
         Args:
@@ -91,8 +90,7 @@ class SmoothL1Loss(nn.Module):
                 Defaults to None.
         """
         assert reduction_override in (None, 'none', 'mean', 'sum')
-        reduction = (
-            reduction_override if reduction_override else self.reduction)
+        reduction = reduction_override if reduction_override else self.reduction
         loss_bbox = self.loss_weight * smooth_l1_loss(
             pred,
             target,
@@ -100,7 +98,8 @@ class SmoothL1Loss(nn.Module):
             beta=self.beta,
             reduction=reduction,
             avg_factor=avg_factor,
-            **kwargs)
+            **kwargs
+        )
         return loss_bbox
 
 
@@ -119,12 +118,14 @@ class L1Loss(nn.Module):
         self.reduction = reduction
         self.loss_weight = loss_weight
 
-    def forward(self,
-                pred,
-                target,
-                weight=None,
-                avg_factor=None,
-                reduction_override=None):
+    def forward(
+        self,
+        pred,
+        target,
+        weight=None,
+        avg_factor=None,
+        reduction_override=None,
+    ):
         """Forward function.
 
         Args:
@@ -139,8 +140,12 @@ class L1Loss(nn.Module):
                 Defaults to None.
         """
         assert reduction_override in (None, 'none', 'mean', 'sum')
-        reduction = (
-            reduction_override if reduction_override else self.reduction)
+        reduction = reduction_override if reduction_override else self.reduction
         loss_bbox = self.loss_weight * l1_loss(
-            pred, target, weight, reduction=reduction, avg_factor=avg_factor)
+            pred,
+            target,
+            weight,
+            reduction=reduction,
+            avg_factor=avg_factor,
+        )
         return loss_bbox

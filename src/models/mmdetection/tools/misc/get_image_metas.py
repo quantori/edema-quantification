@@ -23,12 +23,14 @@ def parse_args():
         '--out',
         default='validation-image-metas.pkl',
         help='The output image metas file name. The save dir is in the '
-        'same directory as `dataset.ann_file` path')
+        'same directory as `dataset.ann_file` path',
+    )
     parser.add_argument(
         '--nproc',
         default=4,
         type=int,
-        help='Processes used for get image metas')
+        help='Processes used for get image metas',
+    )
     args = parser.parse_args()
     return args
 
@@ -92,8 +94,9 @@ def main():
         data_infos = get_metas_from_txt_style_ann_file(ann_file)
     else:
         shuffix = ann_file.split('.')[-1]
-        raise NotImplementedError('File name must be csv or txt suffix but '
-                                  f'get {shuffix}')
+        raise NotImplementedError(
+            'File name must be csv or txt suffix but ' f'get {shuffix}',
+        )
 
     print(f'Successfully load annotation file from {ann_file}')
     print(f'Processing {len(data_infos)} images...')

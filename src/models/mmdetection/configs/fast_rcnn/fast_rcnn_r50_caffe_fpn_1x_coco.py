@@ -6,11 +6,17 @@ model = dict(
         style='caffe',
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='open-mmlab://detectron2/resnet50_caffe')))
+            checkpoint='open-mmlab://detectron2/resnet50_caffe',
+        ),
+    ),
+)
 
 # use caffe img_norm
 img_norm_cfg = dict(
-    mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False)
+    mean=[103.530, 116.280, 123.675],
+    std=[1.0, 1.0, 1.0],
+    to_rgb=False,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadProposals', num_max_proposals=2000),
@@ -38,11 +44,14 @@ test_pipeline = [
             dict(type='ToTensor', keys=['proposals']),
             dict(
                 type='ToDataContainer',
-                fields=[dict(key='proposals', stack=False)]),
+                fields=[dict(key='proposals', stack=False)],
+            ),
             dict(type='Collect', keys=['img', 'proposals']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
-    test=dict(pipeline=test_pipeline))
+    test=dict(pipeline=test_pipeline),
+)

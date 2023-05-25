@@ -3,7 +3,6 @@ from os.path import dirname, exists, join
 from unittest.mock import Mock
 
 import pytest
-
 from mmdet.core import BitmapMasks, PolygonMasks
 from mmdet.datasets.builder import DATASETS
 from mmdet.datasets.utils import NumClassCheckHook
@@ -18,6 +17,7 @@ def _get_config_directory():
     except NameError:
         # For IPython development when this __file__ is not defined
         import mmdet
+
         repo_dpath = dirname(dirname(mmdet.__file__))
     config_dpath = join(repo_dpath, 'configs')
     if not exists(config_dpath):
@@ -33,7 +33,7 @@ def _check_numclasscheckhook(detector, config_mod):
         # deal with `RepeatDataset`,`ConcatDataset`,`ClassBalancedDataset`..
         if isinstance(dataset, (list, tuple)):
             dataset = dataset[0]
-        while ('dataset' in dataset):
+        while 'dataset' in dataset:
             dataset = dataset['dataset']
             # ConcatDataset
             if isinstance(dataset, (list, tuple)):
@@ -42,7 +42,8 @@ def _check_numclasscheckhook(detector, config_mod):
 
     compatible_check = NumClassCheckHook()
     dataset_name, CLASSES = get_dataset_name_classes(
-        config_mod['data']['train'])
+        config_mod['data']['train'],
+    )
     if CLASSES is None:
         CLASSES = DATASETS.get(dataset_name).CLASSES
     dummy_runner.data_loader.dataset.CLASSES = CLASSES
@@ -79,8 +80,11 @@ def _check_roi_head(config, head):
         if config.mask_roi_extractor:
             mask_roi_cfg = config.mask_roi_extractor
             mask_roi_extractor = head.mask_roi_extractor
-            _check_roi_extractor(mask_roi_cfg, mask_roi_extractor,
-                                 bbox_roi_extractor)
+            _check_roi_extractor(
+                mask_roi_cfg,
+                mask_roi_extractor,
+                bbox_roi_extractor,
+            )
 
         # check mask head infos
         mask_head = head.mask_head
@@ -97,18 +101,19 @@ def _check_roi_head(config, head):
             assert config.num_stages == len(head.mask_roi_extractor)
 
     elif config['type'] in ['MaskScoringRoIHead']:
-        assert (hasattr(head, 'mask_iou_head')
-                and head.mask_iou_head is not None)
+        assert hasattr(head, 'mask_iou_head') and head.mask_iou_head is not None
         mask_iou_cfg = config.mask_iou_head
         mask_iou_head = head.mask_iou_head
-        assert (mask_iou_cfg.fc_out_channels ==
-                mask_iou_head.fc_mask_iou.in_features)
+        assert mask_iou_cfg.fc_out_channels == mask_iou_head.fc_mask_iou.in_features
 
     elif config['type'] in ['GridRoIHead']:
         grid_roi_cfg = config.grid_roi_extractor
         grid_roi_extractor = head.grid_roi_extractor
-        _check_roi_extractor(grid_roi_cfg, grid_roi_extractor,
-                             bbox_roi_extractor)
+        _check_roi_extractor(
+            grid_roi_cfg,
+            grid_roi_extractor,
+            bbox_roi_extractor,
+        )
 
         config.grid_head.grid_points = head.grid_head.grid_points
 
@@ -122,28 +127,28 @@ def _check_roi_extractor(config, roi_extractor, prev_roi_extractor=None):
     if prev_roi_extractor and isinstance(prev_roi_extractor, nn.ModuleList):
         prev_roi_extractor = prev_roi_extractor[0]
 
-    assert (len(config.featmap_strides) == len(roi_extractor.roi_layers))
-    assert (config.out_channels == roi_extractor.out_channels)
+    assert len(config.featmap_strides) == len(roi_extractor.roi_layers)
+    assert config.out_channels == roi_extractor.out_channels
     from torch.nn.modules.utils import _pair
-    assert (_pair(config.roi_layer.output_size) ==
-            roi_extractor.roi_layers[0].output_size)
+
+    assert _pair(config.roi_layer.output_size) == roi_extractor.roi_layers[0].output_size
 
     if 'use_torchvision' in config.roi_layer:
-        assert (config.roi_layer.use_torchvision ==
-                roi_extractor.roi_layers[0].use_torchvision)
+        assert config.roi_layer.use_torchvision == roi_extractor.roi_layers[0].use_torchvision
     elif 'aligned' in config.roi_layer:
-        assert (
-            config.roi_layer.aligned == roi_extractor.roi_layers[0].aligned)
+        assert config.roi_layer.aligned == roi_extractor.roi_layers[0].aligned
 
     if prev_roi_extractor:
-        assert (roi_extractor.roi_layers[0].aligned ==
-                prev_roi_extractor.roi_layers[0].aligned)
-        assert (roi_extractor.roi_layers[0].use_torchvision ==
-                prev_roi_extractor.roi_layers[0].use_torchvision)
+        assert roi_extractor.roi_layers[0].aligned == prev_roi_extractor.roi_layers[0].aligned
+        assert (
+            roi_extractor.roi_layers[0].use_torchvision
+            == prev_roi_extractor.roi_layers[0].use_torchvision
+        )
 
 
 def _check_mask_head(mask_cfg, mask_head):
     import torch.nn as nn
+
     if isinstance(mask_cfg, list):
         for single_mask_cfg, single_mask_head in zip(mask_cfg, mask_head):
             _check_mask_head(single_mask_cfg, single_mask_head)
@@ -154,19 +159,18 @@ def _check_mask_head(mask_cfg, mask_head):
         assert mask_cfg['type'] == mask_head.__class__.__name__
         assert mask_cfg.in_channels == mask_head.in_channels
         class_agnostic = mask_cfg.get('class_agnostic', False)
-        out_dim = (1 if class_agnostic else mask_cfg.num_classes)
+        out_dim = 1 if class_agnostic else mask_cfg.num_classes
         if hasattr(mask_head, 'conv_logits'):
-            assert (mask_cfg.conv_out_channels ==
-                    mask_head.conv_logits.in_channels)
+            assert mask_cfg.conv_out_channels == mask_head.conv_logits.in_channels
             assert mask_head.conv_logits.out_channels == out_dim
         else:
             assert mask_cfg.fc_out_channels == mask_head.fc_logits.in_features
-            assert (mask_head.fc_logits.out_features == out_dim *
-                    mask_head.output_area)
+            assert mask_head.fc_logits.out_features == out_dim * mask_head.output_area
 
 
 def _check_bbox_head(bbox_cfg, bbox_head):
     import torch.nn as nn
+
     if isinstance(bbox_cfg, list):
         for single_bbox_cfg, single_bbox_head in zip(bbox_cfg, bbox_head):
             _check_bbox_head(single_bbox_cfg, single_bbox_head)
@@ -180,8 +184,8 @@ def _check_bbox_head(bbox_cfg, bbox_head):
             assert bbox_cfg.reg_in_channels == bbox_head.reg_in_channels
 
             cls_out_channels = bbox_cfg.get('cls_out_channels', 1024)
-            assert (cls_out_channels == bbox_head.fc_cls.in_features)
-            assert (bbox_cfg.num_classes + 1 == bbox_head.fc_cls.out_features)
+            assert cls_out_channels == bbox_head.fc_cls.in_features
+            assert bbox_cfg.num_classes + 1 == bbox_head.fc_cls.out_features
 
         elif bbox_cfg['type'] == 'DIIHead':
             assert bbox_cfg['num_ffn_fcs'] == bbox_head.ffn.num_fcs
@@ -192,8 +196,7 @@ def _check_bbox_head(bbox_cfg, bbox_head):
             assert bbox_cfg['in_channels'] == bbox_head.fc_cls.in_features
             assert bbox_cfg['in_channels'] == bbox_head.fc_reg.in_features
             assert bbox_cfg['in_channels'] == bbox_head.attention.embed_dims
-            assert bbox_cfg[
-                'feedforward_channels'] == bbox_head.ffn.feedforward_channels
+            assert bbox_cfg['feedforward_channels'] == bbox_head.ffn.feedforward_channels
 
         else:
             assert bbox_cfg.in_channels == bbox_head.in_channels
@@ -201,18 +204,19 @@ def _check_bbox_head(bbox_cfg, bbox_head):
 
             if with_cls:
                 fc_out_channels = bbox_cfg.get('fc_out_channels', 2048)
-                assert (fc_out_channels == bbox_head.fc_cls.in_features)
+                assert fc_out_channels == bbox_head.fc_cls.in_features
                 if bbox_head.custom_cls_channels:
-                    assert (bbox_head.loss_cls.get_cls_channels(
-                        bbox_head.num_classes) == bbox_head.fc_cls.out_features
-                            )
+                    assert (
+                        bbox_head.loss_cls.get_cls_channels(
+                            bbox_head.num_classes,
+                        )
+                        == bbox_head.fc_cls.out_features
+                    )
                 else:
-                    assert (bbox_cfg.num_classes +
-                            1 == bbox_head.fc_cls.out_features)
+                    assert bbox_cfg.num_classes + 1 == bbox_head.fc_cls.out_features
             with_reg = bbox_cfg.get('with_reg', True)
             if with_reg:
-                out_dim = (4 if bbox_cfg.reg_class_agnostic else 4 *
-                           bbox_cfg.num_classes)
+                out_dim = 4 if bbox_cfg.reg_class_agnostic else 4 * bbox_cfg.num_classes
                 assert bbox_head.fc_reg.out_features == out_dim
 
 
@@ -222,20 +226,20 @@ def _check_anchorhead(config, head):
     assert config.in_channels == head.in_channels
 
     num_classes = (
-        config.num_classes -
-        1 if config.loss_cls.get('use_sigmoid', False) else config.num_classes)
+        config.num_classes - 1 if config.loss_cls.get('use_sigmoid', False) else config.num_classes
+    )
     if config['type'] == 'ATSSHead':
-        assert (config.feat_channels == head.atss_cls.in_channels)
-        assert (config.feat_channels == head.atss_reg.in_channels)
-        assert (config.feat_channels == head.atss_centerness.in_channels)
+        assert config.feat_channels == head.atss_cls.in_channels
+        assert config.feat_channels == head.atss_reg.in_channels
+        assert config.feat_channels == head.atss_centerness.in_channels
     elif config['type'] == 'SABLRetinaHead':
-        assert (config.feat_channels == head.retina_cls.in_channels)
-        assert (config.feat_channels == head.retina_bbox_reg.in_channels)
-        assert (config.feat_channels == head.retina_bbox_cls.in_channels)
+        assert config.feat_channels == head.retina_cls.in_channels
+        assert config.feat_channels == head.retina_bbox_reg.in_channels
+        assert config.feat_channels == head.retina_bbox_cls.in_channels
     else:
-        assert (config.in_channels == head.conv_cls.in_channels)
-        assert (config.in_channels == head.conv_reg.in_channels)
-        assert (head.conv_cls.out_channels == num_classes * head.num_anchors)
+        assert config.in_channels == head.conv_cls.in_channels
+        assert config.in_channels == head.conv_reg.in_channels
+        assert head.conv_cls.out_channels == num_classes * head.num_anchors
         assert head.fc_reg.out_channels == 4 * head.num_anchors
 
 
@@ -251,8 +255,9 @@ def _check_anchorhead(config, head):
         'foveabox/fovea_align_r50_fpn_gn-head_mstrain_640-800_4x4_2x_coco.py',
         'mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain-poly_1x_coco.py',
         'mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain_1x_coco.py',
-        'mask_rcnn/mask_rcnn_r50_fpn_fp16_1x_coco.py'
-    ])
+        'mask_rcnn/mask_rcnn_r50_fpn_fp16_1x_coco.py',
+    ],
+)
 def test_config_data_pipeline(config_rpath):
     """Test whether the data pipeline is valid and can process corner cases.
 
@@ -262,7 +267,6 @@ def test_config_data_pipeline(config_rpath):
     """
     import numpy as np
     from mmcv import Config
-
     from mmdet.datasets.pipelines import Compose
 
     config_dpath = _get_config_directory()
@@ -278,9 +282,11 @@ def test_config_data_pipeline(config_rpath):
             for i in range(num_obj):
                 masks.append([])
                 masks[-1].append(
-                    np.random.uniform(0, min(h - 1, w - 1), (8 + 4 * i, )))
+                    np.random.uniform(0, min(h - 1, w - 1), (8 + 4 * i,)),
+                )
                 masks[-1].append(
-                    np.random.uniform(0, min(h - 1, w - 1), (10 + 4 * i, )))
+                    np.random.uniform(0, min(h - 1, w - 1), (10 + 4 * i,)),
+                )
             masks = PolygonMasks(masks, h, w)
         return masks
 
@@ -301,8 +307,14 @@ def test_config_data_pipeline(config_rpath):
     img = np.random.randint(0, 255, size=(888, 666, 3), dtype=np.uint8)
     if loading_pipeline.get('to_float32', False):
         img = img.astype(np.float32)
-    mode = 'bitmap' if loading_ann_pipeline.get('poly2mask',
-                                                True) else 'polygon'
+    mode = (
+        'bitmap'
+        if loading_ann_pipeline.get(
+            'poly2mask',
+            True,
+        )
+        else 'polygon'
+    )
     results = dict(
         filename='test_img.png',
         ori_filename='test_img.png',
@@ -337,8 +349,9 @@ def test_config_data_pipeline(config_rpath):
     assert output_results is not None
 
     # test empty GT
-    print('Test empty GT with training data pipeline: '
-          f'\n{train_pipeline!r}')
+    print(
+        'Test empty GT with training data pipeline: ' f'\n{train_pipeline!r}',
+    )
     results = dict(
         filename='test_img.png',
         ori_filename='test_img.png',

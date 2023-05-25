@@ -8,7 +8,8 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=1000,
     warmup_ratio=0.1,
-    step=[20, 42, 49, 52])
+    step=[20, 42, 49, 52],
+)
 
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
 # USER SHOULD NOT CHANGE ITS VALUES.

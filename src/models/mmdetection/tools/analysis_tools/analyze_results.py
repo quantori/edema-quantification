@@ -6,7 +6,6 @@ from multiprocessing import Pool
 import mmcv
 import numpy as np
 from mmcv import Config, DictAction
-
 from mmdet.core.evaluation import eval_map
 from mmdet.core.visualization import imshow_gt_det_bboxes
 from mmdet.datasets import build_dataset, get_loading_pipeline
@@ -43,16 +42,24 @@ def bbox_map_eval(det_result, annotation, nproc=4):
         bbox_det_result = [det_result]
     # mAP
     iou_thrs = np.linspace(
-        .5, 0.95, int(np.round((0.95 - .5) / .05)) + 1, endpoint=True)
+        0.5,
+        0.95,
+        int(np.round((0.95 - 0.5) / 0.05)) + 1,
+        endpoint=True,
+    )
 
     processes = []
     workers = Pool(processes=nproc)
     for thr in iou_thrs:
-        p = workers.apply_async(eval_map, (bbox_det_result, [annotation]), {
-            'iou_thr': thr,
-            'logger': 'silent',
-            'nproc': 1
-        })
+        p = workers.apply_async(
+            eval_map,
+            (bbox_det_result, [annotation]),
+            {
+                'iou_thr': thr,
+                'logger': 'silent',
+                'nproc': 1,
+            },
+        )
         processes.append(p)
 
     workers.close()
@@ -80,21 +87,25 @@ class ResultVisualizer:
             with the prediction result. Default: False.
     """
 
-    def __init__(self,
-                 show=False,
-                 wait_time=0,
-                 score_thr=0,
-                 overlay_gt_pred=False):
+    def __init__(
+        self,
+        show=False,
+        wait_time=0,
+        score_thr=0,
+        overlay_gt_pred=False,
+    ):
         self.show = show
         self.wait_time = wait_time
         self.score_thr = score_thr
         self.overlay_gt_pred = overlay_gt_pred
 
-    def _save_image_gts_results(self,
-                                dataset,
-                                results,
-                                performances,
-                                out_dir=None):
+    def _save_image_gts_results(
+        self,
+        dataset,
+        results,
+        performances,
+        out_dir=None,
+    ):
         """Display or save image with groung truths and predictions from a
         model.
 
@@ -137,13 +148,16 @@ class ResultVisualizer:
                 score_thr=self.score_thr,
                 wait_time=self.wait_time,
                 out_file=out_file,
-                overlay_gt_pred=self.overlay_gt_pred)
+                overlay_gt_pred=self.overlay_gt_pred,
+            )
 
-    def evaluate_and_show(self,
-                          dataset,
-                          results,
-                          topk=20,
-                          show_dir='work_dir'):
+    def evaluate_and_show(
+        self,
+        dataset,
+        results,
+        topk=20,
+        show_dir='work_dir',
+    ):
         """Evaluate and show results.
 
         Args:
@@ -163,18 +177,25 @@ class ResultVisualizer:
 
         if isinstance(results[0], dict):
             good_samples, bad_samples = self.panoptic_evaluate(
-                dataset, results, topk=topk)
+                dataset,
+                results,
+                topk=topk,
+            )
         elif isinstance(results[0], list):
             good_samples, bad_samples = self.detection_evaluate(
-                dataset, results, topk=topk)
+                dataset,
+                results,
+                topk=topk,
+            )
         elif isinstance(results[0], tuple):
             results_ = [result[0] for result in results]
             good_samples, bad_samples = self.detection_evaluate(
-                dataset, results_, topk=topk)
+                dataset,
+                results_,
+                topk=topk,
+            )
         else:
-            raise 'The format of result is not supported yet. ' \
-                'Current dict for panoptic segmentation and list ' \
-                'or tuple for object detection are supported.'
+            raise 'The format of result is not supported yet. ' 'Current dict for panoptic segmentation and list ' 'or tuple for object detection are supported.'
 
         good_dir = osp.abspath(osp.join(show_dir, 'good'))
         bad_dir = osp.abspath(osp.join(show_dir, 'bad'))
@@ -208,7 +229,7 @@ class ResultVisualizer:
 
         prog_bar = mmcv.ProgressBar(len(results))
         _mAPs = {}
-        for i, (result, ) in enumerate(zip(results)):
+        for i, (result,) in enumerate(zip(results)):
             # self.dataset[i] should not call directly
             # because there is a risk of mismatch
             data_info = dataset.prepare_train_img(i)
@@ -257,18 +278,22 @@ class ResultVisualizer:
             gt_ann = {
                 'image_id': image_id,
                 'segments_info': gt_json[image_id],
-                'file_name': data_info['img_info']['segm_file']
+                'file_name': data_info['img_info']['segm_file'],
             }
             pred_ann = pred_json[i]
             pq_stat = pq_compute_single_core(
-                i, [(gt_ann, pred_ann)],
+                i,
+                [(gt_ann, pred_ann)],
                 gt_folder,
                 pred_folder,
                 dataset.categories,
                 dataset.file_client,
-                print_log=False)
+                print_log=False,
+            )
             pq_results, classwise_results = pq_stat.pq_average(
-                dataset.categories, isthing=None)
+                dataset.categories,
+                isthing=None,
+            )
             pqs[i] = pq_results['pq']
             prog_bar.update()
 
@@ -285,29 +310,36 @@ class ResultVisualizer:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='MMDet eval image prediction result for each')
+        description='MMDet eval image prediction result for each',
+    )
     parser.add_argument('config', help='test config file path')
     parser.add_argument(
-        'prediction_path', help='prediction path where test pkl result')
+        'prediction_path',
+        help='prediction path where test pkl result',
+    )
     parser.add_argument(
-        'show_dir', help='directory where painted images will be saved')
+        'show_dir',
+        help='directory where painted images will be saved',
+    )
     parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument(
         '--wait-time',
         type=float,
         default=0,
-        help='the interval of show (s), 0 is block')
+        help='the interval of show (s), 0 is block',
+    )
     parser.add_argument(
         '--topk',
         default=20,
         type=int,
-        help='saved Number of the highest topk '
-        'and lowest topk after index sorting')
+        help='saved Number of the highest topk ' 'and lowest topk after index sorting',
+    )
     parser.add_argument(
         '--show-score-thr',
         type=float,
         default=0,
-        help='score threshold (default: 0.)')
+        help='score threshold (default: 0.)',
+    )
     parser.add_argument(
         '--overlay-gt-pred',
         action='store_true',
@@ -315,7 +347,8 @@ def parse_args():
         'If False, predictions and gts will be plotted on two same'
         'image which will be concatenated in vertical direction.'
         'The image above is drawn with gt, and the image below is'
-        'drawn with the prediction result.')
+        'drawn with the prediction result.',
+    )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -325,7 +358,8 @@ def parse_args():
         'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
         'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
         'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+        'is allowed.',
+    )
     args = parser.parse_args()
     return args
 
@@ -348,21 +382,33 @@ def main():
     cfg.data.test.test_mode = True
 
     cfg.data.test.pop('samples_per_gpu', 0)
-    if cfg.data.train.type in ('MultiImageMixDataset', 'ClassBalancedDataset',
-                               'RepeatDataset', 'ConcatDataset'):
+    if cfg.data.train.type in (
+        'MultiImageMixDataset',
+        'ClassBalancedDataset',
+        'RepeatDataset',
+        'ConcatDataset',
+    ):
         cfg.data.test.pipeline = get_loading_pipeline(
-            cfg.data.train.dataset.pipeline)
+            cfg.data.train.dataset.pipeline,
+        )
     else:
         cfg.data.test.pipeline = get_loading_pipeline(cfg.data.train.pipeline)
 
     dataset = build_dataset(cfg.data.test)
     outputs = mmcv.load(args.prediction_path)
 
-    result_visualizer = ResultVisualizer(args.show, args.wait_time,
-                                         args.show_score_thr,
-                                         args.overlay_gt_pred)
+    result_visualizer = ResultVisualizer(
+        args.show,
+        args.wait_time,
+        args.show_score_thr,
+        args.overlay_gt_pred,
+    )
     result_visualizer.evaluate_and_show(
-        dataset, outputs, topk=args.topk, show_dir=args.show_dir)
+        dataset,
+        outputs,
+        topk=args.topk,
+        show_dir=args.show_dir,
+    )
 
 
 if __name__ == '__main__':

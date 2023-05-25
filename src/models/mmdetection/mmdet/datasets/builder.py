@@ -12,13 +12,19 @@ from mmcv.runner import get_dist_info
 from mmcv.utils import TORCH_VERSION, Registry, build_from_cfg, digit_version
 from torch.utils.data import DataLoader
 
-from .samplers import (ClassAwareSampler, DistributedGroupSampler,
-                       DistributedSampler, GroupSampler, InfiniteBatchSampler,
-                       InfiniteGroupBatchSampler)
+from .samplers import (
+    ClassAwareSampler,
+    DistributedGroupSampler,
+    DistributedSampler,
+    GroupSampler,
+    InfiniteBatchSampler,
+    InfiniteGroupBatchSampler,
+)
 
 if platform.system() != 'Windows':
     # https://github.com/pytorch/pytorch/issues/973
     import resource
+
     rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
     base_soft_limit = rlimit[0]
     hard_limit = rlimit[1]
@@ -31,6 +37,7 @@ PIPELINES = Registry('pipeline')
 
 def _concat_dataset(cfg, default_args=None):
     from .dataset_wrappers import ConcatDataset
+
     ann_files = cfg['ann_file']
     img_prefixes = cfg.get('img_prefix', None)
     seg_prefixes = cfg.get('seg_prefix', None)
@@ -57,20 +64,30 @@ def _concat_dataset(cfg, default_args=None):
 
 
 def build_dataset(cfg, default_args=None):
-    from .dataset_wrappers import (ClassBalancedDataset, ConcatDataset,
-                                   MultiImageMixDataset, RepeatDataset)
+    from .dataset_wrappers import (
+        ClassBalancedDataset,
+        ConcatDataset,
+        MultiImageMixDataset,
+        RepeatDataset,
+    )
+
     if isinstance(cfg, (list, tuple)):
         dataset = ConcatDataset([build_dataset(c, default_args) for c in cfg])
     elif cfg['type'] == 'ConcatDataset':
         dataset = ConcatDataset(
             [build_dataset(c, default_args) for c in cfg['datasets']],
-            cfg.get('separate_eval', True))
+            cfg.get('separate_eval', True),
+        )
     elif cfg['type'] == 'RepeatDataset':
         dataset = RepeatDataset(
-            build_dataset(cfg['dataset'], default_args), cfg['times'])
+            build_dataset(cfg['dataset'], default_args),
+            cfg['times'],
+        )
     elif cfg['type'] == 'ClassBalancedDataset':
         dataset = ClassBalancedDataset(
-            build_dataset(cfg['dataset'], default_args), cfg['oversample_thr'])
+            build_dataset(cfg['dataset'], default_args),
+            cfg['oversample_thr'],
+        )
     elif cfg['type'] == 'MultiImageMixDataset':
         cp_cfg = copy.deepcopy(cfg)
         cp_cfg['dataset'] = build_dataset(cp_cfg['dataset'])
@@ -84,17 +101,19 @@ def build_dataset(cfg, default_args=None):
     return dataset
 
 
-def build_dataloader(dataset,
-                     samples_per_gpu,
-                     workers_per_gpu,
-                     num_gpus=1,
-                     dist=True,
-                     shuffle=True,
-                     seed=None,
-                     runner_type='EpochBasedRunner',
-                     persistent_workers=False,
-                     class_aware_sampler=None,
-                     **kwargs):
+def build_dataloader(
+    dataset,
+    samples_per_gpu,
+    workers_per_gpu,
+    num_gpus=1,
+    dist=True,
+    shuffle=True,
+    seed=None,
+    runner_type='EpochBasedRunner',
+    persistent_workers=False,
+    class_aware_sampler=None,
+    **kwargs
+):
     """Build PyTorch DataLoader.
 
     In distributed training, each GPU/process has a dataloader.
@@ -144,7 +163,12 @@ def build_dataloader(dataset,
         # `DistributedDataParallel`
         if shuffle:
             batch_sampler = InfiniteGroupBatchSampler(
-                dataset, batch_size, world_size, rank, seed=seed)
+                dataset,
+                batch_size,
+                world_size,
+                rank,
+                seed=seed,
+            )
         else:
             batch_sampler = InfiniteBatchSampler(
                 dataset,
@@ -152,7 +176,8 @@ def build_dataloader(dataset,
                 world_size,
                 rank,
                 seed=seed,
-                shuffle=False)
+                shuffle=False,
+            )
         batch_size = 1
         sampler = None
     else:
@@ -166,31 +191,55 @@ def build_dataloader(dataset,
                 world_size,
                 rank,
                 seed=seed,
-                num_sample_class=num_sample_class)
+                num_sample_class=num_sample_class,
+            )
         elif dist:
             # DistributedGroupSampler will definitely shuffle the data to
             # satisfy that images on each GPU are in the same group
             if shuffle:
                 sampler = DistributedGroupSampler(
-                    dataset, samples_per_gpu, world_size, rank, seed=seed)
+                    dataset,
+                    samples_per_gpu,
+                    world_size,
+                    rank,
+                    seed=seed,
+                )
             else:
                 sampler = DistributedSampler(
-                    dataset, world_size, rank, shuffle=False, seed=seed)
+                    dataset,
+                    world_size,
+                    rank,
+                    shuffle=False,
+                    seed=seed,
+                )
         else:
-            sampler = GroupSampler(dataset,
-                                   samples_per_gpu) if shuffle else None
+            sampler = (
+                GroupSampler(
+                    dataset,
+                    samples_per_gpu,
+                )
+                if shuffle
+                else None
+            )
         batch_sampler = None
 
-    init_fn = partial(
-        worker_init_fn, num_workers=num_workers, rank=rank,
-        seed=seed) if seed is not None else None
+    init_fn = (
+        partial(
+            worker_init_fn,
+            num_workers=num_workers,
+            rank=rank,
+            seed=seed,
+        )
+        if seed is not None
+        else None
+    )
 
-    if (TORCH_VERSION != 'parrots'
-            and digit_version(TORCH_VERSION) >= digit_version('1.7.0')):
+    if TORCH_VERSION != 'parrots' and digit_version(TORCH_VERSION) >= digit_version('1.7.0'):
         kwargs['persistent_workers'] = persistent_workers
     elif persistent_workers is True:
-        warnings.warn('persistent_workers is invalid because your pytorch '
-                      'version is lower than 1.7.0')
+        warnings.warn(
+            'persistent_workers is invalid because your pytorch ' 'version is lower than 1.7.0',
+        )
 
     data_loader = DataLoader(
         dataset,
@@ -201,7 +250,8 @@ def build_dataloader(dataset,
         collate_fn=partial(collate, samples_per_gpu=samples_per_gpu),
         pin_memory=kwargs.pop('pin_memory', False),
         worker_init_fn=init_fn,
-        **kwargs)
+        **kwargs
+    )
 
     return data_loader
 

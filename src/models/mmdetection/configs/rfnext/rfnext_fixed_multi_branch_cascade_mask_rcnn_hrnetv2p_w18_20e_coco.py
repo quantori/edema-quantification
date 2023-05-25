@@ -3,8 +3,7 @@ _base_ = '../hrnet/cascade_mask_rcnn_hrnetv2p_w32_20e_coco.py'
 custom_hooks = [
     dict(
         mode='fixed_multi_branch',
-        rfstructure_file=  # noqa
-        './configs/rfnext/search_log/cascade_mask_rcnn_hrnetv2p_w18_20e_coco/local_search_config_step11.json',  # noqa
+        rfstructure_file='./configs/rfnext/search_log/cascade_mask_rcnn_hrnetv2p_w18_20e_coco/local_search_config_step11.json',  # noqa  # noqa
         verbose=True,
         by_epoch=True,
         config=dict(
@@ -17,5 +16,8 @@ custom_hooks = [
                 mmin=1,
                 mmax=24,
                 num_branches=2,
-                skip_layer=[])))
+                skip_layer=[],
+            ),
+        ),
+    ),
 ]

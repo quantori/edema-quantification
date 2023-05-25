@@ -11,24 +11,40 @@ model = dict(
         style='caffe',
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='open-mmlab://detectron2/resnet50_caffe')),
+            checkpoint='open-mmlab://detectron2/resnet50_caffe',
+        ),
+    ),
     roi_head=dict(
         bbox_head=dict(
             bbox_coder=dict(target_stds=[0.04, 0.04, 0.08, 0.08]),
             loss_cls=dict(
-                type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.5),
-            loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0))),
+                type='CrossEntropyLoss',
+                use_sigmoid=False,
+                loss_weight=1.5,
+            ),
+            loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0),
+        ),
+    ),
     # model training and testing settings
     train_cfg=dict(
         rcnn=dict(
             assigner=dict(
-                pos_iou_thr=0.65, neg_iou_thr=0.65, min_pos_iou=0.65),
-            sampler=dict(num=256))),
-    test_cfg=dict(rcnn=dict(score_thr=1e-3)))
+                pos_iou_thr=0.65,
+                neg_iou_thr=0.65,
+                min_pos_iou=0.65,
+            ),
+            sampler=dict(num=256),
+        ),
+    ),
+    test_cfg=dict(rcnn=dict(score_thr=1e-3)),
+)
 dataset_type = 'CocoDataset'
 data_root = 'data/coco/'
 img_norm_cfg = dict(
-    mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False)
+    mean=[103.530, 116.280, 123.675],
+    std=[1.0, 1.0, 1.0],
+    to_rgb=False,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadProposals', num_max_proposals=300),
@@ -56,22 +72,27 @@ test_pipeline = [
             dict(type='ToTensor', keys=['proposals']),
             dict(
                 type='ToDataContainer',
-                fields=[dict(key='proposals', stack=False)]),
+                fields=[dict(key='proposals', stack=False)],
+            ),
             dict(type='Collect', keys=['img', 'proposals']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     train=dict(
-        proposal_file=data_root +
-        'proposals/crpn_r50_caffe_fpn_1x_train2017.pkl',
-        pipeline=train_pipeline),
+        proposal_file=data_root + 'proposals/crpn_r50_caffe_fpn_1x_train2017.pkl',
+        pipeline=train_pipeline,
+    ),
     val=dict(
-        proposal_file=data_root +
-        'proposals/crpn_r50_caffe_fpn_1x_val2017.pkl',
-        pipeline=test_pipeline),
+        proposal_file=data_root + 'proposals/crpn_r50_caffe_fpn_1x_val2017.pkl',
+        pipeline=test_pipeline,
+    ),
     test=dict(
-        proposal_file=data_root +
-        'proposals/crpn_r50_caffe_fpn_1x_val2017.pkl',
-        pipeline=test_pipeline))
+        proposal_file=data_root + 'proposals/crpn_r50_caffe_fpn_1x_val2017.pkl',
+        pipeline=test_pipeline,
+    ),
+)
 optimizer_config = dict(
-    _delete_=True, grad_clip=dict(max_norm=35, norm_type=2))
+    _delete_=True,
+    grad_clip=dict(max_norm=35, norm_type=2),
+)

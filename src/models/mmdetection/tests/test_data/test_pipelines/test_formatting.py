@@ -2,14 +2,14 @@
 import os.path as osp
 
 from mmcv.utils import build_from_cfg
-
 from mmdet.datasets.builder import PIPELINES
 
 
 def test_default_format_bundle():
     results = dict(
         img_prefix=osp.join(osp.dirname(__file__), '../../data'),
-        img_info=dict(filename='color.jpg'))
+        img_info=dict(filename='color.jpg'),
+    )
     load = dict(type='LoadImageFromFile')
     load = build_from_cfg(load, PIPELINES)
     bundle = dict(type='DefaultFormatBundle')

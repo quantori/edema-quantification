@@ -11,10 +11,9 @@ import pytest
 import torch
 import torch.nn as nn
 from mmcv.runner import EpochBasedRunner
-from torch.utils.data import DataLoader
-
 from mmdet.core.evaluation import DistEvalHook, EvalHook
 from mmdet.datasets import DATASETS, CocoDataset, CustomDataset, build_dataset
+from torch.utils.data import DataLoader
 
 
 def _create_dummy_coco_json(json_name):
@@ -61,48 +60,63 @@ def _create_dummy_coco_json(json_name):
         'iscrowd': 0,
     }
 
-    categories = [{
-        'id': 0,
-        'name': 'car',
-        'supercategory': 'car',
-    }]
+    categories = [
+        {
+            'id': 0,
+            'name': 'car',
+            'supercategory': 'car',
+        },
+    ]
 
     fake_json = {
         'images': [image],
-        'annotations':
-        [annotation_1, annotation_2, annotation_3, annotation_4],
-        'categories': categories
+        'annotations': [annotation_1, annotation_2, annotation_3, annotation_4],
+        'categories': categories,
     }
 
     mmcv.dump(fake_json, json_name)
 
 
 def _create_dummy_custom_pkl(pkl_name):
-    fake_pkl = [{
-        'filename': 'fake_name.jpg',
-        'width': 640,
-        'height': 640,
-        'ann': {
-            'bboxes':
-            np.array([[50, 60, 70, 80], [100, 120, 130, 150],
-                      [150, 160, 190, 200], [250, 260, 350, 360]]),
-            'labels':
-            np.array([0, 0, 0, 0])
-        }
-    }]
+    fake_pkl = [
+        {
+            'filename': 'fake_name.jpg',
+            'width': 640,
+            'height': 640,
+            'ann': {
+                'bboxes': np.array(
+                    [
+                        [50, 60, 70, 80],
+                        [100, 120, 130, 150],
+                        [150, 160, 190, 200],
+                        [250, 260, 350, 360],
+                    ],
+                ),
+                'labels': np.array([0, 0, 0, 0]),
+            },
+        },
+    ]
     mmcv.dump(fake_pkl, pkl_name)
 
 
 def _create_dummy_results():
     boxes = [
-        np.array([[50, 60, 70, 80, 1.0], [100, 120, 130, 150, 0.98],
-                  [150, 160, 190, 200, 0.96], [250, 260, 350, 360, 0.95]])
+        np.array(
+            [
+                [50, 60, 70, 80, 1.0],
+                [100, 120, 130, 150, 0.98],
+                [150, 160, 190, 200, 0.96],
+                [250, 260, 350, 360, 0.95],
+            ],
+        ),
     ]
     return [boxes]
 
 
-@pytest.mark.parametrize('config_path',
-                         ['./configs/_base_/datasets/voc0712.py'])
+@pytest.mark.parametrize(
+    'config_path',
+    ['./configs/_base_/datasets/voc0712.py'],
+)
 def test_dataset_init(config_path, monkeypatch):
     data_config = mmcv.Config.fromfile(config_path)
     if 'data' not in data_config:
@@ -124,7 +138,10 @@ def test_dataset_evaluation():
 
     # test single coco dataset evaluation
     coco_dataset = CocoDataset(
-        ann_file=fake_json_file, classes=('car', ), pipeline=[])
+        ann_file=fake_json_file,
+        classes=('car',),
+        pipeline=[],
+    )
     fake_results = _create_dummy_results()
     eval_results = coco_dataset.evaluate(fake_results, classwise=True)
     assert eval_results['bbox_mAP'] == 1
@@ -138,8 +155,9 @@ def test_dataset_evaluation():
     coco_cfg = dict(
         type='CocoDataset',
         ann_file=fake_json_file,
-        classes=('car', ),
-        pipeline=[])
+        classes=('car',),
+        pipeline=[],
+    )
     concat_cfgs = [coco_cfg, coco_cfg]
     concat_dataset = build_dataset(concat_cfgs)
     eval_results = concat_dataset.evaluate(fake_concat_results)
@@ -154,8 +172,9 @@ def test_dataset_evaluation():
     coco_cfg = dict(
         type='CocoDataset',
         ann_file=[fake_json_file, fake_json_file],
-        classes=('car', ),
-        pipeline=[])
+        classes=('car',),
+        pipeline=[],
+    )
     concat_dataset = build_dataset(coco_cfg)
     eval_results = concat_dataset.evaluate(fake_concat_results)
     assert eval_results['0_bbox_mAP'] == 1
@@ -171,7 +190,10 @@ def test_dataset_evaluation():
 
     # test single custom dataset evaluation
     custom_dataset = CustomDataset(
-        ann_file=fake_pkl_file, classes=('car', ), pipeline=[])
+        ann_file=fake_pkl_file,
+        classes=('car',),
+        pipeline=[],
+    )
     fake_results = _create_dummy_results()
     eval_results = custom_dataset.evaluate(fake_results)
     assert eval_results['mAP'] == 1
@@ -183,8 +205,9 @@ def test_dataset_evaluation():
     custom_cfg = dict(
         type='CustomDataset',
         ann_file=fake_pkl_file,
-        classes=('car', ),
-        pipeline=[])
+        classes=('car',),
+        pipeline=[],
+    )
     concat_cfgs = [custom_cfg, custom_cfg]
     concat_dataset = build_dataset(concat_cfgs)
     eval_results = concat_dataset.evaluate(fake_concat_results)
@@ -195,8 +218,9 @@ def test_dataset_evaluation():
     concat_cfg = dict(
         type='CustomDataset',
         ann_file=[fake_pkl_file, fake_pkl_file],
-        classes=('car', ),
-        pipeline=[])
+        classes=('car',),
+        pipeline=[],
+    )
     concat_dataset = build_dataset(concat_cfg)
     eval_results = concat_dataset.evaluate(fake_concat_results)
     assert eval_results['0_mAP'] == 1
@@ -206,12 +230,12 @@ def test_dataset_evaluation():
     concat_cfg = dict(
         type='ConcatDataset',
         datasets=[custom_cfg, custom_cfg],
-        separate_eval=False)
+        separate_eval=False,
+    )
     concat_dataset = build_dataset(concat_cfg)
     eval_results = concat_dataset.evaluate(fake_concat_results, metric='mAP')
     assert eval_results['mAP'] == 1
-    assert len(concat_dataset.datasets[0].data_infos) == \
-        len(concat_dataset.datasets[1].data_infos)
+    assert len(concat_dataset.datasets[0].data_infos) == len(concat_dataset.datasets[1].data_infos)
     assert len(concat_dataset.datasets[0].data_infos) == 1
     tmp_dir.cleanup()
 
@@ -277,7 +301,11 @@ def test_evaluation_hook(EvalHookParam):
     # interval is 2 when it is less than 3 epoch, otherwise it is 1.
     runner = _build_demo_runner()
     evalhook = EvalHookParam(
-        dataloader, start=0, interval=2, dynamic_intervals=[(3, 1)])
+        dataloader,
+        start=0,
+        interval=2,
+        dynamic_intervals=[(3, 1)],
+    )
     evalhook.evaluate = MagicMock()
     runner.register_hook(evalhook)
     runner.run([dataloader], [('train', 1)], 4)
@@ -316,9 +344,7 @@ def test_evaluation_hook(EvalHookParam):
 
 
 def _build_demo_runner():
-
     class Model(nn.Module):
-
         def __init__(self):
             super().__init__()
             self.linear = nn.Linear(2, 1)
@@ -336,13 +362,21 @@ def _build_demo_runner():
     tmp_dir = tempfile.mkdtemp()
 
     runner = EpochBasedRunner(
-        model=model, work_dir=tmp_dir, logger=logging.getLogger())
+        model=model,
+        work_dir=tmp_dir,
+        logger=logging.getLogger(),
+    )
     return runner
 
 
-@pytest.mark.parametrize('classes, expected_length', [(['bus'], 2),
-                                                      (['car'], 1),
-                                                      (['bus', 'car'], 2)])
+@pytest.mark.parametrize(
+    'classes, expected_length',
+    [
+        (['bus'], 2),
+        (['car'], 1),
+        (['bus', 'car'], 2),
+    ],
+)
 def test_allow_empty_images(classes, expected_length):
     dataset_class = DATASETS.get('CocoDataset')
     # Filter empty images
@@ -351,7 +385,8 @@ def test_allow_empty_images(classes, expected_length):
         img_prefix='tests/data',
         pipeline=[],
         classes=classes,
-        filter_empty_gt=True)
+        filter_empty_gt=True,
+    )
 
     # Get all
     full_dataset = dataset_class(
@@ -359,7 +394,8 @@ def test_allow_empty_images(classes, expected_length):
         img_prefix='tests/data',
         pipeline=[],
         classes=classes,
-        filter_empty_gt=False)
+        filter_empty_gt=False,
+    )
 
     assert len(filtered_dataset) == expected_length
     assert len(filtered_dataset.img_ids) == expected_length

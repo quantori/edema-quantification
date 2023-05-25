@@ -11,5 +11,9 @@ model = dict(
         style='pytorch',
         dcn=dict(type='DCNv2', deform_groups=1, fallback_on_stride=False),
         stage_with_dcn=(False, True, True, True),
-        init_cfg=dict(type='Pretrained',
-                      checkpoint='torchvision://resnet101')))
+        init_cfg=dict(
+            type='Pretrained',
+            checkpoint='torchvision://resnet101',
+        ),
+    ),
+)

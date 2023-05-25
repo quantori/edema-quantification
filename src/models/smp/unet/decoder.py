@@ -7,12 +7,12 @@ from ..base import modules as md
 
 class DecoderBlock(nn.Module):
     def __init__(
-            self,
-            in_channels,
-            skip_channels,
-            out_channels,
-            use_batchnorm=True,
-            attention_type=None,
+        self,
+        in_channels,
+        skip_channels,
+        out_channels,
+        use_batchnorm=True,
+        attention_type=None,
     ):
         super().__init__()
         self.conv1 = md.Conv2dReLU(
@@ -33,7 +33,7 @@ class DecoderBlock(nn.Module):
         self.attention2 = md.Attention(attention_type, in_channels=out_channels)
 
     def forward(self, x, skip=None):
-        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = F.interpolate(x, scale_factor=2, mode='nearest')
         if skip is not None:
             x = torch.cat([x, skip], dim=1)
             x = self.attention1(x)
@@ -64,21 +64,22 @@ class CenterBlock(nn.Sequential):
 
 class UnetDecoder(nn.Module):
     def __init__(
-            self,
-            encoder_channels,
-            decoder_channels,
-            n_blocks=5,
-            use_batchnorm=True,
-            attention_type=None,
-            center=False,
+        self,
+        encoder_channels,
+        decoder_channels,
+        n_blocks=5,
+        use_batchnorm=True,
+        attention_type=None,
+        center=False,
     ):
         super().__init__()
 
         if n_blocks != len(decoder_channels):
             raise ValueError(
-                "Model depth is {}, but you provide `decoder_channels` for {} blocks.".format(
-                    n_blocks, len(decoder_channels)
-                )
+                'Model depth is {}, but you provide `decoder_channels` for {} blocks.'.format(
+                    n_blocks,
+                    len(decoder_channels),
+                ),
             )
 
         encoder_channels = encoder_channels[1:]  # remove first skip with same spatial resolution
@@ -92,7 +93,9 @@ class UnetDecoder(nn.Module):
 
         if center:
             self.center = CenterBlock(
-                head_channels, head_channels, use_batchnorm=use_batchnorm
+                head_channels,
+                head_channels,
+                use_batchnorm=use_batchnorm,
             )
         else:
             self.center = nn.Identity()
@@ -106,8 +109,7 @@ class UnetDecoder(nn.Module):
         self.blocks = nn.ModuleList(blocks)
 
     def forward(self, *features):
-
-        features = features[1:]    # remove first skip with same spatial resolution
+        features = features[1:]  # remove first skip with same spatial resolution
         features = features[::-1]  # reverse channels to start from head of encoder
 
         head = features[0]

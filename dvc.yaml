@@ -1,0 +1,21 @@
+stages:
+  sly_to_int:
+    cmd:
+    - rm -rf data/interim
+    - python src/data/convert_sly_to_int.py
+    deps:
+    - src/data/convert_sly_to_int.py
+    - configs/convert_sly_to_int.yaml
+    - data/sly
+    outs:
+    - data/interim
+  int_to_coco:
+    cmd:
+    - rm -rf data/coco
+    - python src/data/convert_int_to_coco.py
+    deps:
+    - src/data/convert_int_to_coco.py
+    - configs/convert_int_to_coco.yaml
+    - data/interim
+    outs:
+    - data/coco

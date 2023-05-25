@@ -11,19 +11,28 @@ model = dict(
         style='caffe',
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='open-mmlab://detectron2/resnet50_caffe')),
+            checkpoint='open-mmlab://detectron2/resnet50_caffe',
+        ),
+    ),
     roi_head=dict(
-        bbox_head=dict(bbox_coder=dict(target_stds=[0.05, 0.05, 0.1, 0.1]))),
+        bbox_head=dict(bbox_coder=dict(target_stds=[0.05, 0.05, 0.1, 0.1])),
+    ),
     # model training and testing settings
     train_cfg=dict(
         rcnn=dict(
             assigner=dict(pos_iou_thr=0.6, neg_iou_thr=0.6, min_pos_iou=0.6),
-            sampler=dict(num=256))),
-    test_cfg=dict(rcnn=dict(score_thr=1e-3)))
+            sampler=dict(num=256),
+        ),
+    ),
+    test_cfg=dict(rcnn=dict(score_thr=1e-3)),
+)
 dataset_type = 'CocoDataset'
 data_root = 'data/coco/'
 img_norm_cfg = dict(
-    mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False)
+    mean=[103.530, 116.280, 123.675],
+    std=[1.0, 1.0, 1.0],
+    to_rgb=False,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadProposals', num_max_proposals=300),
@@ -49,17 +58,24 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img', 'proposals']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     train=dict(
         proposal_file=data_root + 'proposals/ga_rpn_r50_fpn_1x_train2017.pkl',
-        pipeline=train_pipeline),
+        pipeline=train_pipeline,
+    ),
     val=dict(
         proposal_file=data_root + 'proposals/ga_rpn_r50_fpn_1x_val2017.pkl',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+    ),
     test=dict(
         proposal_file=data_root + 'proposals/ga_rpn_r50_fpn_1x_val2017.pkl',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+    ),
+)
 optimizer_config = dict(
-    _delete_=True, grad_clip=dict(max_norm=35, norm_type=2))
+    _delete_=True,
+    grad_clip=dict(max_norm=35, norm_type=2),
+)

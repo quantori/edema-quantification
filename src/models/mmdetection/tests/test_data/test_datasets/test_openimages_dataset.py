@@ -5,7 +5,6 @@ import tempfile
 import mmcv
 import numpy as np
 import pytest
-
 from mmdet.datasets import OpenImagesChallengeDataset, OpenImagesDataset
 
 
@@ -21,18 +20,52 @@ def _create_ids_error_oid_csv(
         f_csv.writerow(label_description)
 
     header = [
-        'ImageID', 'Source', 'LabelName', 'Confidence', 'XMin', 'XMax', 'YMin',
-        'YMax', 'IsOccluded', 'IsTruncated', 'IsGroupOf', 'IsDepiction',
-        'IsInside'
+        'ImageID',
+        'Source',
+        'LabelName',
+        'Confidence',
+        'XMin',
+        'XMax',
+        'YMin',
+        'YMax',
+        'IsOccluded',
+        'IsTruncated',
+        'IsGroupOf',
+        'IsDepiction',
+        'IsInside',
     ]
-    annotations = [[
-        'color', 'xclick', '/m/000002', '1', '0.022673031', '0.9642005',
-        '0.07103825', '0.80054647', '0', '0', '0', '0', '0'
-    ],
-                   [
-                       '000595fe6fee6369', 'xclick', '/m/000000', '1', '0',
-                       '1', '0', '1', '0', '0', '1', '0', '0'
-                   ]]
+    annotations = [
+        [
+            'color',
+            'xclick',
+            '/m/000002',
+            '1',
+            '0.022673031',
+            '0.9642005',
+            '0.07103825',
+            '0.80054647',
+            '0',
+            '0',
+            '0',
+            '0',
+            '0',
+        ],
+        [
+            '000595fe6fee6369',
+            'xclick',
+            '/m/000000',
+            '1',
+            '0',
+            '1',
+            '0',
+            '1',
+            '0',
+            '0',
+            '1',
+            '0',
+            '0',
+        ],
+    ]
     # `newline=''` is used to avoid index error of out of bounds
     # in Windows system
     with open(fake_csv_file, 'w', newline='') as f:
@@ -42,26 +75,61 @@ def _create_ids_error_oid_csv(
 
 
 def _create_oid_style_ann(label_file, csv_file, label_level_file):
-    label_description = [['/m/000000', 'Sports equipment'],
-                         ['/m/000001', 'Ball'], ['/m/000002', 'Football'],
-                         ['/m/000004', 'Bicycle']]
+    label_description = [
+        ['/m/000000', 'Sports equipment'],
+        ['/m/000001', 'Ball'],
+        ['/m/000002', 'Football'],
+        ['/m/000004', 'Bicycle'],
+    ]
     with open(label_file, 'w', newline='') as f:
         f_csv = csv.writer(f)
         f_csv.writerows(label_description)
 
     header = [
-        'ImageID', 'Source', 'LabelName', 'Confidence', 'XMin', 'XMax', 'YMin',
-        'YMax', 'IsOccluded', 'IsTruncated', 'IsGroupOf', 'IsDepiction',
-        'IsInside'
+        'ImageID',
+        'Source',
+        'LabelName',
+        'Confidence',
+        'XMin',
+        'XMax',
+        'YMin',
+        'YMax',
+        'IsOccluded',
+        'IsTruncated',
+        'IsGroupOf',
+        'IsDepiction',
+        'IsInside',
     ]
     annotations = [
         [
-            'color', 'xclick', '/m/000002', 1, 0.0333333, 0.1, 0.0333333, 0.1,
-            0, 0, 1, 0, 0
+            'color',
+            'xclick',
+            '/m/000002',
+            1,
+            0.0333333,
+            0.1,
+            0.0333333,
+            0.1,
+            0,
+            0,
+            1,
+            0,
+            0,
         ],
         [
-            'color', 'xclick', '/m/000002', 1, 0.1, 0.166667, 0.1, 0.166667, 0,
-            0, 0, 0, 0
+            'color',
+            'xclick',
+            '/m/000002',
+            1,
+            0.1,
+            0.166667,
+            0.1,
+            0.166667,
+            0,
+            0,
+            0,
+            0,
+            0,
         ],
     ]
     # `newline=''` is used to avoid index error of out of bounds
@@ -72,8 +140,10 @@ def _create_oid_style_ann(label_file, csv_file, label_level_file):
         f_csv.writerows(annotations)
 
     header = ['ImageID', 'Source', 'LabelName', 'Confidence']
-    annotations = [['color', 'xclick', '/m/000002', '1'],
-                   ['color', 'xclick', '/m/000004', '0']]
+    annotations = [
+        ['color', 'xclick', '/m/000002', '1'],
+        ['color', 'xclick', '/m/000004', '0'],
+    ]
     # `newline=''` is used to avoid index error of out of bounds
     # in Windows system
     with open(label_level_file, 'w', newline='') as f:
@@ -83,36 +153,47 @@ def _create_oid_style_ann(label_file, csv_file, label_level_file):
 
 
 def _create_hierarchy_json(hierarchy_name):
-    fake_hierarchy = \
-        {'LabelName':  '/m/0bl9f',      # entity label
-         'Subcategory': [
-             {
-                 'LabelName': '/m/000000',
-                 'Subcategory':
-                     [
-                         {'LabelName': '/m/000001',
-                          'Subcategory':
-                              [
-                                  {
-                                      'LabelName': '/m/000002'
-                                  }
-                              ]
-                          },
-                         {
-                             'LabelName': '/m/000004'
-                         }
-                     ]
-             }
-         ]
-         }
+    fake_hierarchy = {
+        'LabelName': '/m/0bl9f',  # entity label
+        'Subcategory': [
+            {
+                'LabelName': '/m/000000',
+                'Subcategory': [
+                    {
+                        'LabelName': '/m/000001',
+                        'Subcategory': [
+                            {
+                                'LabelName': '/m/000002',
+                            },
+                        ],
+                    },
+                    {
+                        'LabelName': '/m/000004',
+                    },
+                ],
+            },
+        ],
+    }
 
     mmcv.dump(fake_hierarchy, hierarchy_name)
 
 
 def _create_hierarchy_np(hierarchy_name):
-    fake_hierarchy = np.array([[0, 1, 0, 0, 0], [0, 1, 1, 0,
-                                                 0], [0, 1, 1, 1, 0],
-                               [0, 1, 0, 0, 1], [0, 0, 0, 0, 0]])
+    fake_hierarchy = np.array(
+        [
+            [0, 1, 0, 0, 0],
+            [
+                0,
+                1,
+                1,
+                0,
+                0,
+            ],
+            [0, 1, 1, 1, 0],
+            [0, 1, 0, 0, 1],
+            [0, 0, 0, 0, 0],
+        ],
+    )
     with open(hierarchy_name, 'wb') as f:
         np.save(f, fake_hierarchy)
 
@@ -121,9 +202,16 @@ def _create_dummy_results():
     boxes = [
         np.zeros((0, 5)),
         np.zeros((0, 5)),
-        np.array([[10, 10, 15, 15, 1.0], [15, 15, 30, 30, 0.98],
-                  [10, 10, 25, 25, 0.98], [28, 28, 35, 35, 0.97],
-                  [30, 30, 51, 51, 0.96], [100, 110, 120, 130, 0.15]]),
+        np.array(
+            [
+                [10, 10, 15, 15, 1.0],
+                [15, 15, 30, 30, 0.98],
+                [10, 10, 25, 25, 0.98],
+                [28, 28, 35, 35, 0.97],
+                [30, 30, 51, 51, 0.96],
+                [100, 110, 120, 130, 0.15],
+            ],
+        ),
         np.array([[30, 30, 50, 50, 0.51]]),
     ]
     return [boxes]
@@ -143,10 +231,12 @@ def _creat_oid_challenge_style_ann(txt_file, label_file, label_level_file):
         f.writelines(bboxes)
         f.close()
 
-    label_description = [['/m/000000', 'Sports equipment', 1],
-                         ['/m/000001', 'Ball', 2],
-                         ['/m/000002', 'Football', 3],
-                         ['/m/000004', 'Bicycle', 4]]
+    label_description = [
+        ['/m/000000', 'Sports equipment', 1],
+        ['/m/000001', 'Ball', 2],
+        ['/m/000002', 'Football', 3],
+        ['/m/000004', 'Bicycle', 4],
+    ]
     # `newline=''` is used to avoid index error of out of bounds
     # in Windows system
     with open(label_file, 'w', newline='') as f:
@@ -164,11 +254,12 @@ def _creat_oid_challenge_style_ann(txt_file, label_file, label_level_file):
 
 
 def _create_metas(meta_file):
-
-    fake_meta = [{
-        'filename': 'data/OpenImages/OpenImages/validation/color.jpg',
-        'ori_shape': (300, 300, 3)
-    }]
+    fake_meta = [
+        {
+            'filename': 'data/OpenImages/OpenImages/validation/color.jpg',
+            'ori_shape': (300, 300, 3),
+        },
+    ]
     mmcv.dump(fake_meta, meta_file)
 
 
@@ -182,7 +273,10 @@ def test_oid_annotation_ids_unique():
     # test annotation ids not unique error
     with pytest.raises(AssertionError):
         OpenImagesDataset(
-            ann_file=fake_ann_file, label_file=fake_label_file, pipeline=[])
+            ann_file=fake_ann_file,
+            label_file=fake_label_file,
+            pipeline=[],
+        )
     tmp_dir.cleanup()
 
 
@@ -204,24 +298,26 @@ def test_openimages_dataset():
             ann_file=ann_file,
             label_file=label_file,
             image_level_ann_file=label_level_file,
-            pipeline=[])
+            pipeline=[],
+        )
 
     dataset = OpenImagesDataset(
         ann_file=ann_file,
         label_file=label_file,
         image_level_ann_file=label_level_file,
         hierarchy_file=hierarchy_json,
-        pipeline=[])
+        pipeline=[],
+    )
     ann = dataset.get_ann_info(0)
     # two legal detection bboxes with `group_of` parameter
-    assert ann['bboxes'].shape[0] == ann['labels'].shape[0] == \
-           ann['gt_is_group_ofs'].shape[0] == 2
+    assert ann['bboxes'].shape[0] == ann['labels'].shape[0] == ann['gt_is_group_ofs'].shape[0] == 2
 
     # test load metas from pipeline
     img_norm_cfg = dict(
         mean=[123.675, 116.28, 103.53],
         std=[58.395, 57.12, 57.375],
-        to_rgb=True)
+        to_rgb=True,
+    )
     test_pipeline = [
         dict(type='LoadImageFromFile'),
         dict(
@@ -235,7 +331,8 @@ def test_openimages_dataset():
                 dict(type='Pad', size_divisor=32),
                 dict(type='ImageToTensor', keys=['img']),
                 dict(type='Collect', keys=['img']),
-            ])
+            ],
+        ),
     ]
     dataset = OpenImagesDataset(
         ann_file=ann_file,
@@ -244,7 +341,8 @@ def test_openimages_dataset():
         image_level_ann_file=label_level_file,
         load_from_file=False,
         hierarchy_file=hierarchy_json,
-        pipeline=test_pipeline)
+        pipeline=test_pipeline,
+    )
     dataset.prepare_test_img(0)
     assert len(dataset.test_img_metas) == 1
     result = _create_dummy_results()
@@ -264,12 +362,19 @@ def test_openimages_dataset():
             image_level_ann_file=label_level_file,
             load_from_file=False,
             hierarchy_file=fake_path,
-            pipeline=test_pipeline)
+            pipeline=test_pipeline,
+        )
 
     # test load hierarchy file succseefully
     hierarchy = dataset.get_relation_matrix(hierarchy_json)
-    hierarchy_gt = np.array([[1, 0, 0, 0], [1, 1, 0, 0], [1, 1, 1, 0],
-                             [1, 0, 0, 1]])
+    hierarchy_gt = np.array(
+        [
+            [1, 0, 0, 0],
+            [1, 1, 0, 0],
+            [1, 1, 1, 0],
+            [1, 0, 0, 1],
+        ],
+    )
     assert np.equal(hierarchy, hierarchy_gt).all()
 
     # test evaluation
@@ -283,7 +388,8 @@ def test_openimages_dataset():
         image_level_ann_file=label_level_file,
         hierarchy_file=hierarchy_json,
         meta_file=meta_file,
-        pipeline=[])
+        pipeline=[],
+    )
     # test evaluation with using group_of, adding father classes to
     # GT and annotations, and considering image_level_image,
     # In the first label (Sports equipment): tp = [0, 1, 0, 0, 1],
@@ -302,7 +408,8 @@ def test_openimages_dataset():
         image_level_ann_file=label_level_file,
         hierarchy_file=hierarchy_json,
         meta_file=meta_file,
-        pipeline=[])
+        pipeline=[],
+    )
 
     # test evaluation with using group_of, adding father classes to
     # GT and annotations, and not considering image_level_image,
@@ -330,12 +437,12 @@ def test_openimages_challenge_dataset():
         label_file=label_file,
         load_image_level_labels=False,
         get_supercategory=False,
-        pipeline=[])
+        pipeline=[],
+    )
     ann = dataset.get_ann_info(0)
 
     # two legal detection bboxes with `group_of` parameter
-    assert ann['bboxes'].shape[0] == ann['labels'].shape[0] == \
-           ann['gt_is_group_ofs'].shape[0] == 2
+    assert ann['bboxes'].shape[0] == ann['labels'].shape[0] == ann['gt_is_group_ofs'].shape[0] == 2
 
     dataset.prepare_train_img(0)
     dataset.prepare_test_img(0)
@@ -352,7 +459,8 @@ def test_openimages_challenge_dataset():
             image_level_ann_file=label_level_file,
             hierarchy_file=fake_json,
             meta_file=meta_file,
-            pipeline=[])
+            pipeline=[],
+        )
 
     hierarchy_file = osp.join(tmp_dir.name, 'hierarchy.np')
     _create_hierarchy_np(hierarchy_file)
@@ -362,6 +470,7 @@ def test_openimages_challenge_dataset():
         image_level_ann_file=label_level_file,
         hierarchy_file=hierarchy_file,
         meta_file=meta_file,
-        pipeline=[])
+        pipeline=[],
+    )
     dataset.evaluate(result)
     tmp_dir.cleanup()

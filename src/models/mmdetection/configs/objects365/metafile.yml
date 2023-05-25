@@ -6,8 +6,8 @@
     Epochs: 12
     Training Data: Objects365 v1
     Training Techniques:
-      - SGD with Momentum
-      - Weight Decay
+    - SGD with Momentum
+    - Weight Decay
   Results:
   - Task: Object Detection
     Dataset: Objects365 v1
@@ -23,8 +23,8 @@
     Iterations: 1350000
     Training Data: Objects365 v1
     Training Techniques:
-      - SGD with Momentum
-      - Weight Decay
+    - SGD with Momentum
+    - Weight Decay
   Results:
   - Task: Object Detection
     Dataset: Objects365 v1
@@ -40,8 +40,8 @@
     Epochs: 12
     Training Data: Objects365 v2
     Training Techniques:
-      - SGD with Momentum
-      - Weight Decay
+    - SGD with Momentum
+    - Weight Decay
   Results:
   - Task: Object Detection
     Dataset: Objects365 v2
@@ -57,8 +57,8 @@
     Epochs: 12
     Training Data: Objects365 v1
     Training Techniques:
-      - SGD with Momentum
-      - Weight Decay
+    - SGD with Momentum
+    - Weight Decay
   Results:
   - Task: Object Detection
     Dataset: Objects365 v1
@@ -74,8 +74,8 @@
     Iterations: 1350000
     Training Data: Objects365 v1
     Training Techniques:
-      - SGD with Momentum
-      - Weight Decay
+    - SGD with Momentum
+    - Weight Decay
   Results:
   - Task: Object Detection
     Dataset: Objects365 v1
@@ -91,8 +91,8 @@
     Epochs: 12
     Training Data: Objects365 v1
     Training Techniques:
-      - SGD with Momentum
-      - Weight Decay
+    - SGD with Momentum
+    - Weight Decay
   Results:
   - Task: Object Detection
     Dataset: Objects365 v2

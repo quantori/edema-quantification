@@ -8,17 +8,25 @@ from .single_stage import SingleStageDetector
 
 @DETECTORS.register_module()
 class YOLOV3(SingleStageDetector):
-
-    def __init__(self,
-                 backbone,
-                 neck,
-                 bbox_head,
-                 train_cfg=None,
-                 test_cfg=None,
-                 pretrained=None,
-                 init_cfg=None):
-        super(YOLOV3, self).__init__(backbone, neck, bbox_head, train_cfg,
-                                     test_cfg, pretrained, init_cfg)
+    def __init__(
+        self,
+        backbone,
+        neck,
+        bbox_head,
+        train_cfg=None,
+        test_cfg=None,
+        pretrained=None,
+        init_cfg=None,
+    ):
+        super(YOLOV3, self).__init__(
+            backbone,
+            neck,
+            bbox_head,
+            train_cfg,
+            test_cfg,
+            pretrained,
+            init_cfg,
+        )
 
     def onnx_export(self, img, img_metas):
         """Test function for exporting to ONNX, without test time augmentation.

@@ -31,11 +31,24 @@ FIGURE_MAP = {
 
 FIGURE_MAP_REVERSED = dict((v, k) for k, v in FIGURE_MAP.items())
 
+FIGURE_TYPE = {
+    'Cephalization': 'line',
+    'Artery': 'bitmap',
+    'Heart': 'rectangle',
+    'Kerley': 'line',
+    'Bronchus': 'bitmap',
+    'Effusion': 'polygon',
+    'Bat': 'polygon',
+    'Infiltrate': 'polygon',
+    'Cuffing': 'bitmap',
+}
+
 METADATA_COLUMNS = [
     'Image path',
     'Image name',
     'Subject ID',
     'Study ID',
+    'Dataset',
     'Image width',
     'Image height',
     'Figure ID',
@@ -194,9 +207,15 @@ def get_mask_points(
 
     """
     if obj['geometryType'] == 'bitmap':
-        return {'Mask': obj['bitmap']['data'], 'Points': obj['bitmap']['origin']}
+        return {
+            'Mask': obj['bitmap']['data'],
+            'Points': [int(np.round(s)) for s in obj['bitmap']['origin']],
+        }
     else:
-        return {'Mask': None, 'Points': obj['points']['exterior']}
+        return {
+            'Mask': None,
+            'Points': [[int(np.round(s)) for s in lst] for lst in obj['points']['exterior']],
+        }
 
 
 def get_object_box(

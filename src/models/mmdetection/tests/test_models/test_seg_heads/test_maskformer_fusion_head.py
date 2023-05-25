@@ -1,7 +1,6 @@
 import pytest
 import torch
 from mmcv import ConfigDict
-
 from mmdet.models.seg_heads.panoptic_fusion_heads import MaskFormerFusionHead
 
 
@@ -11,7 +10,7 @@ def test_maskformer_fusion_head():
             'batch_input_shape': (128, 160),
             'img_shape': (126, 160, 3),
             'ori_shape': (63, 80, 3),
-            'pad_shape': (128, 160, 3)
+            'pad_shape': (128, 160, 3),
         },
     ]
     num_things_classes = 80
@@ -29,8 +28,10 @@ def test_maskformer_fusion_head():
             max_per_image=100,
             object_mask_thr=0.8,
             iou_thr=0.8,
-            filter_low_score=False),
-        init_cfg=None)
+            filter_low_score=False,
+        ),
+        init_cfg=None,
+    )
 
     self = MaskFormerFusionHead(**config)
 

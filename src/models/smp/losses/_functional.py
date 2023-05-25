@@ -1,18 +1,16 @@
 import math
-import numpy as np
-
 from typing import Optional
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
-
 __all__ = [
-    "focal_loss_with_logits",
-    "softmax_focal_loss_with_logits",
-    "soft_jaccard_score",
-    "soft_dice_score",
-    "wing_loss",
+    'focal_loss_with_logits',
+    'softmax_focal_loss_with_logits',
+    'soft_jaccard_score',
+    'soft_dice_score',
+    'wing_loss',
 ]
 
 
@@ -39,7 +37,7 @@ def focal_loss_with_logits(
     target: torch.Tensor,
     gamma: float = 2.0,
     alpha: Optional[float] = 0.25,
-    reduction: str = "mean",
+    reduction: str = 'mean',
     normalized: bool = False,
     reduced_threshold: Optional[float] = None,
     eps: float = 1e-6,
@@ -68,7 +66,7 @@ def focal_loss_with_logits(
     """
     target = target.type(output.type())
 
-    logpt = F.binary_cross_entropy_with_logits(output, target, reduction="none")
+    logpt = F.binary_cross_entropy_with_logits(output, target, reduction='none')
     pt = torch.exp(-logpt)
 
     # compute the loss
@@ -87,11 +85,11 @@ def focal_loss_with_logits(
         norm_factor = focal_term.sum().clamp_min(eps)
         loss /= norm_factor
 
-    if reduction == "mean":
+    if reduction == 'mean':
         loss = loss.mean()
-    if reduction == "sum":
+    if reduction == 'sum':
         loss = loss.sum()
-    if reduction == "batchwise_mean":
+    if reduction == 'batchwise_mean':
         loss = loss.sum(0)
 
     return loss
@@ -101,7 +99,7 @@ def softmax_focal_loss_with_logits(
     output: torch.Tensor,
     target: torch.Tensor,
     gamma: float = 2.0,
-    reduction="mean",
+    reduction='mean',
     normalized=False,
     reduced_threshold: Optional[float] = None,
     eps: float = 1e-6,
@@ -124,7 +122,7 @@ def softmax_focal_loss_with_logits(
     """
     log_softmax = F.log_softmax(output, dim=1)
 
-    loss = F.nll_loss(log_softmax, target, reduction="none")
+    loss = F.nll_loss(log_softmax, target, reduction='none')
     pt = torch.exp(-loss)
 
     # compute the loss
@@ -140,18 +138,22 @@ def softmax_focal_loss_with_logits(
         norm_factor = focal_term.sum().clamp_min(eps)
         loss = loss / norm_factor
 
-    if reduction == "mean":
+    if reduction == 'mean':
         loss = loss.mean()
-    if reduction == "sum":
+    if reduction == 'sum':
         loss = loss.sum()
-    if reduction == "batchwise_mean":
+    if reduction == 'batchwise_mean':
         loss = loss.sum(0)
 
     return loss
 
 
 def soft_jaccard_score(
-    output: torch.Tensor, target: torch.Tensor, smooth: float = 0.0, eps: float = 1e-7, dims=None
+    output: torch.Tensor,
+    target: torch.Tensor,
+    smooth: float = 0.0,
+    eps: float = 1e-7,
+    dims=None,
 ) -> torch.Tensor:
     assert output.size() == target.size()
     if dims is not None:
@@ -167,7 +169,11 @@ def soft_jaccard_score(
 
 
 def soft_dice_score(
-    output: torch.Tensor, target: torch.Tensor, smooth: float = 0.0, eps: float = 1e-7, dims=None
+    output: torch.Tensor,
+    target: torch.Tensor,
+    smooth: float = 0.0,
+    eps: float = 1e-7,
+    dims=None,
 ) -> torch.Tensor:
     assert output.size() == target.size()
     if dims is not None:
@@ -180,7 +186,7 @@ def soft_dice_score(
     return dice_score
 
 
-def wing_loss(output: torch.Tensor, target: torch.Tensor, width=5, curvature=0.5, reduction="mean"):
+def wing_loss(output: torch.Tensor, target: torch.Tensor, width=5, curvature=0.5, reduction='mean'):
     """
     https://arxiv.org/pdf/1711.06753.pdf
     :param output:
@@ -201,17 +207,22 @@ def wing_loss(output: torch.Tensor, target: torch.Tensor, width=5, curvature=0.5
     C = width - width * math.log(1 + width / curvature)
     loss[idx_bigger] = loss[idx_bigger] - C
 
-    if reduction == "sum":
+    if reduction == 'sum':
         loss = loss.sum()
 
-    if reduction == "mean":
+    if reduction == 'mean':
         loss = loss.mean()
 
     return loss
 
 
 def label_smoothed_nll_loss(
-    lprobs: torch.Tensor, target: torch.Tensor, epsilon: float, ignore_index=None, reduction="mean", dim=-1
+    lprobs: torch.Tensor,
+    target: torch.Tensor,
+    epsilon: float,
+    ignore_index=None,
+    reduction='mean',
+    dim=-1,
 ) -> torch.Tensor:
     """
     Source: https://github.com/pytorch/fairseq/blob/master/fairseq/criterions/label_smoothed_cross_entropy.py
@@ -242,10 +253,10 @@ def label_smoothed_nll_loss(
         nll_loss = nll_loss.squeeze(dim)
         smooth_loss = smooth_loss.squeeze(dim)
 
-    if reduction == "sum":
+    if reduction == 'sum':
         nll_loss = nll_loss.sum()
         smooth_loss = smooth_loss.sum()
-    if reduction == "mean":
+    if reduction == 'mean':
         nll_loss = nll_loss.mean()
         smooth_loss = smooth_loss.mean()
 

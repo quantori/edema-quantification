@@ -15,4 +15,7 @@ model = dict(
         stage_with_dcn=(False, True, True, True),
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='open-mmlab://res2net101_v1d_26w_4s')))
+            checkpoint='open-mmlab://res2net101_v1d_26w_4s',
+        ),
+    ),
+)

@@ -5,7 +5,10 @@ model = dict(
         norm_eval=False,
         plugins=[
             dict(
-                cfg=dict(type='ContextBlock', ratio=1. / 16),
+                cfg=dict(type='ContextBlock', ratio=1.0 / 16),
                 stages=(False, True, True, True),
-                position='after_conv3')
-        ]))
+                position='after_conv3',
+            ),
+        ],
+    ),
+)

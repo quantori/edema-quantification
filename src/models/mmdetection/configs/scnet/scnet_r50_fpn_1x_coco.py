@@ -11,7 +11,8 @@ model = dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', output_size=7, sampling_ratio=0),
             out_channels=256,
-            featmap_strides=[4, 8, 16, 32]),
+            featmap_strides=[4, 8, 16, 32],
+        ),
         bbox_head=[
             dict(
                 type='SCNetBBoxHead',
@@ -22,15 +23,21 @@ model = dict(
                 num_classes=80,
                 bbox_coder=dict(
                     type='DeltaXYWHBBoxCoder',
-                    target_means=[0., 0., 0., 0.],
-                    target_stds=[0.1, 0.1, 0.2, 0.2]),
+                    target_means=[0.0, 0.0, 0.0, 0.0],
+                    target_stds=[0.1, 0.1, 0.2, 0.2],
+                ),
                 reg_class_agnostic=True,
                 loss_cls=dict(
                     type='CrossEntropyLoss',
                     use_sigmoid=False,
-                    loss_weight=1.0),
-                loss_bbox=dict(type='SmoothL1Loss', beta=1.0,
-                               loss_weight=1.0)),
+                    loss_weight=1.0,
+                ),
+                loss_bbox=dict(
+                    type='SmoothL1Loss',
+                    beta=1.0,
+                    loss_weight=1.0,
+                ),
+            ),
             dict(
                 type='SCNetBBoxHead',
                 num_shared_fcs=2,
@@ -40,15 +47,21 @@ model = dict(
                 num_classes=80,
                 bbox_coder=dict(
                     type='DeltaXYWHBBoxCoder',
-                    target_means=[0., 0., 0., 0.],
-                    target_stds=[0.05, 0.05, 0.1, 0.1]),
+                    target_means=[0.0, 0.0, 0.0, 0.0],
+                    target_stds=[0.05, 0.05, 0.1, 0.1],
+                ),
                 reg_class_agnostic=True,
                 loss_cls=dict(
                     type='CrossEntropyLoss',
                     use_sigmoid=False,
-                    loss_weight=1.0),
-                loss_bbox=dict(type='SmoothL1Loss', beta=1.0,
-                               loss_weight=1.0)),
+                    loss_weight=1.0,
+                ),
+                loss_bbox=dict(
+                    type='SmoothL1Loss',
+                    beta=1.0,
+                    loss_weight=1.0,
+                ),
+            ),
             dict(
                 type='SCNetBBoxHead',
                 num_shared_fcs=2,
@@ -58,20 +71,24 @@ model = dict(
                 num_classes=80,
                 bbox_coder=dict(
                     type='DeltaXYWHBBoxCoder',
-                    target_means=[0., 0., 0., 0.],
-                    target_stds=[0.033, 0.033, 0.067, 0.067]),
+                    target_means=[0.0, 0.0, 0.0, 0.0],
+                    target_stds=[0.033, 0.033, 0.067, 0.067],
+                ),
                 reg_class_agnostic=True,
                 loss_cls=dict(
                     type='CrossEntropyLoss',
                     use_sigmoid=False,
-                    loss_weight=1.0),
-                loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0))
+                    loss_weight=1.0,
+                ),
+                loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0),
+            ),
         ],
         mask_roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', output_size=14, sampling_ratio=0),
             out_channels=256,
-            featmap_strides=[4, 8, 16, 32]),
+            featmap_strides=[4, 8, 16, 32],
+        ),
         mask_head=dict(
             type='SCNetMaskHead',
             num_convs=12,
@@ -80,12 +97,17 @@ model = dict(
             num_classes=80,
             conv_to_res=True,
             loss_mask=dict(
-                type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)),
+                type='CrossEntropyLoss',
+                use_mask=True,
+                loss_weight=1.0,
+            ),
+        ),
         semantic_roi_extractor=dict(
             type='SingleRoIExtractor',
             roi_layer=dict(type='RoIAlign', output_size=14, sampling_ratio=0),
             out_channels=256,
-            featmap_strides=[8]),
+            featmap_strides=[8],
+        ),
         semantic_head=dict(
             type='SCNetSemanticHead',
             num_ins=5,
@@ -95,8 +117,12 @@ model = dict(
             conv_out_channels=256,
             num_classes=183,
             loss_seg=dict(
-                type='CrossEntropyLoss', ignore_index=255, loss_weight=0.2),
-            conv_to_res=True),
+                type='CrossEntropyLoss',
+                ignore_index=255,
+                loss_weight=0.2,
+            ),
+            conv_to_res=True,
+        ),
         glbctx_head=dict(
             type='GlobalContextHead',
             num_convs=4,
@@ -104,13 +130,17 @@ model = dict(
             conv_out_channels=256,
             num_classes=80,
             loss_weight=3.0,
-            conv_to_res=True),
+            conv_to_res=True,
+        ),
         feat_relay_head=dict(
             type='FeatureRelayHead',
             in_channels=1024,
             out_conv_channels=256,
             roi_feat_size=7,
-            scale_factor=2)))
+            scale_factor=2,
+        ),
+    ),
+)
 
 # uncomment below code to enable test time augmentations
 # img_norm_cfg = dict(

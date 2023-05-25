@@ -10,13 +10,11 @@ import torch
 import torch.nn as nn
 from mmcv.runner import EpochBasedRunner, build_optimizer
 from mmcv.utils import get_logger
-from torch.utils.data import DataLoader, Dataset
-
 from mmdet.core import DistEvalHook, EvalHook
+from torch.utils.data import DataLoader, Dataset
 
 
 class ExampleDataset(Dataset):
-
     def __init__(self):
         self.index = 0
         self.eval_result = [0.1, 0.4, 0.3, 0.7, 0.2, 0.05, 0.4, 0.6]
@@ -34,7 +32,6 @@ class ExampleDataset(Dataset):
 
 
 class EvalDataset(ExampleDataset):
-
     def evaluate(self, results, logger=None):
         mean_ap = self.eval_result[self.index]
         output = OrderedDict(mAP=mean_ap, index=self.index, score=mean_ap)
@@ -43,7 +40,6 @@ class EvalDataset(ExampleDataset):
 
 
 class ExampleModel(nn.Module):
-
     def __init__(self):
         super().__init__()
         self.conv = nn.Linear(1, 1)
@@ -56,15 +52,17 @@ class ExampleModel(nn.Module):
         outputs = {
             'loss': 0.5,
             'log_vars': {
-                'accuracy': 0.98
+                'accuracy': 0.98,
             },
-            'num_samples': 1
+            'num_samples': 1,
         }
         return outputs
 
 
 @pytest.mark.skipif(
-    not torch.cuda.is_available(), reason='requires CUDA support')
+    not torch.cuda.is_available(),
+    reason='requires CUDA support',
+)
 @patch('mmdet.apis.single_gpu_test', MagicMock)
 @patch('mmdet.apis.multi_gpu_test', MagicMock)
 @pytest.mark.parametrize('EvalHookCls', (EvalHook, DistEvalHook))
@@ -78,7 +76,8 @@ def test_eval_hook(EvalHookCls):
                 batch_size=1,
                 sampler=None,
                 num_worker=0,
-                shuffle=False)
+                shuffle=False,
+            ),
         ]
         EvalHookCls(data_loader)
 
@@ -90,7 +89,8 @@ def test_eval_hook(EvalHookCls):
             batch_size=1,
             sampler=None,
             num_workers=0,
-            shuffle=False)
+            shuffle=False,
+        )
         EvalHookCls(data_loader, save_best='auto', rule='unsupport')
 
     with pytest.raises(ValueError):
@@ -101,11 +101,16 @@ def test_eval_hook(EvalHookCls):
             batch_size=1,
             sampler=None,
             num_workers=0,
-            shuffle=False)
+            shuffle=False,
+        )
         EvalHookCls(data_loader, save_best='unsupport')
 
     optimizer_cfg = dict(
-        type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+        type='SGD',
+        lr=0.01,
+        momentum=0.9,
+        weight_decay=0.0001,
+    )
 
     test_dataset = ExampleDataset()
     loader = DataLoader(test_dataset, batch_size=1)
@@ -121,13 +126,12 @@ def test_eval_hook(EvalHookCls):
             batch_processor=None,
             optimizer=optimizer,
             work_dir=tmpdir,
-            logger=logger)
+            logger=logger,
+        )
         runner.register_hook(eval_hook)
         runner.run([loader], [('train', 1)], 1)
-        assert runner.meta is None or 'best_score' not in runner.meta[
-            'hook_msgs']
-        assert runner.meta is None or 'best_ckpt' not in runner.meta[
-            'hook_msgs']
+        assert runner.meta is None or 'best_score' not in runner.meta['hook_msgs']
+        assert runner.meta is None or 'best_ckpt' not in runner.meta['hook_msgs']
 
     # when `save_best` is set to 'auto', first metric will be used.
     loader = DataLoader(EvalDataset(), batch_size=1)
@@ -142,7 +146,8 @@ def test_eval_hook(EvalHookCls):
             batch_processor=None,
             optimizer=optimizer,
             work_dir=tmpdir,
-            logger=logger)
+            logger=logger,
+        )
         runner.register_checkpoint_hook(dict(interval=1))
         runner.register_hook(eval_hook)
         runner.run([loader], [('train', 1)], 8)
@@ -164,7 +169,8 @@ def test_eval_hook(EvalHookCls):
             batch_processor=None,
             optimizer=optimizer,
             work_dir=tmpdir,
-            logger=logger)
+            logger=logger,
+        )
         runner.register_checkpoint_hook(dict(interval=1))
         runner.register_hook(eval_hook)
         runner.run([loader], [('train', 1)], 8)
@@ -176,7 +182,11 @@ def test_eval_hook(EvalHookCls):
 
     data_loader = DataLoader(EvalDataset(), batch_size=1)
     eval_hook = EvalHookCls(
-        data_loader, interval=1, save_best='score', rule='greater')
+        data_loader,
+        interval=1,
+        save_best='score',
+        rule='greater',
+    )
     with tempfile.TemporaryDirectory() as tmpdir:
         logger = get_logger('test_eval')
         runner = EpochBasedRunner(
@@ -184,7 +194,8 @@ def test_eval_hook(EvalHookCls):
             batch_processor=None,
             optimizer=optimizer,
             work_dir=tmpdir,
-            logger=logger)
+            logger=logger,
+        )
         runner.register_checkpoint_hook(dict(interval=1))
         runner.register_hook(eval_hook)
         runner.run([loader], [('train', 1)], 8)
@@ -203,7 +214,8 @@ def test_eval_hook(EvalHookCls):
             batch_processor=None,
             optimizer=optimizer,
             work_dir=tmpdir,
-            logger=logger)
+            logger=logger,
+        )
         runner.register_checkpoint_hook(dict(interval=1))
         runner.register_hook(eval_hook)
         runner.run([loader], [('train', 1)], 8)
@@ -222,7 +234,8 @@ def test_eval_hook(EvalHookCls):
             batch_processor=None,
             optimizer=optimizer,
             work_dir=tmpdir,
-            logger=logger)
+            logger=logger,
+        )
         runner.register_checkpoint_hook(dict(interval=1))
         runner.register_hook(eval_hook)
         runner.run([loader], [('train', 1)], 2)
@@ -240,7 +253,8 @@ def test_eval_hook(EvalHookCls):
             batch_processor=None,
             optimizer=optimizer,
             work_dir=tmpdir,
-            logger=logger)
+            logger=logger,
+        )
         runner.register_checkpoint_hook(dict(interval=1))
         runner.register_hook(eval_hook)
         runner.resume(resume_from)

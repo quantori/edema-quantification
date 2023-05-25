@@ -7,14 +7,16 @@ from .two_stage import TwoStageDetector
 class FastRCNN(TwoStageDetector):
     """Implementation of `Fast R-CNN <https://arxiv.org/abs/1504.08083>`_"""
 
-    def __init__(self,
-                 backbone,
-                 roi_head,
-                 train_cfg,
-                 test_cfg,
-                 neck=None,
-                 pretrained=None,
-                 init_cfg=None):
+    def __init__(
+        self,
+        backbone,
+        roi_head,
+        train_cfg,
+        test_cfg,
+        neck=None,
+        pretrained=None,
+        init_cfg=None,
+    ):
         super(FastRCNN, self).__init__(
             backbone=backbone,
             neck=neck,
@@ -22,7 +24,8 @@ class FastRCNN(TwoStageDetector):
             train_cfg=train_cfg,
             test_cfg=test_cfg,
             pretrained=pretrained,
-            init_cfg=init_cfg)
+            init_cfg=init_cfg,
+        )
 
     def forward_test(self, imgs, img_metas, proposals, **kwargs):
         """
@@ -44,12 +47,12 @@ class FastRCNN(TwoStageDetector):
 
         num_augs = len(imgs)
         if num_augs != len(img_metas):
-            raise ValueError(f'num of augmentations ({len(imgs)}) '
-                             f'!= num of image meta ({len(img_metas)})')
+            raise ValueError(
+                f'num of augmentations ({len(imgs)}) ' f'!= num of image meta ({len(img_metas)})',
+            )
 
         if num_augs == 1:
-            return self.simple_test(imgs[0], img_metas[0], proposals[0],
-                                    **kwargs)
+            return self.simple_test(imgs[0], img_metas[0], proposals[0], **kwargs)
         else:
             # TODO: support test-time augmentation
             assert NotImplementedError

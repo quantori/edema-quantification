@@ -5,7 +5,6 @@ import mmcv
 import torch
 from mmcv.parallel import collate
 from mmcv.utils import build_from_cfg
-
 from mmdet.datasets.builder import PIPELINES
 from mmdet.models import build_detector
 
@@ -29,7 +28,8 @@ def model_aug_test_template(cfg_file):
 
     results = dict(
         img_prefix=osp.join(osp.dirname(__file__), '../../../data'),
-        img_info=dict(filename='color.jpg'))
+        img_info=dict(filename='color.jpg'),
+    )
     results = transform(load(results))
     assert len(results['img']) == 12
     assert len(results['img_metas']) == 12
@@ -46,7 +46,8 @@ def model_aug_test_template(cfg_file):
 def test_aug_test_size():
     results = dict(
         img_prefix=osp.join(osp.dirname(__file__), '../../../data'),
-        img_info=dict(filename='color.jpg'))
+        img_info=dict(filename='color.jpg'),
+    )
 
     # Define simple pipeline
     load = dict(type='LoadImageFromFile')
@@ -58,7 +59,8 @@ def test_aug_test_size():
         transforms=[],
         img_scale=[(1333, 800), (800, 600), (640, 480)],
         flip=True,
-        flip_direction=['horizontal', 'vertical', 'diagonal'])
+        flip_direction=['horizontal', 'vertical', 'diagonal'],
+    )
     multi_aug_test_module = build_from_cfg(transform, PIPELINES)
 
     results = load(results)
@@ -70,13 +72,15 @@ def test_aug_test_size():
 
 def test_cascade_rcnn_aug_test():
     aug_result = model_aug_test_template(
-        'configs/cascade_rcnn/cascade_rcnn_r50_fpn_1x_coco.py')
+        'configs/cascade_rcnn/cascade_rcnn_r50_fpn_1x_coco.py',
+    )
     assert len(aug_result[0]) == 80
 
 
 def test_mask_rcnn_aug_test():
     aug_result = model_aug_test_template(
-        'configs/mask_rcnn/mask_rcnn_r50_fpn_1x_coco.py')
+        'configs/mask_rcnn/mask_rcnn_r50_fpn_1x_coco.py',
+    )
     assert len(aug_result[0]) == 2
     assert len(aug_result[0][0]) == 80
     assert len(aug_result[0][1]) == 80
@@ -91,7 +95,8 @@ def test_htc_aug_test():
 
 def test_scnet_aug_test():
     aug_result = model_aug_test_template(
-        'configs/scnet/scnet_r50_fpn_1x_coco.py')
+        'configs/scnet/scnet_r50_fpn_1x_coco.py',
+    )
     assert len(aug_result[0]) == 2
     assert len(aug_result[0][0]) == 80
     assert len(aug_result[0][1]) == 80
@@ -100,7 +105,8 @@ def test_scnet_aug_test():
 def test_cornernet_aug_test():
     # get config
     cfg = mmcv.Config.fromfile(
-        'configs/cornernet/cornernet_hourglass104_mstest_10x5_210e_coco.py')
+        'configs/cornernet/cornernet_hourglass104_mstest_10x5_210e_coco.py',
+    )
     # init model
     cfg.model.pretrained = None
     cfg.model.train_cfg = None
@@ -117,7 +123,8 @@ def test_cornernet_aug_test():
 
     results = dict(
         img_prefix=osp.join(osp.dirname(__file__), '../../../data'),
-        img_info=dict(filename='color.jpg'))
+        img_info=dict(filename='color.jpg'),
+    )
     results = transform(load(results))
     assert len(results['img']) == 12
     assert len(results['img_metas']) == 12

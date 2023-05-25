@@ -2,18 +2,19 @@
 import mmcv
 import torch
 from mmcv.cnn import ConvModule, DepthwiseSeparableConvModule
-
 from mmdet.models.dense_heads import YOLOXHead
 
 
 def test_yolox_head_loss():
     """Tests yolox head loss when truth is empty and non-empty."""
     s = 256
-    img_metas = [{
-        'img_shape': (s, s, 3),
-        'scale_factor': 1,
-        'pad_shape': (s, s, 3)
-    }]
+    img_metas = [
+        {
+            'img_shape': (s, s, 3),
+            'scale_factor': 1,
+            'pad_shape': (s, s, 3),
+        },
+    ]
     train_cfg = mmcv.Config(
         dict(
             assigner=dict(
@@ -21,47 +22,67 @@ def test_yolox_head_loss():
                 center_radius=2.5,
                 candidate_topk=10,
                 iou_weight=3.0,
-                cls_weight=1.0)))
+                cls_weight=1.0,
+            ),
+        ),
+    )
     self = YOLOXHead(
-        num_classes=4, in_channels=1, use_depthwise=False, train_cfg=train_cfg)
+        num_classes=4,
+        in_channels=1,
+        use_depthwise=False,
+        train_cfg=train_cfg,
+    )
     assert not self.use_l1
     assert isinstance(self.multi_level_cls_convs[0][0], ConvModule)
 
-    feat = [
-        torch.rand(1, 1, s // feat_size, s // feat_size)
-        for feat_size in [4, 8, 16]
-    ]
+    feat = [torch.rand(1, 1, s // feat_size, s // feat_size) for feat_size in [4, 8, 16]]
     cls_scores, bbox_preds, objectnesses = self.forward(feat)
 
     # Test that empty ground truth encourages the network to predict background
     gt_bboxes = [torch.empty((0, 4))]
     gt_labels = [torch.LongTensor([])]
-    empty_gt_losses = self.loss(cls_scores, bbox_preds, objectnesses,
-                                gt_bboxes, gt_labels, img_metas)
+    empty_gt_losses = self.loss(
+        cls_scores,
+        bbox_preds,
+        objectnesses,
+        gt_bboxes,
+        gt_labels,
+        img_metas,
+    )
     # When there is no truth, the cls loss should be nonzero but there should
     # be no box loss.
     empty_cls_loss = empty_gt_losses['loss_cls'].sum()
     empty_box_loss = empty_gt_losses['loss_bbox'].sum()
     empty_obj_loss = empty_gt_losses['loss_obj'].sum()
-    assert empty_cls_loss.item() == 0, (
-        'there should be no cls loss when there are no true boxes')
-    assert empty_box_loss.item() == 0, (
-        'there should be no box loss when there are no true boxes')
+    assert empty_cls_loss.item() == 0, 'there should be no cls loss when there are no true boxes'
+    assert empty_box_loss.item() == 0, 'there should be no box loss when there are no true boxes'
     assert empty_obj_loss.item() > 0, 'objectness loss should be non-zero'
 
     # When truth is non-empty then both cls and box loss should be nonzero for
     # random inputs
     self = YOLOXHead(
-        num_classes=4, in_channels=1, use_depthwise=True, train_cfg=train_cfg)
-    assert isinstance(self.multi_level_cls_convs[0][0],
-                      DepthwiseSeparableConvModule)
+        num_classes=4,
+        in_channels=1,
+        use_depthwise=True,
+        train_cfg=train_cfg,
+    )
+    assert isinstance(
+        self.multi_level_cls_convs[0][0],
+        DepthwiseSeparableConvModule,
+    )
     self.use_l1 = True
     gt_bboxes = [
         torch.Tensor([[23.6667, 23.8757, 238.6326, 151.8874]]),
     ]
     gt_labels = [torch.LongTensor([2])]
-    one_gt_losses = self.loss(cls_scores, bbox_preds, objectnesses, gt_bboxes,
-                              gt_labels, img_metas)
+    one_gt_losses = self.loss(
+        cls_scores,
+        bbox_preds,
+        objectnesses,
+        gt_bboxes,
+        gt_labels,
+        img_metas,
+    )
     onegt_cls_loss = one_gt_losses['loss_cls'].sum()
     onegt_box_loss = one_gt_losses['loss_bbox'].sum()
     onegt_obj_loss = one_gt_losses['loss_obj'].sum()
@@ -74,15 +95,19 @@ def test_yolox_head_loss():
     # Test groud truth out of bound
     gt_bboxes = [torch.Tensor([[s * 4, s * 4, s * 4 + 10, s * 4 + 10]])]
     gt_labels = [torch.LongTensor([2])]
-    empty_gt_losses = self.loss(cls_scores, bbox_preds, objectnesses,
-                                gt_bboxes, gt_labels, img_metas)
+    empty_gt_losses = self.loss(
+        cls_scores,
+        bbox_preds,
+        objectnesses,
+        gt_bboxes,
+        gt_labels,
+        img_metas,
+    )
     # When gt_bboxes out of bound, the assign results should be empty,
     # so the cls and bbox loss should be zero.
     empty_cls_loss = empty_gt_losses['loss_cls'].sum()
     empty_box_loss = empty_gt_losses['loss_bbox'].sum()
     empty_obj_loss = empty_gt_losses['loss_obj'].sum()
-    assert empty_cls_loss.item() == 0, (
-        'there should be no cls loss when gt_bboxes out of bound')
-    assert empty_box_loss.item() == 0, (
-        'there should be no box loss when gt_bboxes out of bound')
+    assert empty_cls_loss.item() == 0, 'there should be no cls loss when gt_bboxes out of bound'
+    assert empty_box_loss.item() == 0, 'there should be no box loss when gt_bboxes out of bound'
     assert empty_obj_loss.item() > 0, 'objectness loss should be non-zero'

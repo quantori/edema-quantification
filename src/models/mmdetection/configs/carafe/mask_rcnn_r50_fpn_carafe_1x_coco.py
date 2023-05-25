@@ -16,7 +16,9 @@ model = dict(
             up_group=1,
             encoder_kernel=3,
             encoder_dilation=1,
-            compressed_channels=64)),
+            compressed_channels=64,
+        ),
+    ),
     roi_head=dict(
         mask_head=dict(
             upsample_cfg=dict(
@@ -26,9 +28,16 @@ model = dict(
                 up_group=1,
                 encoder_kernel=3,
                 encoder_dilation=1,
-                compressed_channels=64))))
+                compressed_channels=64,
+            ),
+        ),
+    ),
+)
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[123.675, 116.28, 103.53],
+    std=[58.395, 57.12, 57.375],
+    to_rgb=True,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
@@ -52,9 +61,11 @@ test_pipeline = [
             dict(type='Pad', size_divisor=64),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     train=dict(pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
-    test=dict(pipeline=test_pipeline))
+    test=dict(pipeline=test_pipeline),
+)

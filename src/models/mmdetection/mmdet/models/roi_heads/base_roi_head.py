@@ -9,16 +9,18 @@ from ..builder import build_shared_head
 class BaseRoIHead(BaseModule, metaclass=ABCMeta):
     """Base class for RoIHeads."""
 
-    def __init__(self,
-                 bbox_roi_extractor=None,
-                 bbox_head=None,
-                 mask_roi_extractor=None,
-                 mask_head=None,
-                 shared_head=None,
-                 train_cfg=None,
-                 test_cfg=None,
-                 pretrained=None,
-                 init_cfg=None):
+    def __init__(
+        self,
+        bbox_roi_extractor=None,
+        bbox_head=None,
+        mask_roi_extractor=None,
+        mask_head=None,
+        shared_head=None,
+        train_cfg=None,
+        test_cfg=None,
+        pretrained=None,
+        init_cfg=None,
+    ):
         super(BaseRoIHead, self).__init__(init_cfg)
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -65,34 +67,26 @@ class BaseRoIHead(BaseModule, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def forward_train(self,
-                      x,
-                      img_meta,
-                      proposal_list,
-                      gt_bboxes,
-                      gt_labels,
-                      gt_bboxes_ignore=None,
-                      gt_masks=None,
-                      **kwargs):
+    def forward_train(
+        self,
+        x,
+        img_meta,
+        proposal_list,
+        gt_bboxes,
+        gt_labels,
+        gt_bboxes_ignore=None,
+        gt_masks=None,
+        **kwargs
+    ):
         """Forward function during training."""
 
-    async def async_simple_test(self,
-                                x,
-                                proposal_list,
-                                img_metas,
-                                proposals=None,
-                                rescale=False,
-                                **kwargs):
+    async def async_simple_test(
+        self, x, proposal_list, img_metas, proposals=None, rescale=False, **kwargs
+    ):
         """Asynchronized test function."""
         raise NotImplementedError
 
-    def simple_test(self,
-                    x,
-                    proposal_list,
-                    img_meta,
-                    proposals=None,
-                    rescale=False,
-                    **kwargs):
+    def simple_test(self, x, proposal_list, img_meta, proposals=None, rescale=False, **kwargs):
         """Test without augmentation."""
 
     def aug_test(self, x, proposal_list, img_metas, rescale=False, **kwargs):

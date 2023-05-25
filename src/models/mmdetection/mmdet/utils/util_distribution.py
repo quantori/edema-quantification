@@ -23,6 +23,7 @@ def build_dp(model, device='cuda', dim=0, *args, **kwargs):
     """
     if device == 'npu':
         from mmcv.device.npu import NPUDataParallel
+
         dp_factory['npu'] = NPUDataParallel
         torch.npu.set_device(kwargs['device_ids'][0])
         torch.npu.set_compile_mode(jit_compile=False)
@@ -31,6 +32,7 @@ def build_dp(model, device='cuda', dim=0, *args, **kwargs):
         model = model.cuda(kwargs['device_ids'][0])
     elif device == 'mlu':
         from mmcv.device.mlu import MLUDataParallel
+
         dp_factory['mlu'] = MLUDataParallel
         model = model.mlu()
 
@@ -54,10 +56,14 @@ def build_ddp(model, device='cuda', *args, **kwargs):
         .. [1] https://pytorch.org/docs/stable/generated/torch.nn.parallel.
                      DistributedDataParallel.html
     """
-    assert device in ['cuda', 'mlu',
-                      'npu'], 'Only available for cuda or mlu or npu devices.'
+    assert device in [
+        'cuda',
+        'mlu',
+        'npu',
+    ], 'Only available for cuda or mlu or npu devices.'
     if device == 'npu':
         from mmcv.device.npu import NPUDistributedDataParallel
+
         torch.npu.set_compile_mode(jit_compile=False)
         ddp_factory['npu'] = NPUDistributedDataParallel
         model = model.npu()
@@ -65,6 +71,7 @@ def build_ddp(model, device='cuda', *args, **kwargs):
         model = model.cuda()
     elif device == 'mlu':
         from mmcv.device.mlu import MLUDistributedDataParallel
+
         ddp_factory['mlu'] = MLUDistributedDataParallel
         model = model.mlu()
 
@@ -86,7 +93,7 @@ def get_device():
     is_device_available = {
         'npu': is_npu_available(),
         'cuda': torch.cuda.is_available(),
-        'mlu': is_mlu_available()
+        'mlu': is_mlu_available(),
     }
     device_list = [k for k, v in is_device_available.items() if v]
     return device_list[0] if len(device_list) >= 1 else 'cpu'

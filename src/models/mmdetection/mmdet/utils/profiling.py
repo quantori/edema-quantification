@@ -8,11 +8,13 @@ import torch
 if sys.version_info >= (3, 7):
 
     @contextlib.contextmanager
-    def profile_time(trace_name,
-                     name,
-                     enabled=True,
-                     stream=None,
-                     end_stream=None):
+    def profile_time(
+        trace_name,
+        name,
+        enabled=True,
+        stream=None,
+        end_stream=None,
+    ):
         """Print time spent by CPU and GPU.
 
         Useful as a temporary context manager to find sweet spots of code

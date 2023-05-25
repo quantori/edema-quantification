@@ -7,4 +7,6 @@ model = dict(
         bbox_roi_extractor=dict(out_channels=128),
         bbox_head=dict(in_channels=128),
         mask_roi_extractor=dict(out_channels=128),
-        mask_head=dict(in_channels=128)))
+        mask_head=dict(in_channels=128),
+    ),
+)

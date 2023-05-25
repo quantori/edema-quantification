@@ -7,7 +7,6 @@ import numpy as np
 from matplotlib.ticker import MultipleLocator
 from mmcv import Config, DictAction
 from mmcv.ops import nms
-
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from mmdet.datasets import build_dataset
 from mmdet.utils import replace_cfg_vals, update_data_root
@@ -15,34 +14,45 @@ from mmdet.utils import replace_cfg_vals, update_data_root
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Generate confusion matrix from detection results')
+        description='Generate confusion matrix from detection results',
+    )
     parser.add_argument('config', help='test config file path')
     parser.add_argument(
-        'prediction_path', help='prediction path where test .pkl result')
+        'prediction_path',
+        help='prediction path where test .pkl result',
+    )
     parser.add_argument(
-        'save_dir', help='directory where confusion matrix will be saved')
+        'save_dir',
+        help='directory where confusion matrix will be saved',
+    )
     parser.add_argument(
-        '--show', action='store_true', help='show confusion matrix')
+        '--show',
+        action='store_true',
+        help='show confusion matrix',
+    )
     parser.add_argument(
         '--color-theme',
         default='plasma',
-        help='theme of the matrix color map')
+        help='theme of the matrix color map',
+    )
     parser.add_argument(
         '--score-thr',
         type=float,
         default=0.3,
-        help='score threshold to filter detection bboxes')
+        help='score threshold to filter detection bboxes',
+    )
     parser.add_argument(
         '--tp-iou-thr',
         type=float,
         default=0.5,
-        help='IoU threshold to be considered as matched')
+        help='IoU threshold to be considered as matched',
+    )
     parser.add_argument(
         '--nms-iou-thr',
         type=float,
         default=None,
-        help='nms IoU threshold, only applied when users want to change the'
-        'nms IoU threshold.')
+        help='nms IoU threshold, only applied when users want to change the' 'nms IoU threshold.',
+    )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -52,16 +62,19 @@ def parse_args():
         'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
         'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
         'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+        'is allowed.',
+    )
     args = parser.parse_args()
     return args
 
 
-def calculate_confusion_matrix(dataset,
-                               results,
-                               score_thr=0,
-                               nms_iou_thr=None,
-                               tp_iou_thr=0.5):
+def calculate_confusion_matrix(
+    dataset,
+    results,
+    score_thr=0,
+    nms_iou_thr=None,
+    tp_iou_thr=0.5,
+):
     """Calculate the confusion matrix.
 
     Args:
@@ -87,19 +100,28 @@ def calculate_confusion_matrix(dataset,
         ann = dataset.get_ann_info(idx)
         gt_bboxes = ann['bboxes']
         labels = ann['labels']
-        analyze_per_img_dets(confusion_matrix, gt_bboxes, labels, res_bboxes,
-                             score_thr, tp_iou_thr, nms_iou_thr)
+        analyze_per_img_dets(
+            confusion_matrix,
+            gt_bboxes,
+            labels,
+            res_bboxes,
+            score_thr,
+            tp_iou_thr,
+            nms_iou_thr,
+        )
         prog_bar.update()
     return confusion_matrix
 
 
-def analyze_per_img_dets(confusion_matrix,
-                         gt_bboxes,
-                         gt_labels,
-                         result,
-                         score_thr=0,
-                         tp_iou_thr=0.5,
-                         nms_iou_thr=None):
+def analyze_per_img_dets(
+    confusion_matrix,
+    gt_bboxes,
+    gt_labels,
+    result,
+    score_thr=0,
+    tp_iou_thr=0.5,
+    nms_iou_thr=None,
+):
     """Analyze detection results on each image.
 
     Args:
@@ -124,7 +146,8 @@ def analyze_per_img_dets(confusion_matrix,
                 det_bboxes[:, :4],
                 det_bboxes[:, -1],
                 nms_iou_thr,
-                score_threshold=score_thr)
+                score_threshold=score_thr,
+            )
         ious = bbox_overlaps(det_bboxes[:, :4], gt_bboxes)
         for i, det_bbox in enumerate(det_bboxes):
             score = det_bbox[4]
@@ -143,12 +166,14 @@ def analyze_per_img_dets(confusion_matrix,
             confusion_matrix[gt_label, -1] += 1
 
 
-def plot_confusion_matrix(confusion_matrix,
-                          labels,
-                          save_dir=None,
-                          show=True,
-                          title='Normalized Confusion Matrix',
-                          color_theme='plasma'):
+def plot_confusion_matrix(
+    confusion_matrix,
+    labels,
+    save_dir=None,
+    show=True,
+    title='Normalized Confusion Matrix',
+    color_theme='plasma',
+):
     """Draw confusion matrix with matplotlib.
 
     Args:
@@ -162,12 +187,13 @@ def plot_confusion_matrix(confusion_matrix,
     """
     # normalize the confusion matrix
     per_label_sums = confusion_matrix.sum(axis=1)[:, np.newaxis]
-    confusion_matrix = \
-        confusion_matrix.astype(np.float32) / per_label_sums * 100
+    confusion_matrix = confusion_matrix.astype(np.float32) / per_label_sums * 100
 
     num_classes = len(labels)
     fig, ax = plt.subplots(
-        figsize=(0.5 * num_classes, 0.5 * num_classes * 0.8), dpi=180)
+        figsize=(0.5 * num_classes, 0.5 * num_classes * 0.8),
+        dpi=180,
+    )
     cmap = plt.get_cmap(color_theme)
     im = ax.imshow(confusion_matrix, cmap=cmap)
     plt.colorbar(mappable=im, ax=ax)
@@ -198,9 +224,18 @@ def plot_confusion_matrix(confusion_matrix,
     ax.set_yticklabels(labels)
 
     ax.tick_params(
-        axis='x', bottom=False, top=True, labelbottom=False, labeltop=True)
+        axis='x',
+        bottom=False,
+        top=True,
+        labelbottom=False,
+        labeltop=True,
+    )
     plt.setp(
-        ax.get_xticklabels(), rotation=45, ha='left', rotation_mode='anchor')
+        ax.get_xticklabels(),
+        rotation=45,
+        ha='left',
+        rotation_mode='anchor',
+    )
 
     # draw confution matrix value
     for i in range(num_classes):
@@ -209,20 +244,29 @@ def plot_confusion_matrix(confusion_matrix,
                 j,
                 i,
                 '{}%'.format(
-                    int(confusion_matrix[
-                        i,
-                        j]) if not np.isnan(confusion_matrix[i, j]) else -1),
+                    int(
+                        confusion_matrix[
+                            i,
+                            j,
+                        ],
+                    )
+                    if not np.isnan(confusion_matrix[i, j])
+                    else -1,
+                ),
                 ha='center',
                 va='center',
                 color='w',
-                size=7)
+                size=7,
+            )
 
     ax.set_ylim(len(confusion_matrix) - 0.5, -0.5)  # matplotlib>3.1.1
 
     fig.tight_layout()
     if save_dir is not None:
         plt.savefig(
-            os.path.join(save_dir, 'confusion_matrix.png'), format='png')
+            os.path.join(save_dir, 'confusion_matrix.png'),
+            format='png',
+        )
     if show:
         plt.show()
 
@@ -257,16 +301,20 @@ def main():
             ds_cfg.test_mode = True
     dataset = build_dataset(cfg.data.test)
 
-    confusion_matrix = calculate_confusion_matrix(dataset, results,
-                                                  args.score_thr,
-                                                  args.nms_iou_thr,
-                                                  args.tp_iou_thr)
+    confusion_matrix = calculate_confusion_matrix(
+        dataset,
+        results,
+        args.score_thr,
+        args.nms_iou_thr,
+        args.tp_iou_thr,
+    )
     plot_confusion_matrix(
         confusion_matrix,
-        dataset.CLASSES + ('background', ),
+        dataset.CLASSES + ('background',),
         save_dir=args.save_dir,
         show=args.show,
-        color_theme=args.color_theme)
+        color_theme=args.color_theme,
+    )
 
 
 if __name__ == '__main__':

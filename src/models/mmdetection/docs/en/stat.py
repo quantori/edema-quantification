@@ -21,8 +21,7 @@ for f in files:
         content = content_file.read()
 
     title = content.split('\n')[0].replace('# ', '').strip()
-    ckpts = set(x.lower().strip()
-                for x in re.findall(r'\[model\]\((https?.*)\)', content))
+    ckpts = set(x.lower().strip() for x in re.findall(r'\[model\]\((https?.*)\)', content))
 
     if len(ckpts) == 0:
         continue
@@ -44,10 +43,13 @@ for f in files:
 allpapers = func.reduce(lambda a, b: a.union(b), [p for p, _, _ in stats])
 msglist = '\n'.join(x for _, _, x in stats)
 
-papertypes, papercounts = np.unique([t for t, _ in allpapers],
-                                    return_counts=True)
+papertypes, papercounts = np.unique(
+    [t for t, _ in allpapers],
+    return_counts=True,
+)
 countstr = '\n'.join(
-    [f'   - {t}: {c}' for t, c in zip(papertypes, papercounts)])
+    [f'   - {t}: {c}' for t, c in zip(papertypes, papercounts)],
+)
 
 modelzoo = f"""
 # Model Zoo Statistics

@@ -15,4 +15,7 @@ model = dict(
         norm_cfg=norm_cfg,
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='open-mmlab://jhu/resnext101_32x4d_gn_ws')))
+            checkpoint='open-mmlab://jhu/resnext101_32x4d_gn_ws',
+        ),
+    ),
+)

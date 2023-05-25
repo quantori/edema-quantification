@@ -13,13 +13,14 @@ import yaml
 
 
 def ordered_yaml_dump(data, stream=None, Dumper=yaml.SafeDumper, **kwds):
-
     class OrderedDumper(Dumper):
         pass
 
     def _dict_representer(dumper, data):
         return dumper.represent_mapping(
-            yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, data.items())
+            yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+            data.items(),
+        )
 
     OrderedDumper.add_representer(OrderedDict, _dict_representer)
     return yaml.dump(data, stream, OrderedDumper, **kwds)
@@ -63,10 +64,10 @@ def get_final_epoch_or_iter(config):
 
 def get_best_epoch_or_iter(exp_dir):
     best_epoch_iter_full_path = list(
-        sorted(glob.glob(osp.join(exp_dir, 'best_*.pth'))))[-1]
+        sorted(glob.glob(osp.join(exp_dir, 'best_*.pth'))),
+    )[-1]
     best_epoch_or_iter_model_path = best_epoch_iter_full_path.split('/')[-1]
-    best_epoch_or_iter = best_epoch_or_iter_model_path.\
-        split('_')[-1].split('.')[0]
+    best_epoch_or_iter = best_epoch_or_iter_model_path.split('_')[-1].split('.')[0]
     return best_epoch_or_iter_model_path, int(best_epoch_or_iter)
 
 
@@ -81,10 +82,12 @@ def get_real_epoch_or_iter(config):
         return cfg.runner.max_iters
 
 
-def get_final_results(log_json_path,
-                      epoch_or_iter,
-                      results_lut,
-                      by_epoch=True):
+def get_final_results(
+    log_json_path,
+    epoch_or_iter,
+    results_lut,
+    by_epoch=True,
+):
     result_dict = dict()
     last_val_line = None
     last_train_line = None
@@ -97,16 +100,13 @@ def get_final_results(log_json_path,
                 continue
 
             if by_epoch:
-                if (log_line['mode'] == 'train'
-                        and log_line['epoch'] == epoch_or_iter):
+                if log_line['mode'] == 'train' and log_line['epoch'] == epoch_or_iter:
                     result_dict['memory'] = log_line['memory']
 
-                if (log_line['mode'] == 'val'
-                        and log_line['epoch'] == epoch_or_iter):
-                    result_dict.update({
-                        key: log_line[key]
-                        for key in results_lut if key in log_line
-                    })
+                if log_line['mode'] == 'val' and log_line['epoch'] == epoch_or_iter:
+                    result_dict.update(
+                        {key: log_line[key] for key in results_lut if key in log_line},
+                    )
                     return result_dict
             else:
                 if log_line['mode'] == 'train':
@@ -118,13 +118,9 @@ def get_final_results(log_json_path,
                     last_val_line = log_line
 
     # bug: max_iters = 768, last_train_line['iter'] = 750
-    assert last_val_line_idx == last_train_line_idx + 1, \
-        'Log file is incomplete'
+    assert last_val_line_idx == last_train_line_idx + 1, 'Log file is incomplete'
     result_dict['memory'] = last_train_line['memory']
-    result_dict.update({
-        key: last_val_line[key]
-        for key in results_lut if key in last_val_line
-    })
+    result_dict.update({key: last_val_line[key] for key in results_lut if key in last_val_line})
 
     return result_dict
 
@@ -143,7 +139,8 @@ def get_dataset_name(config):
         OpenImagesDataset='OpenImagesDataset',
         OpenImagesChallengeDataset='OpenImagesChallengeDataset',
         Objects365V1Dataset='Objects365 v1',
-        Objects365V2Dataset='Objects365 v2')
+        Objects365V2Dataset='Objects365 v2',
+    )
     cfg = mmcv.Config.fromfile('./configs/' + config)
     return name_map[cfg.dataset_type]
 
@@ -179,26 +176,34 @@ def convert_model_info_to_pwc(model_infos):
                 OrderedDict(
                     Task='Object Detection',
                     Dataset=dataset_name,
-                    Metrics={'box AP': metric}))
+                    Metrics={'box AP': metric},
+                ),
+            )
         if 'segm_mAP' in model['results']:
             metric = round(model['results']['segm_mAP'] * 100, 1)
             results.append(
                 OrderedDict(
                     Task='Instance Segmentation',
                     Dataset=dataset_name,
-                    Metrics={'mask AP': metric}))
+                    Metrics={'mask AP': metric},
+                ),
+            )
         if 'PQ' in model['results']:
             metric = round(model['results']['PQ'], 1)
             results.append(
                 OrderedDict(
                     Task='Panoptic Segmentation',
                     Dataset=dataset_name,
-                    Metrics={'PQ': metric}))
+                    Metrics={'PQ': metric},
+                ),
+            )
         pwc_model_info['Results'] = results
 
         link_string = 'https://download.openmmlab.com/mmdetection/v2.0/'
-        link_string += '{}/{}'.format(model['config'].rstrip('.py'),
-                                      osp.split(model['model_path'])[-1])
+        link_string += '{}/{}'.format(
+            model['config'].rstrip('.py'),
+            osp.split(model['model_path'])[-1],
+        )
         pwc_model_info['Weights'] = link_string
         if cfg_folder_name in pwc_files:
             pwc_files[cfg_folder_name].append(pwc_model_info)
@@ -212,13 +217,18 @@ def parse_args():
     parser.add_argument(
         'root',
         type=str,
-        help='root path of benchmarked models to be gathered')
+        help='root path of benchmarked models to be gathered',
+    )
     parser.add_argument(
-        'out', type=str, help='output path of gathered models to be stored')
+        'out',
+        type=str,
+        help='output path of gathered models to be stored',
+    )
     parser.add_argument(
         '--best',
         action='store_true',
-        help='whether to gather the best model.')
+        help='whether to gather the best model.',
+    )
 
     args = parser.parse_args()
     return args
@@ -251,8 +261,10 @@ def main():
             final_model, final_epoch_or_iter = get_best_epoch_or_iter(exp_dir)
         else:
             final_epoch_or_iter = get_final_epoch_or_iter(used_config)
-            final_model = '{}_{}.pth'.format('epoch' if by_epoch else 'iter',
-                                             final_epoch_or_iter)
+            final_model = '{}_{}.pth'.format(
+                'epoch' if by_epoch else 'iter',
+                final_epoch_or_iter,
+            )
 
         model_path = osp.join(exp_dir, final_model)
         # skip if the model is still training
@@ -261,7 +273,8 @@ def main():
 
         # get the latest logs
         log_json_path = list(
-            sorted(glob.glob(osp.join(exp_dir, '*.log.json'))))[-1]
+            sorted(glob.glob(osp.join(exp_dir, '*.log.json'))),
+        )[-1]
         log_txt_path = list(sorted(glob.glob(osp.join(exp_dir, '*.log'))))[-1]
         cfg = mmcv.Config.fromfile('./configs/' + used_config)
         results_lut = cfg.evaluation.metric
@@ -272,9 +285,12 @@ def main():
         for i, key in enumerate(results_lut):
             if 'mAP' not in key and 'PQ' not in key:
                 results_lut[i] = key + '_mAP'
-        model_performance = get_final_results(log_json_path,
-                                              final_epoch_or_iter, results_lut,
-                                              by_epoch)
+        model_performance = get_final_results(
+            log_json_path,
+            final_epoch_or_iter,
+            results_lut,
+            by_epoch,
+        )
 
         if model_performance is None:
             continue
@@ -285,9 +301,9 @@ def main():
             results=model_performance,
             model_time=model_time,
             final_model=final_model,
-            log_json_path=osp.split(log_json_path)[-1])
-        model_info['epochs' if by_epoch else 'iterations'] =\
-            final_epoch_or_iter
+            log_json_path=osp.split(log_json_path)[-1],
+        )
+        model_info['epochs' if by_epoch else 'iterations'] = final_epoch_or_iter
         model_infos.append(model_info)
 
     # publish model for each checkpoint
@@ -300,30 +316,50 @@ def main():
 
         model_name += '_' + model['model_time']
         publish_model_path = osp.join(model_publish_dir, model_name)
-        trained_model_path = osp.join(models_root, model['config'],
-                                      model['final_model'])
+        trained_model_path = osp.join(
+            models_root,
+            model['config'],
+            model['final_model'],
+        )
 
         # convert model
-        final_model_path = process_checkpoint(trained_model_path,
-                                              publish_model_path)
+        final_model_path = process_checkpoint(
+            trained_model_path,
+            publish_model_path,
+        )
 
         # copy log
         shutil.copy(
             osp.join(models_root, model['config'], model['log_json_path']),
-            osp.join(model_publish_dir, f'{model_name}.log.json'))
+            osp.join(model_publish_dir, f'{model_name}.log.json'),
+        )
         shutil.copy(
-            osp.join(models_root, model['config'],
-                     model['log_json_path'].rstrip('.json')),
-            osp.join(model_publish_dir, f'{model_name}.log'))
+            osp.join(
+                models_root,
+                model['config'],
+                model['log_json_path'].rstrip('.json'),
+            ),
+            osp.join(model_publish_dir, f'{model_name}.log'),
+        )
 
         # copy config to guarantee reproducibility
         config_path = model['config']
-        config_path = osp.join(
-            'configs',
-            config_path) if 'configs' not in config_path else config_path
+        config_path = (
+            osp.join(
+                'configs',
+                config_path,
+            )
+            if 'configs' not in config_path
+            else config_path
+        )
         target_config_path = osp.split(config_path)[-1]
-        shutil.copy(config_path, osp.join(model_publish_dir,
-                                          target_config_path))
+        shutil.copy(
+            config_path,
+            osp.join(
+                model_publish_dir,
+                target_config_path,
+            ),
+        )
 
         model['model_path'] = final_model_path
         publish_model_infos.append(model)

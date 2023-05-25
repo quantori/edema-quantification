@@ -2,13 +2,11 @@
 import pytest
 import torch
 from mmcv.cnn import is_norm
-from torch.nn.modules import GroupNorm
-
 from mmdet.models.utils import InvertedResidual, SELayer
+from torch.nn.modules import GroupNorm
 
 
 def test_inverted_residual():
-
     with pytest.raises(AssertionError):
         # stride must be in [1, 2]
         InvertedResidual(16, 16, 32, stride=3)
@@ -54,7 +52,11 @@ def test_inverted_residual():
 
     # Test InvertedResidual forward with GroupNorm
     block = InvertedResidual(
-        16, 16, 32, norm_cfg=dict(type='GN', num_groups=2))
+        16,
+        16,
+        32,
+        norm_cfg=dict(type='GN', num_groups=2),
+    )
     x = torch.randn(1, 16, 56, 56)
     x_out = block(x)
     for m in block.modules():

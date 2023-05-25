@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 import torch
 from mmcv.utils import build_from_cfg
-
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from mmdet.datasets.builder import PIPELINES
+
 from .utils import create_full_masks, create_random_bboxes
 
 
@@ -25,7 +25,8 @@ def test_resize():
             type='Resize',
             img_scale=[(1333, 800), (1333, 600)],
             ratio_range=(0.9, 1.1),
-            keep_ratio=True)
+            keep_ratio=True,
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for invalid multiscale_mode
@@ -34,14 +35,16 @@ def test_resize():
             type='Resize',
             img_scale=[(1333, 800), (1333, 600)],
             keep_ratio=True,
-            multiscale_mode='2333')
+            multiscale_mode='2333',
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion if both scale and scale_factor are set
     with pytest.raises(AssertionError):
         results = dict(
             img_prefix=osp.join(osp.dirname(__file__), '../../../data'),
-            img_info=dict(filename='color.jpg'))
+            img_info=dict(filename='color.jpg'),
+        )
         load = dict(type='LoadImageFromFile')
         load = build_from_cfg(load, PIPELINES)
         transform = dict(type='Resize', img_scale=(1333, 800), keep_ratio=True)
@@ -56,7 +59,9 @@ def test_resize():
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     results['img'] = img
     results['img2'] = copy.deepcopy(img)
     results['img_shape'] = img.shape
@@ -74,7 +79,8 @@ def test_resize():
         type='Resize',
         img_scale=(1280, 800),
         multiscale_mode='value',
-        keep_ratio=False)
+        keep_ratio=False,
+    )
     resize_module = build_from_cfg(transform, PIPELINES)
     results = resize_module(results)
     assert np.equal(results['img'], results['img2']).all()
@@ -87,21 +93,24 @@ def test_resize():
         'ori_shape': img.shape,
         'gt_semantic_seg': copy.deepcopy(img),
         'gt_seg': copy.deepcopy(img),
-        'seg_fields': ['gt_semantic_seg', 'gt_seg']
+        'seg_fields': ['gt_semantic_seg', 'gt_seg'],
     }
     transform = dict(
         type='Resize',
         img_scale=(640, 400),
         multiscale_mode='value',
-        keep_ratio=False)
+        keep_ratio=False,
+    )
     resize_module = build_from_cfg(transform, PIPELINES)
     results_seg = resize_module(results_seg)
     assert results_seg['gt_semantic_seg'].shape == results_seg['gt_seg'].shape
     assert results_seg['img_shape'] == (400, 640, 3)
     assert results_seg['img_shape'] != results_seg['ori_shape']
     assert results_seg['gt_semantic_seg'].shape == results_seg['img_shape']
-    assert np.equal(results_seg['gt_semantic_seg'],
-                    results_seg['gt_seg']).all()
+    assert np.equal(
+        results_seg['gt_semantic_seg'],
+        results_seg['gt_seg'],
+    ).all()
 
 
 def test_flip():
@@ -114,7 +123,8 @@ def test_flip():
         transform = dict(
             type='RandomFlip',
             flip_ratio=[0.7, 0.8],
-            direction=['horizontal', 'vertical'])
+            direction=['horizontal', 'vertical'],
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for mismatch between number of flip_ratio and direction
@@ -125,15 +135,20 @@ def test_flip():
     # test assertion for invalid direction
     with pytest.raises(AssertionError):
         transform = dict(
-            type='RandomFlip', flip_ratio=1., direction='horizonta')
+            type='RandomFlip',
+            flip_ratio=1.0,
+            direction='horizonta',
+        )
         build_from_cfg(transform, PIPELINES)
 
-    transform = dict(type='RandomFlip', flip_ratio=1.)
+    transform = dict(type='RandomFlip', flip_ratio=1.0)
     flip_module = build_from_cfg(transform, PIPELINES)
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     original_img = copy.deepcopy(img)
     results['img'] = img
     results['img2'] = copy.deepcopy(img)
@@ -156,12 +171,15 @@ def test_flip():
     transform = dict(
         type='RandomFlip',
         flip_ratio=0.9,
-        direction=['horizontal', 'vertical', 'diagonal'])
+        direction=['horizontal', 'vertical', 'diagonal'],
+    )
     flip_module = build_from_cfg(transform, PIPELINES)
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     original_img = copy.deepcopy(img)
     results['img'] = img
     results['img_shape'] = img.shape
@@ -174,7 +192,8 @@ def test_flip():
     if results['flip']:
         assert np.array_equal(
             mmcv.imflip(original_img, results['flip_direction']),
-            results['img'])
+            results['img'],
+        )
     else:
         assert np.array_equal(original_img, results['img'])
 
@@ -182,12 +201,15 @@ def test_flip():
     transform = dict(
         type='RandomFlip',
         flip_ratio=[0.3, 0.3, 0.2],
-        direction=['horizontal', 'vertical', 'diagonal'])
+        direction=['horizontal', 'vertical', 'diagonal'],
+    )
     flip_module = build_from_cfg(transform, PIPELINES)
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     original_img = copy.deepcopy(img)
     results['img'] = img
     results['img_shape'] = img.shape
@@ -200,7 +222,8 @@ def test_flip():
     if results['flip']:
         assert np.array_equal(
             mmcv.imflip(original_img, results['flip_direction']),
-            results['img'])
+            results['img'],
+        )
     else:
         assert np.array_equal(original_img, results['img'])
 
@@ -213,7 +236,9 @@ def test_random_crop():
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     results['img'] = img
 
     results['img_shape'] = img.shape
@@ -253,13 +278,19 @@ def test_random_crop():
     # test assertion for invalid crop_type
     with pytest.raises(ValueError):
         transform = dict(
-            type='RandomCrop', crop_size=(1, 1), crop_type='unknown')
+            type='RandomCrop',
+            crop_size=(1, 1),
+            crop_type='unknown',
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for invalid crop_size
     with pytest.raises(AssertionError):
         transform = dict(
-            type='RandomCrop', crop_type='relative', crop_size=(0, 0))
+            type='RandomCrop',
+            crop_type='relative',
+            crop_size=(0, 0),
+        )
         build_from_cfg(transform, PIPELINES)
 
     def _construct_toy_data():
@@ -272,9 +303,11 @@ def test_random_crop():
         results['img_fields'] = ['img']
         # bboxes
         results['bbox_fields'] = ['gt_bboxes', 'gt_bboxes_ignore']
-        results['gt_bboxes'] = np.array([[0., 0., 2., 1.]], dtype=np.float32)
-        results['gt_bboxes_ignore'] = np.array([[2., 0., 3., 1.]],
-                                               dtype=np.float32)
+        results['gt_bboxes'] = np.array([[0.0, 0.0, 2.0, 1.0]], dtype=np.float32)
+        results['gt_bboxes_ignore'] = np.array(
+            [[2.0, 0.0, 3.0, 1.0]],
+            dtype=np.float32,
+        )
         # labels
         results['gt_labels'] = np.array([1], dtype=np.int64)
         return results
@@ -285,7 +318,8 @@ def test_random_crop():
         type='RandomCrop',
         crop_type='relative_range',
         crop_size=(0.3, 0.7),
-        allow_negative_crop=True)
+        allow_negative_crop=True,
+    )
     transform_module = build_from_cfg(transform, PIPELINES)
     results_transformed = transform_module(copy.deepcopy(results))
     h, w = results_transformed['img_shape'][:2]
@@ -299,7 +333,8 @@ def test_random_crop():
         type='RandomCrop',
         crop_type='relative',
         crop_size=(0.3, 0.7),
-        allow_negative_crop=True)
+        allow_negative_crop=True,
+    )
     transform_module = build_from_cfg(transform, PIPELINES)
     results_transformed = transform_module(copy.deepcopy(results))
     h, w = results_transformed['img_shape'][:2]
@@ -312,7 +347,8 @@ def test_random_crop():
         type='RandomCrop',
         crop_type='absolute',
         crop_size=(1, 2),
-        allow_negative_crop=True)
+        allow_negative_crop=True,
+    )
     transform_module = build_from_cfg(transform, PIPELINES)
     results_transformed = transform_module(copy.deepcopy(results))
     h, w = results_transformed['img_shape'][:2]
@@ -325,7 +361,8 @@ def test_random_crop():
         type='RandomCrop',
         crop_type='absolute_range',
         crop_size=(1, 20),
-        allow_negative_crop=True)
+        allow_negative_crop=True,
+    )
     transform_module = build_from_cfg(transform, PIPELINES)
     results_transformed = transform_module(copy.deepcopy(results))
     h, w = results_transformed['img_shape'][:2]
@@ -337,7 +374,9 @@ def test_random_crop():
 def test_min_iou_random_crop():
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     results['img'] = img
 
     results['img_shape'] = img.shape
@@ -368,10 +407,14 @@ def test_min_iou_random_crop():
     assert results['gt_bboxes_ignore'].dtype == np.float32
 
     patch = np.array([0, 0, results['img_shape'][1], results['img_shape'][0]])
-    ious = bbox_overlaps(patch.reshape(-1, 4),
-                         results['gt_bboxes']).reshape(-1)
+    ious = bbox_overlaps(
+        patch.reshape(-1, 4),
+        results['gt_bboxes'],
+    ).reshape(-1)
     ious_ignore = bbox_overlaps(
-        patch.reshape(-1, 4), results['gt_bboxes_ignore']).reshape(-1)
+        patch.reshape(-1, 4),
+        results['gt_bboxes_ignore'],
+    ).reshape(-1)
     mode = crop_module.mode
     if mode == 1:
         assert np.equal(results['gt_bboxes'], gt_bboxes).all()
@@ -391,7 +434,9 @@ def test_pad():
     transform = build_from_cfg(transform, PIPELINES)
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     original_img = copy.deepcopy(img)
     results['img'] = img
     results['img2'] = copy.deepcopy(img)
@@ -411,7 +456,10 @@ def test_pad():
     assert img_shape[1] % 32 == 0
 
     resize_transform = dict(
-        type='Resize', img_scale=(1333, 800), keep_ratio=True)
+        type='Resize',
+        img_scale=(1333, 800),
+        keep_ratio=True,
+    )
     resize_module = build_from_cfg(resize_transform, PIPELINES)
     results = resize_module(results)
     results = transform(results)
@@ -447,12 +495,15 @@ def test_normalize():
     img_norm_cfg = dict(
         mean=[123.675, 116.28, 103.53],
         std=[58.395, 57.12, 57.375],
-        to_rgb=True)
+        to_rgb=True,
+    )
     transform = dict(type='Normalize', **img_norm_cfg)
     transform = build_from_cfg(transform, PIPELINES)
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     original_img = copy.deepcopy(img)
     results['img'] = img
     results['img2'] = copy.deepcopy(img)
@@ -475,14 +526,17 @@ def test_normalize():
 def test_albu_transform():
     results = dict(
         img_prefix=osp.join(osp.dirname(__file__), '../../../data'),
-        img_info=dict(filename='color.jpg'))
+        img_info=dict(filename='color.jpg'),
+    )
 
     # Define simple pipeline
     load = dict(type='LoadImageFromFile')
     load = build_from_cfg(load, PIPELINES)
 
     albu_transform = dict(
-        type='Albu', transforms=[dict(type='ChannelShuffle', p=1)])
+        type='Albu',
+        transforms=[dict(type='ChannelShuffle', p=1)],
+    )
     albu_transform = build_from_cfg(albu_transform, PIPELINES)
 
     normalize = dict(type='Normalize', mean=[0] * 3, std=[0] * 3, to_rgb=True)
@@ -503,7 +557,8 @@ def test_random_center_crop_pad():
             type='RandomCenterCropPad',
             crop_size=(-1, 0),
             test_mode=False,
-            test_pad_mode=None)
+            test_pad_mode=None,
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for invalid ratios while test_mode=False
@@ -513,7 +568,8 @@ def test_random_center_crop_pad():
             crop_size=(511, 511),
             ratios=(1.0),
             test_mode=False,
-            test_pad_mode=None)
+            test_pad_mode=None,
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for invalid mean, std and to_rgb
@@ -525,7 +581,8 @@ def test_random_center_crop_pad():
             std=None,
             to_rgb=None,
             test_mode=False,
-            test_pad_mode=None)
+            test_pad_mode=None,
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for invalid crop_size while test_mode=True
@@ -539,7 +596,8 @@ def test_random_center_crop_pad():
             std=[58.395, 57.12, 57.375],
             to_rgb=True,
             test_mode=True,
-            test_pad_mode=('logical_or', 127))
+            test_pad_mode=('logical_or', 127),
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for invalid ratios while test_mode=True
@@ -553,7 +611,8 @@ def test_random_center_crop_pad():
             std=[58.395, 57.12, 57.375],
             to_rgb=True,
             test_mode=True,
-            test_pad_mode=('logical_or', 127))
+            test_pad_mode=('logical_or', 127),
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for invalid border while test_mode=True
@@ -567,7 +626,8 @@ def test_random_center_crop_pad():
             std=[58.395, 57.12, 57.375],
             to_rgb=True,
             test_mode=True,
-            test_pad_mode=('logical_or', 127))
+            test_pad_mode=('logical_or', 127),
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion for invalid test_pad_mode while test_mode=True
@@ -581,12 +641,14 @@ def test_random_center_crop_pad():
             std=[58.395, 57.12, 57.375],
             to_rgb=True,
             test_mode=True,
-            test_pad_mode=('do_nothing', 100))
+            test_pad_mode=('do_nothing', 100),
+        )
         build_from_cfg(transform, PIPELINES)
 
     results = dict(
         img_prefix=osp.join(osp.dirname(__file__), '../../../data'),
-        img_info=dict(filename='color.jpg'))
+        img_info=dict(filename='color.jpg'),
+    )
 
     load = dict(type='LoadImageFromFile', to_float32=True)
     load = build_from_cfg(load, PIPELINES)
@@ -601,13 +663,14 @@ def test_random_center_crop_pad():
     train_transform = dict(
         type='RandomCenterCropPad',
         crop_size=(h - 20, w - 20),
-        ratios=(1.0, ),
+        ratios=(1.0,),
         border=128,
         mean=[123.675, 116.28, 103.53],
         std=[58.395, 57.12, 57.375],
         to_rgb=True,
         test_mode=False,
-        test_pad_mode=None)
+        test_pad_mode=None,
+    )
     crop_module = build_from_cfg(train_transform, PIPELINES)
     train_results = crop_module(results)
     assert train_results['img'].shape[:2] == (h - 20, w - 20)
@@ -627,7 +690,8 @@ def test_random_center_crop_pad():
         std=[58.395, 57.12, 57.375],
         to_rgb=True,
         test_mode=True,
-        test_pad_mode=('logical_or', 127))
+        test_pad_mode=('logical_or', 127),
+    )
     crop_module = build_from_cfg(test_transform, PIPELINES)
 
     test_results = crop_module(test_results)
@@ -643,7 +707,8 @@ def test_multi_scale_flip_aug():
             type='MultiScaleFlipAug',
             scale_factor=1.0,
             img_scale=[(1333, 800)],
-            transforms=[dict(type='Resize')])
+            transforms=[dict(type='Resize')],
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion if both scale_factor and img_scale are None
@@ -652,7 +717,8 @@ def test_multi_scale_flip_aug():
             type='MultiScaleFlipAug',
             scale_factor=None,
             img_scale=None,
-            transforms=[dict(type='Resize')])
+            transforms=[dict(type='Resize')],
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion if img_scale is not tuple or list of tuple
@@ -660,7 +726,8 @@ def test_multi_scale_flip_aug():
         transform = dict(
             type='MultiScaleFlipAug',
             img_scale=[1333, 800],
-            transforms=[dict(type='Resize')])
+            transforms=[dict(type='Resize')],
+        )
         build_from_cfg(transform, PIPELINES)
 
     # test assertion if flip_direction is not str or list of str
@@ -669,18 +736,22 @@ def test_multi_scale_flip_aug():
             type='MultiScaleFlipAug',
             img_scale=[(1333, 800)],
             flip_direction=1,
-            transforms=[dict(type='Resize')])
+            transforms=[dict(type='Resize')],
+        )
         build_from_cfg(transform, PIPELINES)
 
     scale_transform = dict(
         type='MultiScaleFlipAug',
         img_scale=[(1333, 800), (1333, 640)],
-        transforms=[dict(type='Resize', keep_ratio=True)])
+        transforms=[dict(type='Resize', keep_ratio=True)],
+    )
     transform = build_from_cfg(scale_transform, PIPELINES)
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     results['img'] = img
     results['img_shape'] = img.shape
     results['ori_shape'] = img.shape
@@ -698,7 +769,8 @@ def test_multi_scale_flip_aug():
     scale_factor_transform = dict(
         type='MultiScaleFlipAug',
         scale_factor=[0.8, 1.0, 1.2],
-        transforms=[dict(type='Resize', keep_ratio=False)])
+        transforms=[dict(type='Resize', keep_ratio=False)],
+    )
     transform = build_from_cfg(scale_factor_transform, PIPELINES)
     scale_factor_results = transform(copy.deepcopy(results))
     assert len(scale_factor_results['img']) == 3
@@ -712,9 +784,11 @@ def test_multi_scale_flip_aug():
     # test pipeline of coco_detection
     results = dict(
         img_prefix=osp.join(osp.dirname(__file__), '../../../data'),
-        img_info=dict(filename='color.jpg'))
+        img_info=dict(filename='color.jpg'),
+    )
     load_cfg, multi_scale_cfg = mmcv.Config.fromfile(
-        'configs/_base_/datasets/coco_detection.py').test_pipeline
+        'configs/_base_/datasets/coco_detection.py',
+    ).test_pipeline
     load = build_from_cfg(load_cfg, PIPELINES)
     transform = build_from_cfg(multi_scale_cfg, PIPELINES)
     results = transform(load(results))
@@ -726,7 +800,10 @@ def test_multi_scale_flip_aug():
     assert results['img_metas'][0].data['img_shape'] == (750, 1333, 3)
     assert results['img_metas'][0].data['pad_shape'] == (768, 1344, 3)
     assert results['img_metas'][0].data['scale_factor'].tolist() == [
-        2.603515625, 2.6041667461395264, 2.603515625, 2.6041667461395264
+        2.603515625,
+        2.6041667461395264,
+        2.603515625,
+        2.6041667461395264,
     ]
 
 
@@ -754,12 +831,15 @@ def test_cutout():
             type='CutOut',
             n_holes=1,
             cutout_shape=(2, 2),
-            cutout_ratio=(0.4, 0.4))
+            cutout_ratio=(0.4, 0.4),
+        )
         build_from_cfg(transform, PIPELINES)
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
 
     results['img'] = img
     results['img_shape'] = img.shape
@@ -781,7 +861,8 @@ def test_cutout():
         type='CutOut',
         n_holes=(2, 4),
         cutout_shape=[(10, 10), (15, 15)],
-        fill_in=(255, 255, 255))
+        fill_in=(255, 255, 255),
+    )
     cutout_module = build_from_cfg(transform, PIPELINES)
     cutout_result = cutout_module(copy.deepcopy(results))
     assert cutout_result['img'].sum() > img.sum()
@@ -790,7 +871,8 @@ def test_cutout():
         type='CutOut',
         n_holes=1,
         cutout_ratio=(0.8, 0.8),
-        fill_in=(255, 255, 255))
+        fill_in=(255, 255, 255),
+    )
     cutout_module = build_from_cfg(transform, PIPELINES)
     cutout_result = cutout_module(copy.deepcopy(results))
     assert cutout_result['img'].sum() > img.sum()
@@ -809,7 +891,9 @@ def test_random_shift():
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     results['img'] = img
     # TODO: add img_fields test
     results['bbox_fields'] = ['gt_bboxes', 'gt_bboxes_ignore']
@@ -848,7 +932,9 @@ def test_random_affine():
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     results['img'] = img
     results['bbox_fields'] = ['gt_bboxes', 'gt_bboxes_ignore']
 
@@ -874,14 +960,15 @@ def test_random_affine():
     results['gt_bboxes'] = gt_bboxes
     transform = dict(
         type='RandomAffine',
-        max_rotate_degree=0.,
-        max_translate_ratio=0.,
-        scaling_ratio_range=(1., 1.),
-        max_shear_degree=0.,
+        max_rotate_degree=0.0,
+        max_translate_ratio=0.0,
+        scaling_ratio_range=(1.0, 1.0),
+        max_shear_degree=0.0,
         border=(0, 0),
         min_bbox_size=2,
         max_aspect_ratio=20,
-        skip_filter=False)
+        skip_filter=False,
+    )
     random_affine_module = build_from_cfg(transform, PIPELINES)
 
     results = random_affine_module(results)
@@ -907,7 +994,9 @@ def test_mosaic():
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     results['img'] = img
     # TODO: add img_fields test
     results['bbox_fields'] = ['gt_bboxes', 'gt_bboxes_ignore']
@@ -942,7 +1031,9 @@ def test_mixup():
 
     results = dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     results['img'] = img
     # TODO: add img_fields test
     results['bbox_fields'] = ['gt_bboxes', 'gt_bboxes_ignore']
@@ -987,7 +1078,8 @@ def test_mixup():
         img_scale=(10, 12),
         ratio_range=(1.5, 1.5),
         min_bbox_size=5,
-        skip_filter=False)
+        skip_filter=False,
+    )
     mixup_module = build_from_cfg(transform, PIPELINES)
 
     results = mixup_module(results)
@@ -1002,7 +1094,9 @@ def test_mixup():
 
 def test_photo_metric_distortion():
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     transform = dict(type='PhotoMetricDistortion')
     distortion_module = build_from_cfg(transform, PIPELINES)
 
@@ -1030,19 +1124,29 @@ def test_photo_metric_distortion():
 def test_copypaste():
     dst_results, src_results = dict(), dict()
     img = mmcv.imread(
-        osp.join(osp.dirname(__file__), '../../../data/color.jpg'), 'color')
+        osp.join(osp.dirname(__file__), '../../../data/color.jpg'),
+        'color',
+    )
     dst_results['img'] = img.copy()
     src_results['img'] = img.copy()
 
     h, w, _ = img.shape
 
-    dst_bboxes = np.array([[0.2 * w, 0.2 * h, 0.4 * w, 0.4 * h],
-                           [0.5 * w, 0.5 * h, 0.6 * w, 0.6 * h]],
-                          dtype=np.float32)
-    src_bboxes = np.array([[0.1 * w, 0.1 * h, 0.3 * w, 0.5 * h],
-                           [0.4 * w, 0.4 * h, 0.7 * w, 0.7 * h],
-                           [0.8 * w, 0.8 * h, 0.9 * w, 0.9 * h]],
-                          dtype=np.float32)
+    dst_bboxes = np.array(
+        [
+            [0.2 * w, 0.2 * h, 0.4 * w, 0.4 * h],
+            [0.5 * w, 0.5 * h, 0.6 * w, 0.6 * h],
+        ],
+        dtype=np.float32,
+    )
+    src_bboxes = np.array(
+        [
+            [0.1 * w, 0.1 * h, 0.3 * w, 0.5 * h],
+            [0.4 * w, 0.4 * h, 0.7 * w, 0.7 * h],
+            [0.8 * w, 0.8 * h, 0.9 * w, 0.9 * h],
+        ],
+        dtype=np.float32,
+    )
     dst_labels = np.ones(dst_bboxes.shape[0], dtype=np.int64)
     src_labels = np.ones(src_bboxes.shape[0], dtype=np.int64) * 2
     dst_masks = create_full_masks(dst_bboxes, w, h)
@@ -1067,12 +1171,12 @@ def test_copypaste():
     results = copypaste_module(results)
     assert results['img'].shape[:2] == (h, w)
     # one object of destination image is totally occluded
-    assert results['gt_bboxes'].shape[0] == \
-           dst_bboxes.shape[0] + src_bboxes.shape[0] - 1
-    assert results['gt_labels'].shape[0] == \
-           dst_labels.shape[0] + src_labels.shape[0] - 1
-    assert results['gt_masks'].masks.shape[0] == \
-           dst_masks.masks.shape[0] + src_masks.masks.shape[0] - 1
+    assert results['gt_bboxes'].shape[0] == dst_bboxes.shape[0] + src_bboxes.shape[0] - 1
+    assert results['gt_labels'].shape[0] == dst_labels.shape[0] + src_labels.shape[0] - 1
+    assert (
+        results['gt_masks'].masks.shape[0]
+        == dst_masks.masks.shape[0] + src_masks.masks.shape[0] - 1
+    )
 
     assert results['gt_labels'].dtype == np.int64
     assert results['gt_bboxes'].dtype == np.float32
@@ -1082,9 +1186,12 @@ def test_copypaste():
     ori_mask = dst_masks.masks[0]
     occ_mask = results['gt_masks'].masks[0]
     assert ori_mask.sum() > occ_mask.sum()
-    assert np.all(np.abs(occ_bbox - ori_bbox) <=
-                  copypaste_module.bbox_occluded_thr) or \
-        occ_mask.sum() > copypaste_module.mask_occluded_thr
+    assert (
+        np.all(
+            np.abs(occ_bbox - ori_bbox) <= copypaste_module.bbox_occluded_thr,
+        )
+        or occ_mask.sum() > copypaste_module.mask_occluded_thr
+    )
     # test copypaste with selected objects
     transform = dict(type='CopyPaste')
     copypaste_module = build_from_cfg(transform, PIPELINES)
@@ -1112,7 +1219,9 @@ def test_copypaste():
     result_masks = create_full_masks(results['gt_bboxes'], w, h)
     result_masks_np = np.where(result_masks.to_ndarray().sum(0) > 0, 1, 0)
     masks_np = np.where(
-        (src_masks.to_ndarray().sum(0) + dst_masks.to_ndarray().sum(0)) > 0, 1,
-        0)
+        (src_masks.to_ndarray().sum(0) + dst_masks.to_ndarray().sum(0)) > 0,
+        1,
+        0,
+    )
     assert np.all(result_masks_np == masks_np)
     assert 'gt_masks' not in results

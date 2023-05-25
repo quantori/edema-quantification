@@ -2,12 +2,18 @@
 dataset_type = 'CityscapesDataset'
 data_root = 'data/cityscapes/'
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[123.675, 116.28, 103.53],
+    std=[58.395, 57.12, 57.375],
+    to_rgb=True,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
-        type='Resize', img_scale=[(2048, 800), (2048, 1024)], keep_ratio=True),
+        type='Resize',
+        img_scale=[(2048, 800), (2048, 1024)],
+        keep_ratio=True,
+    ),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -27,7 +33,8 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     samples_per_gpu=1,
@@ -37,20 +44,22 @@ data = dict(
         times=8,
         dataset=dict(
             type=dataset_type,
-            ann_file=data_root +
-            'annotations/instancesonly_filtered_gtFine_train.json',
+            ann_file=data_root + 'annotations/instancesonly_filtered_gtFine_train.json',
             img_prefix=data_root + 'leftImg8bit/train/',
-            pipeline=train_pipeline)),
+            pipeline=train_pipeline,
+        ),
+    ),
     val=dict(
         type=dataset_type,
-        ann_file=data_root +
-        'annotations/instancesonly_filtered_gtFine_val.json',
+        ann_file=data_root + 'annotations/instancesonly_filtered_gtFine_val.json',
         img_prefix=data_root + 'leftImg8bit/val/',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+    ),
     test=dict(
         type=dataset_type,
-        ann_file=data_root +
-        'annotations/instancesonly_filtered_gtFine_test.json',
+        ann_file=data_root + 'annotations/instancesonly_filtered_gtFine_test.json',
         img_prefix=data_root + 'leftImg8bit/test/',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+    ),
+)
 evaluation = dict(interval=1, metric='bbox')

@@ -2,8 +2,8 @@
 import warnings
 
 import torch
-
 from mmdet.core import bbox2result
+
 from ..builder import DETECTORS, build_backbone, build_head, build_neck
 from .base import BaseDetector
 
@@ -16,18 +16,21 @@ class SingleStageDetector(BaseDetector):
     output features of the backbone+neck.
     """
 
-    def __init__(self,
-                 backbone,
-                 neck=None,
-                 bbox_head=None,
-                 train_cfg=None,
-                 test_cfg=None,
-                 pretrained=None,
-                 init_cfg=None):
+    def __init__(
+        self,
+        backbone,
+        neck=None,
+        bbox_head=None,
+        train_cfg=None,
+        test_cfg=None,
+        pretrained=None,
+        init_cfg=None,
+    ):
         super(SingleStageDetector, self).__init__(init_cfg)
         if pretrained:
-            warnings.warn('DeprecationWarning: pretrained is deprecated, '
-                          'please use "init_cfg" instead')
+            warnings.warn(
+                'DeprecationWarning: pretrained is deprecated, ' 'please use "init_cfg" instead',
+            )
             backbone.pretrained = pretrained
         self.backbone = build_backbone(backbone)
         if neck is not None:
@@ -54,12 +57,14 @@ class SingleStageDetector(BaseDetector):
         outs = self.bbox_head(x)
         return outs
 
-    def forward_train(self,
-                      img,
-                      img_metas,
-                      gt_bboxes,
-                      gt_labels,
-                      gt_bboxes_ignore=None):
+    def forward_train(
+        self,
+        img,
+        img_metas,
+        gt_bboxes,
+        gt_labels,
+        gt_bboxes_ignore=None,
+    ):
         """
         Args:
             img (Tensor): Input images of shape (N, C, H, W).
@@ -80,8 +85,13 @@ class SingleStageDetector(BaseDetector):
         """
         super(SingleStageDetector, self).forward_train(img, img_metas)
         x = self.extract_feat(img)
-        losses = self.bbox_head.forward_train(x, img_metas, gt_bboxes,
-                                              gt_labels, gt_bboxes_ignore)
+        losses = self.bbox_head.forward_train(
+            x,
+            img_metas,
+            gt_bboxes,
+            gt_labels,
+            gt_bboxes_ignore,
+        )
         return losses
 
     def simple_test(self, img, img_metas, rescale=False):
@@ -100,7 +110,10 @@ class SingleStageDetector(BaseDetector):
         """
         feat = self.extract_feat(img)
         results_list = self.bbox_head.simple_test(
-            feat, img_metas, rescale=rescale)
+            feat,
+            img_metas,
+            rescale=rescale,
+        )
         bbox_results = [
             bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
             for det_bboxes, det_labels in results_list
@@ -125,13 +138,16 @@ class SingleStageDetector(BaseDetector):
                 The outer list corresponds to each image. The inner list
                 corresponds to each class.
         """
-        assert hasattr(self.bbox_head, 'aug_test'), \
-            f'{self.bbox_head.__class__.__name__}' \
-            ' does not support test-time augmentation'
+        assert hasattr(self.bbox_head, 'aug_test'), (
+            f'{self.bbox_head.__class__.__name__}' ' does not support test-time augmentation'
+        )
 
         feats = self.extract_feats(imgs)
         results_list = self.bbox_head.aug_test(
-            feats, img_metas, rescale=rescale)
+            feats,
+            img_metas,
+            rescale=rescale,
+        )
         bbox_results = [
             bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
             for det_bboxes, det_labels in results_list
@@ -165,7 +181,6 @@ class SingleStageDetector(BaseDetector):
             # add dummy score_factor
             outs = (*outs, None)
         # TODO Can we change to `get_bboxes` when `onnx_export` fail
-        det_bboxes, det_labels = self.bbox_head.onnx_export(
-            *outs, img_metas, with_nms=with_nms)
+        det_bboxes, det_labels = self.bbox_head.onnx_export(*outs, img_metas, with_nms=with_nms)
 
         return det_bboxes, det_labels

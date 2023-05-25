@@ -2,7 +2,10 @@
 dataset_type = 'Objects365V2Dataset'
 data_root = 'data/Objects365/Obj365_v2/'
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[123.675, 116.28, 103.53],
+    std=[58.395, 57.12, 57.375],
+    to_rgb=True,
+)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
@@ -26,7 +29,8 @@ test_pipeline = [
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     samples_per_gpu=2,
@@ -35,15 +39,19 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/zhiyuan_objv2_train.json',
         img_prefix=data_root + 'train/',
-        pipeline=train_pipeline),
+        pipeline=train_pipeline,
+    ),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/zhiyuan_objv2_val.json',
         img_prefix=data_root + 'val/',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+    ),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/zhiyuan_objv2_val.json',
         img_prefix=data_root + 'val/',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+    ),
+)
 evaluation = dict(interval=1, metric='bbox')

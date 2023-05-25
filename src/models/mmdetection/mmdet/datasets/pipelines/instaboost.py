@@ -32,25 +32,35 @@ class InstaBoost:
             Default 0.5.
     """
 
-    def __init__(self,
-                 action_candidate=('normal', 'horizontal', 'skip'),
-                 action_prob=(1, 0, 0),
-                 scale=(0.8, 1.2),
-                 dx=15,
-                 dy=15,
-                 theta=(-1, 1),
-                 color_prob=0.5,
-                 hflag=False,
-                 aug_ratio=0.5):
+    def __init__(
+        self,
+        action_candidate=('normal', 'horizontal', 'skip'),
+        action_prob=(1, 0, 0),
+        scale=(0.8, 1.2),
+        dx=15,
+        dy=15,
+        theta=(-1, 1),
+        color_prob=0.5,
+        hflag=False,
+        aug_ratio=0.5,
+    ):
         try:
             import instaboostfast as instaboost
         except ImportError:
             raise ImportError(
                 'Please run "pip install instaboostfast" '
-                'to install instaboostfast first for instaboost augmentation.')
-        self.cfg = instaboost.InstaBoostConfig(action_candidate, action_prob,
-                                               scale, dx, dy, theta,
-                                               color_prob, hflag)
+                'to install instaboostfast first for instaboost augmentation.',
+            )
+        self.cfg = instaboost.InstaBoostConfig(
+            action_candidate,
+            action_prob,
+            scale,
+            dx,
+            dy,
+            theta,
+            color_prob,
+            hflag,
+        )
         self.aug_ratio = aug_ratio
 
     def _load_anns(self, results):
@@ -67,11 +77,13 @@ class InstaBoost:
             x1, y1, x2, y2 = bbox
             # assert (x2 - x1) >= 1 and (y2 - y1) >= 1
             bbox = [x1, y1, x2 - x1, y2 - y1]
-            anns.append({
-                'category_id': label,
-                'segmentation': mask,
-                'bbox': bbox
-            })
+            anns.append(
+                {
+                    'category_id': label,
+                    'segmentation': mask,
+                    'bbox': bbox,
+                },
+            )
 
         return anns
 
@@ -104,10 +116,15 @@ class InstaBoost:
             try:
                 import instaboostfast as instaboost
             except ImportError:
-                raise ImportError('Please run "pip install instaboostfast" '
-                                  'to install instaboostfast first.')
+                raise ImportError(
+                    'Please run "pip install instaboostfast" ' 'to install instaboostfast first.',
+                )
             anns, img = instaboost.get_new_data(
-                anns, img.astype(np.uint8), self.cfg, background=None)
+                anns,
+                img.astype(np.uint8),
+                self.cfg,
+                background=None,
+            )
 
         results = self._parse_anns(results, anns, img.astype(ori_type))
         return results

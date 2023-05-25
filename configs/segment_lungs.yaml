@@ -1,0 +1,10 @@
+defaults:
+- main
+- _self_
+
+img_dir: data/demo/input
+model_dir: models/lung_segmentation/DeepLabV3+
+output_size: [1024, 1024]
+threshold_method: otsu    # otsu, triangle, manual
+threshold_val:            # only if threshold_method is manual
+save_dir: data/demo/output

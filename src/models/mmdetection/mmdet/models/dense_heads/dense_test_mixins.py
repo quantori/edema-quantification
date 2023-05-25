@@ -4,7 +4,6 @@ from inspect import signature
 
 import torch
 from mmcv.ops import batched_nms
-
 from mmdet.core import bbox_mapping_back, merge_aug_proposals
 
 if sys.version_info >= (3, 7):
@@ -34,8 +33,7 @@ class BBoxTestMixin(object):
                 with shape (n,)
         """
         outs = self.forward(feats)
-        results_list = self.get_bboxes(
-            *outs, img_metas=img_metas, rescale=rescale)
+        results_list = self.get_bboxes(*outs, img_metas=img_metas, rescale=rescale)
         return results_list
 
     def aug_test_bboxes(self, feats, img_metas, rescale=False):
@@ -65,9 +63,9 @@ class BBoxTestMixin(object):
         gb_args = [p.name for p in gb_sig.parameters.values()]
         gbs_sig = signature(self._get_bboxes_single)
         gbs_args = [p.name for p in gbs_sig.parameters.values()]
-        assert ('with_nms' in gb_args) and ('with_nms' in gbs_args), \
-            f'{self.__class__.__name__}' \
-            ' does not support test-time augmentation'
+        assert ('with_nms' in gb_args) and ('with_nms' in gbs_args), (
+            f'{self.__class__.__name__}' ' does not support test-time augmentation'
+        )
 
         aug_bboxes = []
         aug_scores = []
@@ -76,11 +74,8 @@ class BBoxTestMixin(object):
             # only one image in the batch
             outs = self.forward(x)
             bbox_outputs = self.get_bboxes(
-                *outs,
-                img_metas=img_meta,
-                cfg=self.test_cfg,
-                rescale=False,
-                with_nms=False)[0]
+                *outs, img_metas=img_meta, cfg=self.test_cfg, rescale=False, with_nms=False
+            )[0]
             aug_bboxes.append(bbox_outputs[0])
             aug_scores.append(bbox_outputs[1])
             if len(bbox_outputs) >= 3:
@@ -88,7 +83,10 @@ class BBoxTestMixin(object):
 
         # after merging, bboxes will be rescaled to the original image size
         merged_bboxes, merged_scores = self.merge_aug_bboxes(
-            aug_bboxes, aug_scores, img_metas)
+            aug_bboxes,
+            aug_scores,
+            img_metas,
+        )
         merged_labels = torch.cat(aug_labels, dim=0) if aug_labels else None
 
         if merged_bboxes.numel() == 0:
@@ -97,17 +95,22 @@ class BBoxTestMixin(object):
                 (det_bboxes, merged_labels),
             ]
 
-        det_bboxes, keep_idxs = batched_nms(merged_bboxes, merged_scores,
-                                            merged_labels, self.test_cfg.nms)
-        det_bboxes = det_bboxes[:self.test_cfg.max_per_img]
-        det_labels = merged_labels[keep_idxs][:self.test_cfg.max_per_img]
+        det_bboxes, keep_idxs = batched_nms(
+            merged_bboxes,
+            merged_scores,
+            merged_labels,
+            self.test_cfg.nms,
+        )
+        det_bboxes = det_bboxes[: self.test_cfg.max_per_img]
+        det_labels = merged_labels[keep_idxs][: self.test_cfg.max_per_img]
 
         if rescale:
             _det_bboxes = det_bboxes
         else:
             _det_bboxes = det_bboxes.clone()
             _det_bboxes[:, :4] *= det_bboxes.new_tensor(
-                img_metas[0][0]['scale_factor'])
+                img_metas[0][0]['scale_factor'],
+            )
 
         return [
             (_det_bboxes, det_labels),
@@ -169,8 +172,10 @@ class BBoxTestMixin(object):
         async def async_simple_test_rpn(self, x, img_metas):
             sleep_interval = self.test_cfg.pop('async_sleep_interval', 0.025)
             async with completed(
-                    __name__, 'rpn_head_forward',
-                    sleep_interval=sleep_interval):
+                __name__,
+                'rpn_head_forward',
+                sleep_interval=sleep_interval,
+            ):
                 rpn_outs = self(x)
 
             proposal_list = self.get_bboxes(*rpn_outs, img_metas=img_metas)
@@ -195,8 +200,13 @@ class BBoxTestMixin(object):
             scale_factor = img_info[0]['scale_factor']
             flip = img_info[0]['flip']
             flip_direction = img_info[0]['flip_direction']
-            bboxes = bbox_mapping_back(bboxes, img_shape, scale_factor, flip,
-                                       flip_direction)
+            bboxes = bbox_mapping_back(
+                bboxes,
+                img_shape,
+                scale_factor,
+                flip,
+                flip_direction,
+            )
             recovered_bboxes.append(bboxes)
         bboxes = torch.cat(recovered_bboxes, dim=0)
         if aug_scores is None:

@@ -1,6 +1,6 @@
 _base_ = [
     '../common/mstrain-poly_3x_coco_instance.py',
-    '../_base_/models/mask_rcnn_r50_fpn.py'
+    '../_base_/models/mask_rcnn_r50_fpn.py',
 ]
 
 model = dict(
@@ -14,13 +14,20 @@ model = dict(
         norm_eval=True,
         style='pytorch',
         init_cfg=dict(
-            type='Pretrained', checkpoint='open-mmlab://regnetx_4.0gf')),
+            type='Pretrained',
+            checkpoint='open-mmlab://regnetx_4.0gf',
+        ),
+    ),
     neck=dict(
         type='FPN',
         in_channels=[80, 240, 560, 1360],
         out_channels=256,
-        num_outs=5))
+        num_outs=5,
+    ),
+)
 
 optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.00005)
 optimizer_config = dict(
-    _delete_=True, grad_clip=dict(max_norm=35, norm_type=2))
+    _delete_=True,
+    grad_clip=dict(max_norm=35, norm_type=2),
+)

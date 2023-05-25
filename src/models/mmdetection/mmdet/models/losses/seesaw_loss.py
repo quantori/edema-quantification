@@ -9,16 +9,18 @@ from .cross_entropy_loss import cross_entropy
 from .utils import weight_reduce_loss
 
 
-def seesaw_ce_loss(cls_score,
-                   labels,
-                   label_weights,
-                   cum_samples,
-                   num_classes,
-                   p,
-                   q,
-                   eps,
-                   reduction='mean',
-                   avg_factor=None):
+def seesaw_ce_loss(
+    cls_score,
+    labels,
+    label_weights,
+    cum_samples,
+    num_classes,
+    p,
+    q,
+    eps,
+    reduction='mean',
+    avg_factor=None,
+):
     """Calculate the Seesaw CrossEntropy loss.
 
     Args:
@@ -48,7 +50,10 @@ def seesaw_ce_loss(cls_score,
     # mitigation factor
     if p > 0:
         sample_ratio_matrix = cum_samples[None, :].clamp(
-            min=1) / cum_samples[:, None].clamp(min=1)
+            min=1,
+        ) / cum_samples[
+            :, None
+        ].clamp(min=1)
         index = (sample_ratio_matrix < 1.0).float()
         sample_weights = sample_ratio_matrix.pow(p) * index + (1 - index)
         mitigation_factor = sample_weights[labels.long(), :]
@@ -59,7 +64,8 @@ def seesaw_ce_loss(cls_score,
         scores = F.softmax(cls_score.detach(), dim=1)
         self_scores = scores[
             torch.arange(0, len(scores)).to(scores.device).long(),
-            labels.long()]
+            labels.long(),
+        ]
         score_matrix = scores / self_scores[:, None].clamp(min=eps)
         index = (score_matrix > 1.0).float()
         compensation_factor = score_matrix.pow(q) * index + (1 - index)
@@ -72,7 +78,11 @@ def seesaw_ce_loss(cls_score,
     if label_weights is not None:
         label_weights = label_weights.float()
     loss = weight_reduce_loss(
-        loss, weight=label_weights, reduction=reduction, avg_factor=avg_factor)
+        loss,
+        weight=label_weights,
+        reduction=reduction,
+        avg_factor=avg_factor,
+    )
     return loss
 
 
@@ -100,15 +110,17 @@ class SeesawLoss(nn.Module):
              Default to True.
     """
 
-    def __init__(self,
-                 use_sigmoid=False,
-                 p=0.8,
-                 q=2.0,
-                 num_classes=1203,
-                 eps=1e-2,
-                 reduction='mean',
-                 loss_weight=1.0,
-                 return_dict=True):
+    def __init__(
+        self,
+        use_sigmoid=False,
+        p=0.8,
+        q=2.0,
+        num_classes=1203,
+        eps=1e-2,
+        reduction='mean',
+        loss_weight=1.0,
+        return_dict=True,
+    ):
         super(SeesawLoss, self).__init__()
         assert not use_sigmoid
         self.use_sigmoid = False
@@ -126,7 +138,8 @@ class SeesawLoss(nn.Module):
         # cumulative samples for each category
         self.register_buffer(
             'cum_samples',
-            torch.zeros(self.num_classes + 1, dtype=torch.float))
+            torch.zeros(self.num_classes + 1, dtype=torch.float),
+        )
 
         # custom output channels of the classifier
         self.custom_cls_channels = True
@@ -165,7 +178,8 @@ class SeesawLoss(nn.Module):
                  (N, C + 1).
         """
         cls_score_classes, cls_score_objectness = self._split_cls_score(
-            cls_score)
+            cls_score,
+        )
         score_classes = F.softmax(cls_score_classes, dim=-1)
         score_objectness = F.softmax(cls_score_objectness, dim=-1)
         score_pos = score_objectness[..., [0]]
@@ -188,7 +202,8 @@ class SeesawLoss(nn.Module):
         pos_inds = labels < self.num_classes
         obj_labels = (labels == self.num_classes).long()
         cls_score_classes, cls_score_objectness = self._split_cls_score(
-            cls_score)
+            cls_score,
+        )
         acc_objectness = accuracy(cls_score_objectness, obj_labels)
         acc_classes = accuracy(cls_score_classes[pos_inds], labels[pos_inds])
         acc = dict()
@@ -196,12 +211,14 @@ class SeesawLoss(nn.Module):
         acc['acc_classes'] = acc_classes
         return acc
 
-    def forward(self,
-                cls_score,
-                labels,
-                label_weights=None,
-                avg_factor=None,
-                reduction_override=None):
+    def forward(
+        self,
+        cls_score,
+        labels,
+        label_weights=None,
+        avg_factor=None,
+        reduction_override=None,
+    ):
         """Forward function.
 
         Args:
@@ -219,8 +236,7 @@ class SeesawLoss(nn.Module):
                  for objectness and classes, respectively.
         """
         assert reduction_override in (None, 'none', 'mean', 'sum')
-        reduction = (
-            reduction_override if reduction_override else self.reduction)
+        reduction = reduction_override if reduction_override else self.reduction
         assert cls_score.size(-1) == self.num_classes + 2
         pos_inds = labels < self.num_classes
         # 0 for pos, 1 for neg
@@ -238,20 +254,32 @@ class SeesawLoss(nn.Module):
             label_weights = labels.new_ones(labels.size(), dtype=torch.float)
 
         cls_score_classes, cls_score_objectness = self._split_cls_score(
-            cls_score)
+            cls_score,
+        )
         # calculate loss_cls_classes (only need pos samples)
         if pos_inds.sum() > 0:
             loss_cls_classes = self.loss_weight * self.cls_criterion(
-                cls_score_classes[pos_inds], labels[pos_inds],
-                label_weights[pos_inds], self.cum_samples[:self.num_classes],
-                self.num_classes, self.p, self.q, self.eps, reduction,
-                avg_factor)
+                cls_score_classes[pos_inds],
+                labels[pos_inds],
+                label_weights[pos_inds],
+                self.cum_samples[: self.num_classes],
+                self.num_classes,
+                self.p,
+                self.q,
+                self.eps,
+                reduction,
+                avg_factor,
+            )
         else:
             loss_cls_classes = cls_score_classes[pos_inds].sum()
         # calculate loss_cls_objectness
         loss_cls_objectness = self.loss_weight * cross_entropy(
-            cls_score_objectness, obj_labels, label_weights, reduction,
-            avg_factor)
+            cls_score_objectness,
+            obj_labels,
+            label_weights,
+            reduction,
+            avg_factor,
+        )
 
         if self.return_dict:
             loss_cls = dict()

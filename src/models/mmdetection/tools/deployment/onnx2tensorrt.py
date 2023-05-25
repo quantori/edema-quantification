@@ -9,10 +9,8 @@ import onnx
 import torch
 from mmcv import Config
 from mmcv.tensorrt import is_tensorrt_plugin_loaded, onnx2trt, save_trt_engine
-
 from mmdet.core.export import preprocess_example_input
-from mmdet.core.export.model_wrappers import (ONNXRuntimeDetector,
-                                              TensorRTDetector)
+from mmdet.core.export.model_wrappers import ONNXRuntimeDetector, TensorRTDetector
 from mmdet.datasets import DATASETS
 
 
@@ -21,14 +19,17 @@ def get_GiB(x: int):
     return x * (1 << 30)
 
 
-def onnx2tensorrt(onnx_file,
-                  trt_file,
-                  input_config,
-                  verify=False,
-                  show=False,
-                  workspace_size=1,
-                  verbose=False):
+def onnx2tensorrt(
+    onnx_file,
+    trt_file,
+    input_config,
+    verify=False,
+    show=False,
+    workspace_size=1,
+    verbose=False,
+):
     import tensorrt as trt
+
     onnx_model = onnx.load(onnx_file)
     max_shape = input_config['max_shape']
     min_shape = input_config['min_shape']
@@ -42,7 +43,8 @@ def onnx2tensorrt(onnx_file,
         opt_shape_dict,
         log_level=trt.Logger.VERBOSE if verbose else trt.Logger.ERROR,
         fp16_mode=fp16_mode,
-        max_workspace_size=max_workspace_size)
+        max_workspace_size=max_workspace_size,
+    )
     save_dir, _ = osp.split(trt_file)
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
@@ -62,9 +64,15 @@ def onnx2tensorrt(onnx_file,
         # inference with wrapped model
         with torch.no_grad():
             onnx_results = onnx_model(
-                img_list, img_metas=img_meta_list, return_loss=False)[0]
+                img_list,
+                img_metas=img_meta_list,
+                return_loss=False,
+            )[0]
             trt_results = trt_model(
-                img_list, img_metas=img_meta_list, return_loss=False)[0]
+                img_list,
+                img_metas=img_meta_list,
+                return_loss=False,
+            )[0]
 
         if show:
             out_file_ort, out_file_trt = None, None
@@ -78,28 +86,37 @@ def onnx2tensorrt(onnx_file,
             score_thr=score_thr,
             show=True,
             win_name='ONNXRuntime',
-            out_file=out_file_ort)
+            out_file=out_file_ort,
+        )
         trt_model.show_result(
             show_img,
             trt_results,
             score_thr=score_thr,
             show=True,
             win_name='TensorRT',
-            out_file=out_file_trt)
+            out_file=out_file_trt,
+        )
         with_mask = trt_model.with_masks
         # compare a part of result
         if with_mask:
             compare_pairs = list(zip(onnx_results, trt_results))
         else:
             compare_pairs = [(onnx_results, trt_results)]
-        err_msg = 'The numerical values are different between Pytorch' + \
-                  ' and ONNX, but it does not necessarily mean the' + \
-                  ' exported ONNX model is problematic.'
+        err_msg = (
+            'The numerical values are different between Pytorch'
+            + ' and ONNX, but it does not necessarily mean the'
+            + ' exported ONNX model is problematic.'
+        )
         # check the numerical value
         for onnx_res, pytorch_res in compare_pairs:
             for o_res, p_res in zip(onnx_res, pytorch_res):
                 np.testing.assert_allclose(
-                    o_res, p_res, rtol=1e-03, atol=1e-05, err_msg=err_msg)
+                    o_res,
+                    p_res,
+                    rtol=1e-03,
+                    atol=1e-05,
+                    err_msg=err_msg,
+                )
         print('The numerical values are the same between Pytorch and ONNX')
 
 
@@ -118,88 +135,107 @@ def parse_normalize_cfg(test_pipeline):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Convert MMDetection models from ONNX to TensorRT')
+        description='Convert MMDetection models from ONNX to TensorRT',
+    )
     parser.add_argument('config', help='test config file path')
     parser.add_argument('model', help='Filename of input ONNX model')
     parser.add_argument(
         '--trt-file',
         type=str,
         default='tmp.trt',
-        help='Filename of output TensorRT engine')
+        help='Filename of output TensorRT engine',
+    )
     parser.add_argument(
-        '--input-img', type=str, default='', help='Image for test')
+        '--input-img',
+        type=str,
+        default='',
+        help='Image for test',
+    )
     parser.add_argument(
-        '--show', action='store_true', help='Whether to show output results')
+        '--show',
+        action='store_true',
+        help='Whether to show output results',
+    )
     parser.add_argument(
         '--dataset',
         type=str,
         default='coco',
         help='Dataset name. This argument is deprecated and will be \
-        removed in future releases.')
+        removed in future releases.',
+    )
     parser.add_argument(
         '--verify',
         action='store_true',
-        help='Verify the outputs of ONNXRuntime and TensorRT')
+        help='Verify the outputs of ONNXRuntime and TensorRT',
+    )
     parser.add_argument(
         '--verbose',
         action='store_true',
         help='Whether to verbose logging messages while creating \
-                TensorRT engine. Defaults to False.')
+                TensorRT engine. Defaults to False.',
+    )
     parser.add_argument(
         '--to-rgb',
         action='store_false',
         help='Feed model with RGB or BGR image. Default is RGB. This \
-        argument is deprecated and will be removed in future releases.')
+        argument is deprecated and will be removed in future releases.',
+    )
     parser.add_argument(
         '--shape',
         type=int,
         nargs='+',
         default=[400, 600],
-        help='Input size of the model')
+        help='Input size of the model',
+    )
     parser.add_argument(
         '--mean',
         type=float,
         nargs='+',
         default=[123.675, 116.28, 103.53],
         help='Mean value used for preprocess input data. This argument \
-        is deprecated and will be removed in future releases.')
+        is deprecated and will be removed in future releases.',
+    )
     parser.add_argument(
         '--std',
         type=float,
         nargs='+',
         default=[58.395, 57.12, 57.375],
         help='Variance value used for preprocess input data. \
-        This argument is deprecated and will be removed in future releases.')
+        This argument is deprecated and will be removed in future releases.',
+    )
     parser.add_argument(
         '--min-shape',
         type=int,
         nargs='+',
         default=None,
-        help='Minimum input size of the model in TensorRT')
+        help='Minimum input size of the model in TensorRT',
+    )
     parser.add_argument(
         '--max-shape',
         type=int,
         nargs='+',
         default=None,
-        help='Maximum input size of the model in TensorRT')
+        help='Maximum input size of the model in TensorRT',
+    )
     parser.add_argument(
         '--workspace-size',
         type=int,
         default=1,
-        help='Max workspace size in GiB')
+        help='Max workspace size in GiB',
+    )
 
     args = parser.parse_args()
     return args
 
 
 if __name__ == '__main__':
-
     assert is_tensorrt_plugin_loaded(), 'TensorRT plugin should be compiled.'
     args = parse_args()
     warnings.warn(
         'Arguments like `--to-rgb`, `--mean`, `--std`, `--dataset` would be \
         parsed directly from config file and are deprecated and will be \
-        removed in future releases.')
+        removed in future releases.',
+    )
     if not args.input_img:
         args.input_img = osp.join(osp.dirname(__file__), '../../demo/demo.jpg')
 
@@ -231,7 +267,7 @@ if __name__ == '__main__':
         min_shape = parse_shape(args.min_shape)
 
     dataset = DATASETS.get(cfg.data.test['type'])
-    assert (dataset is not None)
+    assert dataset is not None
     CLASSES = dataset.CLASSES
     normalize_cfg = parse_normalize_cfg(cfg.test_pipeline)
 
@@ -241,7 +277,7 @@ if __name__ == '__main__':
         'max_shape': max_shape,
         'input_shape': input_shape,
         'input_path': args.input_img,
-        'normalize_cfg': normalize_cfg
+        'normalize_cfg': normalize_cfg,
     }
     # Create TensorRT engine
     onnx2tensorrt(
@@ -251,7 +287,8 @@ if __name__ == '__main__':
         verify=args.verify,
         show=args.show,
         workspace_size=args.workspace_size,
-        verbose=args.verbose)
+        verbose=args.verbose,
+    )
 
     # Following strings of text style are from colorama package
     bright_style, reset_style = '\x1b[1m', '\x1b[0m'

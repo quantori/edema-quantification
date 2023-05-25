@@ -44,20 +44,24 @@ def get_palette(palette, num_classes):
         dataset_palette = [tuple(c) for c in palette]
     elif palette == 'coco':
         from mmdet.datasets import CocoDataset, CocoPanopticDataset
+
         dataset_palette = CocoDataset.PALETTE
         if len(dataset_palette) < num_classes:
             dataset_palette = CocoPanopticDataset.PALETTE
     elif palette == 'citys':
         from mmdet.datasets import CityscapesDataset
+
         dataset_palette = CityscapesDataset.PALETTE
     elif palette == 'voc':
         from mmdet.datasets import VOCDataset
+
         dataset_palette = VOCDataset.PALETTE
     elif mmcv.is_str(palette):
         dataset_palette = [mmcv.color_val(palette)[::-1]] * num_classes
     else:
         raise TypeError(f'Invalid type for palette: {type(palette)}')
 
-    assert len(dataset_palette) >= num_classes, \
-        'The length of palette should not be less than `num_classes`.'
+    assert (
+        len(dataset_palette) >= num_classes
+    ), 'The length of palette should not be less than `num_classes`.'
     return dataset_palette

@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 from src.models import smp
 
 
-class LungSegmentation:
+class LungSegmenter:
     """Class used to predict lungs on X-ray images."""
 
     def __init__(
@@ -185,7 +185,7 @@ class LungSegmentation:
 if __name__ == '__main__':
     model_name = 'DeepLabV3+'
     img_path = 'data/demo/input/10000032_50414267.png'
-    model = LungSegmentation(
+    model = LungSegmenter(
         model_dir=f'models/lung_segmentation/{model_name}',
         threshold=0.50,
         device='auto',

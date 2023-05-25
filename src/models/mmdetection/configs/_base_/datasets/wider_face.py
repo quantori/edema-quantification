@@ -10,16 +10,19 @@ train_pipeline = [
         brightness_delta=32,
         contrast_range=(0.5, 1.5),
         saturation_range=(0.5, 1.5),
-        hue_delta=18),
+        hue_delta=18,
+    ),
     dict(
         type='Expand',
         mean=img_norm_cfg['mean'],
         to_rgb=img_norm_cfg['to_rgb'],
-        ratio_range=(1, 4)),
+        ratio_range=(1, 4),
+    ),
     dict(
         type='MinIoURandomCrop',
         min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
-        min_crop_size=0.3),
+        min_crop_size=0.3,
+    ),
     dict(type='Resize', img_scale=(300, 300), keep_ratio=False),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='RandomFlip', flip_ratio=0.5),
@@ -37,7 +40,8 @@ test_pipeline = [
             dict(type='Normalize', **img_norm_cfg),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
-        ])
+        ],
+    ),
 ]
 data = dict(
     samples_per_gpu=60,
@@ -50,14 +54,19 @@ data = dict(
             ann_file=data_root + 'train.txt',
             img_prefix=data_root + 'WIDER_train/',
             min_size=17,
-            pipeline=train_pipeline)),
+            pipeline=train_pipeline,
+        ),
+    ),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'val.txt',
         img_prefix=data_root + 'WIDER_val/',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+    ),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'val.txt',
         img_prefix=data_root + 'WIDER_val/',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+    ),
+)

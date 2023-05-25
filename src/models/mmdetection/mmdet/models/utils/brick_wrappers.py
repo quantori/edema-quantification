@@ -41,8 +41,10 @@ class AdaptiveAvgPool2d(nn.AdaptiveAvgPool2d):
             else:
                 output_size = [
                     v if v is not None else d
-                    for v, d in zip(output_size,
-                                    x.size()[-2:])
+                    for v, d in zip(
+                        output_size,
+                        x.size()[-2:],
+                    )
                 ]
             output_size = [*x.shape[:2], *output_size]
             empty = NewEmptyTensorOp.apply(x, output_size)

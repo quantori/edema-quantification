@@ -4,9 +4,8 @@ import itertools
 import numpy as np
 import torch
 from mmcv.runner import get_dist_info
-from torch.utils.data.sampler import Sampler
-
 from mmdet.core.utils import sync_random_seed
+from torch.utils.data.sampler import Sampler
 
 
 class InfiniteGroupBatchSampler(Sampler):
@@ -34,13 +33,15 @@ class InfiniteGroupBatchSampler(Sampler):
             that all indices in a batch is in a group. Default: True.
     """  # noqa: W605
 
-    def __init__(self,
-                 dataset,
-                 batch_size=1,
-                 world_size=None,
-                 rank=None,
-                 seed=0,
-                 shuffle=True):
+    def __init__(
+        self,
+        dataset,
+        batch_size=1,
+        world_size=None,
+        rank=None,
+        seed=0,
+        shuffle=True,
+    ):
         _rank, _world_size = get_dist_info()
         if world_size is None:
             world_size = _world_size
@@ -81,8 +82,12 @@ class InfiniteGroupBatchSampler(Sampler):
 
     def _indices_of_rank(self):
         """Slice the infinite indices by rank."""
-        yield from itertools.islice(self._infinite_indices(), self.rank, None,
-                                    self.world_size)
+        yield from itertools.islice(
+            self._infinite_indices(),
+            self.rank,
+            None,
+            self.world_size,
+        )
 
     def __iter__(self):
         # once batch size is reached, yield the indices
@@ -125,13 +130,15 @@ class InfiniteBatchSampler(Sampler):
         shuffle (bool): Whether shuffle the dataset or not. Default: True.
     """  # noqa: W605
 
-    def __init__(self,
-                 dataset,
-                 batch_size=1,
-                 world_size=None,
-                 rank=None,
-                 seed=0,
-                 shuffle=True):
+    def __init__(
+        self,
+        dataset,
+        batch_size=1,
+        world_size=None,
+        rank=None,
+        seed=0,
+        shuffle=True,
+    ):
         _rank, _world_size = get_dist_info()
         if world_size is None:
             world_size = _world_size
@@ -165,8 +172,12 @@ class InfiniteBatchSampler(Sampler):
 
     def _indices_of_rank(self):
         """Slice the infinite indices by rank."""
-        yield from itertools.islice(self._infinite_indices(), self.rank, None,
-                                    self.world_size)
+        yield from itertools.islice(
+            self._infinite_indices(),
+            self.rank,
+            None,
+            self.world_size,
+        )
 
     def __iter__(self):
         # once batch size is reached, yield the indices

@@ -4,7 +4,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from mmdet.datasets import DATASETS
 
 
@@ -16,8 +15,10 @@ from mmdet.datasets import DATASETS
 @patch('mmdet.datasets.CustomDataset._filter_imgs', MagicMock)
 @patch('mmdet.datasets.XMLDataset._filter_imgs', MagicMock)
 @patch('mmdet.datasets.CityscapesDataset._filter_imgs', MagicMock)
-@pytest.mark.parametrize('dataset',
-                         ['CocoDataset', 'VOCDataset', 'CityscapesDataset'])
+@pytest.mark.parametrize(
+    'dataset',
+    ['CocoDataset', 'VOCDataset', 'CityscapesDataset'],
+)
 def test_custom_classes_override_default(dataset):
     dataset_class = DATASETS.get(dataset)
     if dataset in ['CocoDataset', 'CityscapesDataset']:
@@ -32,7 +33,8 @@ def test_custom_classes_override_default(dataset):
         pipeline=[],
         classes=('bus', 'car'),
         test_mode=True,
-        img_prefix='VOC2007' if dataset == 'VOCDataset' else '')
+        img_prefix='VOC2007' if dataset == 'VOCDataset' else '',
+    )
 
     assert custom_dataset.CLASSES != original_classes
     assert custom_dataset.CLASSES == ('bus', 'car')
@@ -44,7 +46,8 @@ def test_custom_classes_override_default(dataset):
         pipeline=[],
         classes=['bus', 'car'],
         test_mode=True,
-        img_prefix='VOC2007' if dataset == 'VOCDataset' else '')
+        img_prefix='VOC2007' if dataset == 'VOCDataset' else '',
+    )
 
     assert custom_dataset.CLASSES != original_classes
     assert custom_dataset.CLASSES == ['bus', 'car']
@@ -56,7 +59,8 @@ def test_custom_classes_override_default(dataset):
         pipeline=[],
         classes=['foo'],
         test_mode=True,
-        img_prefix='VOC2007' if dataset == 'VOCDataset' else '')
+        img_prefix='VOC2007' if dataset == 'VOCDataset' else '',
+    )
 
     assert custom_dataset.CLASSES != original_classes
     assert custom_dataset.CLASSES == ['foo']
@@ -68,13 +72,15 @@ def test_custom_classes_override_default(dataset):
         pipeline=[],
         classes=None,
         test_mode=True,
-        img_prefix='VOC2007' if dataset == 'VOCDataset' else '')
+        img_prefix='VOC2007' if dataset == 'VOCDataset' else '',
+    )
 
     assert custom_dataset.CLASSES == original_classes
     print(custom_dataset)
 
     # Test sending file path
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmpdir:
         path = tmpdir + 'classes.txt'
         with open(path, 'w') as f:
@@ -84,7 +90,8 @@ def test_custom_classes_override_default(dataset):
         pipeline=[],
         classes=path,
         test_mode=True,
-        img_prefix='VOC2007' if dataset == 'VOCDataset' else '')
+        img_prefix='VOC2007' if dataset == 'VOCDataset' else '',
+    )
 
     assert custom_dataset.CLASSES != original_classes
     assert custom_dataset.CLASSES == ['bus', 'car']
@@ -92,11 +99,12 @@ def test_custom_classes_override_default(dataset):
 
 
 class CustomDatasetTests(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self.data_dir = osp.join(
-            osp.dirname(osp.dirname(osp.dirname(__file__))), 'data')
+            osp.dirname(osp.dirname(osp.dirname(__file__))),
+            'data',
+        )
         self.dataset_class = DATASETS.get('XMLDataset')
 
     def test_data_infos__default_db_directories(self):
@@ -104,18 +112,28 @@ class CustomDatasetTests(unittest.TestCase):
         test_dataset_root = osp.join(self.data_dir, 'VOCdevkit', 'VOC2007')
         custom_ds = self.dataset_class(
             data_root=test_dataset_root,
-            ann_file=osp.join(test_dataset_root, 'ImageSets', 'Main',
-                              'trainval.txt'),
+            ann_file=osp.join(
+                test_dataset_root,
+                'ImageSets',
+                'Main',
+                'trainval.txt',
+            ),
             pipeline=[],
             classes=('person', 'dog'),
-            test_mode=True)
+            test_mode=True,
+        )
 
-        self.assertListEqual([{
-            'id': '000001',
-            'filename': osp.join('JPEGImages', '000001.jpg'),
-            'width': 353,
-            'height': 500
-        }], custom_ds.data_infos)
+        self.assertListEqual(
+            [
+                {
+                    'id': '000001',
+                    'filename': osp.join('JPEGImages', '000001.jpg'),
+                    'width': 353,
+                    'height': 500,
+                },
+            ],
+            custom_ds.data_infos,
+        )
 
     def test_data_infos__overridden_db_subdirectories(self):
         """Test correct data read having a customized directory structure."""
@@ -128,11 +146,17 @@ class CustomDatasetTests(unittest.TestCase):
             test_mode=True,
             img_prefix='',
             img_subdir='images',
-            ann_subdir='images')
+            ann_subdir='images',
+        )
 
-        self.assertListEqual([{
-            'id': '000001',
-            'filename': osp.join('images', '000001.jpg'),
-            'width': 353,
-            'height': 500
-        }], custom_ds.data_infos)
+        self.assertListEqual(
+            [
+                {
+                    'id': '000001',
+                    'filename': osp.join('images', '000001.jpg'),
+                    'width': 353,
+                    'height': 500,
+                },
+            ],
+            custom_ds.data_infos,
+        )

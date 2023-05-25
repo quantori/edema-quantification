@@ -1,14 +1,4 @@
-import os
-
 from src.data.utils_sly import get_box_sizes, get_class_name, get_object_box, get_tag_value
-
-dataset_dir_test = 'data/sly/DS1'
-dataset_ann_dir_test = os.path.join(dataset_dir_test, 'ann')
-dataset_img_dir_test = os.path.join(dataset_dir_test, 'img')
-
-save_dir_test = 'data/interim_test'
-save_ann_dir_test = os.path.join(save_dir_test, 'ann')
-save_img_dir_test = os.path.join(save_dir_test, 'img')
 
 ann_test_ok = {
     'description': '',
@@ -220,4 +210,4 @@ def test_get_object_box():
 def test_get_box_sizes():
     assert get_box_sizes(0, 0, 0, 0) == {'xc': 0, 'yc': 0, 'Box width': 0, 'Box height': 0}
     assert get_box_sizes(0, 0, 1, 1) == {'xc': 0, 'yc': 0, 'Box width': 1, 'Box height': 1}
-    assert get_box_sizes(1, 0, 9, 8) == {'xc': 4, 'yc': 4, 'Box width': 8, 'Box height': 8}
+    assert get_box_sizes(0, 0, 8, 8) == {'xc': 4, 'yc': 4, 'Box width': 8, 'Box height': 8}

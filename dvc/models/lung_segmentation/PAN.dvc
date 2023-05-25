@@ -1,4 +1,4 @@
-wdir: ../../models/lung_segmentation/PAN
+wdir: ../../../models/lung_segmentation/PAN
 outs:
 - md5: d7b7d3be9a1403cce06a50839bcea04f
   size: 16738569

@@ -4,7 +4,6 @@ import argparse
 import numpy as np
 import torch
 from mmcv import Config, DictAction
-
 from mmdet.models import build_detector
 
 try:
@@ -21,7 +20,8 @@ def parse_args():
         type=int,
         nargs='+',
         default=[1280, 800],
-        help='input image size')
+        help='input image size',
+    )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -31,19 +31,20 @@ def parse_args():
         'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
         'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
         'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+        'is allowed.',
+    )
     parser.add_argument(
         '--size-divisor',
         type=int,
         default=32,
         help='Pad the input image, the minimum size that is divisible '
-        'by size_divisor, -1 means do not pad the image.')
+        'by size_divisor, -1 means do not pad the image.',
+    )
     args = parser.parse_args()
     return args
 
 
 def main():
-
     args = parse_args()
 
     if len(args.shape) == 1:
@@ -67,7 +68,8 @@ def main():
     model = build_detector(
         cfg.model,
         train_cfg=cfg.get('train_cfg'),
-        test_cfg=cfg.get('test_cfg'))
+        test_cfg=cfg.get('test_cfg'),
+    )
     if torch.cuda.is_available():
         model.cuda()
     model.eval()
@@ -76,21 +78,28 @@ def main():
         model.forward = model.forward_dummy
     else:
         raise NotImplementedError(
-            'FLOPs counter is currently not currently supported with {}'.
-            format(model.__class__.__name__))
+            'FLOPs counter is currently not currently supported with {}'.format(
+                model.__class__.__name__,
+            ),
+        )
 
     flops, params = get_model_complexity_info(model, input_shape)
     split_line = '=' * 30
 
-    if divisor > 0 and \
-            input_shape != ori_shape:
-        print(f'{split_line}\nUse size divisor set input shape '
-              f'from {ori_shape} to {input_shape}\n')
-    print(f'{split_line}\nInput shape: {input_shape}\n'
-          f'Flops: {flops}\nParams: {params}\n{split_line}')
-    print('!!!Please be cautious if you use the results in papers. '
-          'You may need to check if all ops are supported and verify that the '
-          'flops computation is correct.')
+    if divisor > 0 and input_shape != ori_shape:
+        print(
+            f'{split_line}\nUse size divisor set input shape '
+            f'from {ori_shape} to {input_shape}\n',
+        )
+    print(
+        f'{split_line}\nInput shape: {input_shape}\n'
+        f'Flops: {flops}\nParams: {params}\n{split_line}',
+    )
+    print(
+        '!!!Please be cautious if you use the results in papers. '
+        'You may need to check if all ops are supported and verify that the '
+        'flops computation is correct.',
+    )
 
 
 if __name__ == '__main__':

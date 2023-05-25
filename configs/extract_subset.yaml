@@ -1,0 +1,24 @@
+defaults:
+- main
+- _self_
+
+dataset_dir: data/raw
+disease: Edema
+save_pairs_only: true
+save_dir: data/edema
+#diseases = [
+#         Atelectasis,
+#         Cardiomegaly,
+#         Consolidation,
+#         Edema,
+#         Enlarged Cardiomediastinum,
+#         Fracture,
+#         Lung Lesion,
+#         Lung Opacity,
+#         No Finding,
+#         Pleural Effusion,
+#         Pleural Other,
+#         Pneumonia,
+#         Pneumothorax,
+#         Support Devices,
+#    ]

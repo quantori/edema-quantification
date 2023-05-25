@@ -6,9 +6,7 @@ import urllib
 
 import mmcv
 import torch
-
-from mmdet.apis import (async_inference_detector, inference_detector,
-                        init_detector)
+from mmdet.apis import async_inference_detector, inference_detector, init_detector
 from mmdet.utils.contextmanagers import concurrent
 from mmdet.utils.profiling import profile_time
 
@@ -31,15 +29,20 @@ async def main():
     project_dir = os.path.join(project_dir, '..')
 
     config_file = os.path.join(
-        project_dir, 'configs/mask_rcnn/mask_rcnn_r50_fpn_1x_coco.py')
+        project_dir,
+        'configs/mask_rcnn/mask_rcnn_r50_fpn_1x_coco.py',
+    )
     checkpoint_file = os.path.join(
         project_dir,
-        'checkpoints/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth')
+        'checkpoints/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth',
+    )
 
     if not os.path.exists(checkpoint_file):
-        url = ('https://download.openmmlab.com/mmdetection/v2.0'
-               '/mask_rcnn/mask_rcnn_r50_fpn_1x_coco'
-               '/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth')
+        url = (
+            'https://download.openmmlab.com/mmdetection/v2.0'
+            '/mask_rcnn/mask_rcnn_r50_fpn_1x_coco'
+            '/mask_rcnn_r50_fpn_1x_coco_20200205-d4b0c5d6.pth'
+        )
         print(f'Downloading {url} ...')
         local_filename, _ = urllib.request.urlretrieve(url)
         os.makedirs(os.path.dirname(checkpoint_file), exist_ok=True)
@@ -50,7 +53,10 @@ async def main():
 
     device = 'cuda:0'
     model = init_detector(
-        config_file, checkpoint=checkpoint_file, device=device)
+        config_file,
+        checkpoint=checkpoint_file,
+        device=device,
+    )
 
     # queue is used for concurrent inference of multiple images
     streamqueue = asyncio.Queue()
@@ -72,16 +78,12 @@ async def main():
 
     num_of_images = 20
     with profile_time('benchmark', 'async'):
-        tasks = [
-            asyncio.create_task(detect(img)) for _ in range(num_of_images)
-        ]
+        tasks = [asyncio.create_task(detect(img)) for _ in range(num_of_images)]
         async_results = await asyncio.gather(*tasks)
 
     with torch.cuda.stream(torch.cuda.default_stream()):
         with profile_time('benchmark', 'sync'):
-            sync_results = [
-                inference_detector(model, img) for _ in range(num_of_images)
-            ]
+            sync_results = [inference_detector(model, img) for _ in range(num_of_images)]
 
     result_dir = os.path.join(project_dir, 'demo')
     model.show_result(
@@ -89,13 +91,15 @@ async def main():
         async_results[0],
         score_thr=0.5,
         show=False,
-        out_file=os.path.join(result_dir, 'result_async.jpg'))
+        out_file=os.path.join(result_dir, 'result_async.jpg'),
+    )
     model.show_result(
         img,
         sync_results[0],
         score_thr=0.5,
         show=False,
-        out_file=os.path.join(result_dir, 'result_sync.jpg'))
+        out_file=os.path.join(result_dir, 'result_sync.jpg'),
+    )
 
 
 if __name__ == '__main__':

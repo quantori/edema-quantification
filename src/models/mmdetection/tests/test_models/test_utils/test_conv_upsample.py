@@ -1,7 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import pytest
 import torch
-
 from mmdet.models.utils import ConvUpsample
 
 
@@ -15,7 +14,8 @@ def test_conv_upsample(num_layers):
         num_layers=num_layers,
         num_upsample=num_upsample,
         conv_cfg=None,
-        norm_cfg=None)
+        norm_cfg=None,
+    )
 
     size = 5
     x = torch.randn((1, 10, size, size))

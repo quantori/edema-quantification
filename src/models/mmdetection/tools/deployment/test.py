@@ -5,16 +5,15 @@ import warnings
 import mmcv
 from mmcv import Config, DictAction
 from mmcv.parallel import MMDataParallel
-
 from mmdet.apis import single_gpu_test
-from mmdet.datasets import (build_dataloader, build_dataset,
-                            replace_ImageToTensor)
+from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.utils import compat_cfg
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='MMDet test (and eval) an ONNX model using ONNXRuntime')
+        description='MMDet test (and eval) an ONNX model using ONNXRuntime',
+    )
     parser.add_argument('config', help='test config file path')
     parser.add_argument('model', help='Input model file')
     parser.add_argument('--out', help='output result file in pickle format')
@@ -23,26 +22,32 @@ def parse_args():
         action='store_true',
         help='Format the output results without perform evaluation. It is'
         'useful when you want to format the result to a specific format and '
-        'submit it to the test server')
+        'submit it to the test server',
+    )
     parser.add_argument(
         '--backend',
         required=True,
         choices=['onnxruntime', 'tensorrt'],
-        help='Backend for input model to run. ')
+        help='Backend for input model to run. ',
+    )
     parser.add_argument(
         '--eval',
         type=str,
         nargs='+',
         help='evaluation metrics, which depends on the dataset, e.g., "bbox",'
-        ' "segm", "proposal" for COCO, and "mAP", "recall" for PASCAL VOC')
+        ' "segm", "proposal" for COCO, and "mAP", "recall" for PASCAL VOC',
+    )
     parser.add_argument('--show', action='store_true', help='show results')
     parser.add_argument(
-        '--show-dir', help='directory where painted images will be saved')
+        '--show-dir',
+        help='directory where painted images will be saved',
+    )
     parser.add_argument(
         '--show-score-thr',
         type=float,
         default=0.3,
-        help='score threshold (default: 0.3)')
+        help='score threshold (default: 0.3)',
+    )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
@@ -52,13 +57,15 @@ def parse_args():
         'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
         'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
         'Note that the quotation marks are necessary and that no white space '
-        'is allowed.')
+        'is allowed.',
+    )
     parser.add_argument(
         '--eval-options',
         nargs='+',
         action=DictAction,
         help='custom options for evaluation, the key-value pair in xxx=yyy '
-        'format will be kwargs for dataset.evaluate() function')
+        'format will be kwargs for dataset.evaluate() function',
+    )
 
     args = parser.parse_args()
     return args
@@ -67,11 +74,11 @@ def parse_args():
 def main():
     args = parse_args()
 
-    assert args.out or args.eval or args.format_only or args.show \
-        or args.show_dir, \
-        ('Please specify at least one operation (save/eval/format/show the '
-         'results / save the results) with the argument "--out", "--eval"'
-         ', "--format-only", "--show" or "--show-dir"')
+    assert args.out or args.eval or args.format_only or args.show or args.show_dir, (
+        'Please specify at least one operation (save/eval/format/show the '
+        'results / save the results) with the argument "--out", "--eval"'
+        ', "--format-only", "--show" or "--show-dir"'
+    )
 
     if args.eval and args.format_only:
         raise ValueError('--eval and --format_only cannot be both specified')
@@ -91,12 +98,14 @@ def main():
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.test.pipeline = replace_ImageToTensor(
-                cfg.data.test.pipeline)
+                cfg.data.test.pipeline,
+            )
     elif isinstance(cfg.data.test, list):
         for ds_cfg in cfg.data.test:
             ds_cfg.test_mode = True
         samples_per_gpu = max(
-            [ds_cfg.pop('samples_per_gpu', 1) for ds_cfg in cfg.data.test])
+            [ds_cfg.pop('samples_per_gpu', 1) for ds_cfg in cfg.data.test],
+        )
         if samples_per_gpu > 1:
             for ds_cfg in cfg.data.test:
                 ds_cfg.pipeline = replace_ImageToTensor(ds_cfg.pipeline)
@@ -108,20 +117,34 @@ def main():
         samples_per_gpu=samples_per_gpu,
         workers_per_gpu=cfg.data.workers_per_gpu,
         dist=False,
-        shuffle=False)
+        shuffle=False,
+    )
 
     if args.backend == 'onnxruntime':
         from mmdet.core.export.model_wrappers import ONNXRuntimeDetector
+
         model = ONNXRuntimeDetector(
-            args.model, class_names=dataset.CLASSES, device_id=0)
+            args.model,
+            class_names=dataset.CLASSES,
+            device_id=0,
+        )
     elif args.backend == 'tensorrt':
         from mmdet.core.export.model_wrappers import TensorRTDetector
+
         model = TensorRTDetector(
-            args.model, class_names=dataset.CLASSES, device_id=0)
+            args.model,
+            class_names=dataset.CLASSES,
+            device_id=0,
+        )
 
     model = MMDataParallel(model, device_ids=[0])
-    outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
-                              args.show_score_thr)
+    outputs = single_gpu_test(
+        model,
+        data_loader,
+        args.show,
+        args.show_dir,
+        args.show_score_thr,
+    )
 
     if args.out:
         print(f'\nwriting results to {args.out}')
@@ -133,8 +156,12 @@ def main():
         eval_kwargs = cfg.get('evaluation', {}).copy()
         # hard-code way to remove EvalHook args
         for key in [
-                'interval', 'tmpdir', 'start', 'gpu_collect', 'save_best',
-                'rule'
+            'interval',
+            'tmpdir',
+            'start',
+            'gpu_collect',
+            'save_best',
+            'rule',
         ]:
             eval_kwargs.pop(key, None)
         eval_kwargs.update(dict(metric=args.eval, **kwargs))

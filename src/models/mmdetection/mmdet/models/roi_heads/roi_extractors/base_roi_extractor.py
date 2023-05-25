@@ -18,11 +18,13 @@ class BaseRoIExtractor(BaseModule, metaclass=ABCMeta):
             Default: None
     """
 
-    def __init__(self,
-                 roi_layer,
-                 out_channels,
-                 featmap_strides,
-                 init_cfg=None):
+    def __init__(
+        self,
+        roi_layer,
+        out_channels,
+        featmap_strides,
+        init_cfg=None,
+    ):
         super(BaseRoIExtractor, self).__init__(init_cfg)
         self.roi_layers = self.build_roi_layers(roi_layer, featmap_strides)
         self.out_channels = out_channels
@@ -56,7 +58,8 @@ class BaseRoIExtractor(BaseModule, metaclass=ABCMeta):
         assert hasattr(ops, layer_type)
         layer_cls = getattr(ops, layer_type)
         roi_layers = nn.ModuleList(
-            [layer_cls(spatial_scale=1 / s, **cfg) for s in featmap_strides])
+            [layer_cls(spatial_scale=1 / s, **cfg) for s in featmap_strides],
+        )
         return roi_layers
 
     def roi_rescale(self, rois, scale_factor):

@@ -128,8 +128,7 @@ class Transpose:
         return results
 
     def __repr__(self):
-        return self.__class__.__name__ + \
-               f'(keys={self.keys}, order={self.order})'
+        return self.__class__.__name__ + f'(keys={self.keys}, order={self.order})'
 
 
 @PIPELINES.register_module()
@@ -144,9 +143,14 @@ class ToDataContainer:
             dict(key='gt_labels'))``.
     """
 
-    def __init__(self,
-                 fields=(dict(key='img', stack=True), dict(key='gt_bboxes'),
-                         dict(key='gt_labels'))):
+    def __init__(
+        self,
+        fields=(
+            dict(key='img', stack=True),
+            dict(key='gt_bboxes'),
+            dict(key='gt_labels'),
+        ),
+    ):
         self.fields = fields
 
     def __call__(self, results):
@@ -197,9 +201,11 @@ class DefaultFormatBundle:
             will be set to 0 by default, which should be 255.
     """
 
-    def __init__(self,
-                 img_to_float=True,
-                 pad_val=dict(img=0, masks=0, seg=255)):
+    def __init__(
+        self,
+        img_to_float=True,
+        pad_val=dict(img=0, masks=0, seg=255),
+    ):
         self.img_to_float = img_to_float
         self.pad_val = pad_val
 
@@ -239,7 +245,10 @@ class DefaultFormatBundle:
             else:
                 img = to_tensor(img).permute(2, 0, 1).contiguous()
             results['img'] = DC(
-                img, padding_value=self.pad_val['img'], stack=True)
+                img,
+                padding_value=self.pad_val['img'],
+                stack=True,
+            )
         for key in ['proposals', 'gt_bboxes', 'gt_bboxes_ignore', 'gt_labels']:
             if key not in results:
                 continue
@@ -248,12 +257,14 @@ class DefaultFormatBundle:
             results['gt_masks'] = DC(
                 results['gt_masks'],
                 padding_value=self.pad_val['masks'],
-                cpu_only=True)
+                cpu_only=True,
+            )
         if 'gt_semantic_seg' in results:
             results['gt_semantic_seg'] = DC(
                 to_tensor(results['gt_semantic_seg'][None, ...]),
                 padding_value=self.pad_val['seg'],
-                stack=True)
+                stack=True,
+            )
         return results
 
     def _add_default_meta_keys(self, results):
@@ -278,12 +289,13 @@ class DefaultFormatBundle:
             dict(
                 mean=np.zeros(num_channels, dtype=np.float32),
                 std=np.ones(num_channels, dtype=np.float32),
-                to_rgb=False))
+                to_rgb=False,
+            ),
+        )
         return results
 
     def __repr__(self):
-        return self.__class__.__name__ + \
-               f'(img_to_float={self.img_to_float})'
+        return self.__class__.__name__ + f'(img_to_float={self.img_to_float})'
 
 
 @PIPELINES.register_module()
@@ -326,11 +338,21 @@ class Collect:
             'img_norm_cfg')``
     """
 
-    def __init__(self,
-                 keys,
-                 meta_keys=('filename', 'ori_filename', 'ori_shape',
-                            'img_shape', 'pad_shape', 'scale_factor', 'flip',
-                            'flip_direction', 'img_norm_cfg')):
+    def __init__(
+        self,
+        keys,
+        meta_keys=(
+            'filename',
+            'ori_filename',
+            'ori_shape',
+            'img_shape',
+            'pad_shape',
+            'scale_factor',
+            'flip',
+            'flip_direction',
+            'img_norm_cfg',
+        ),
+    ):
         self.keys = keys
         self.meta_keys = meta_keys
 
@@ -358,8 +380,7 @@ class Collect:
         return data
 
     def __repr__(self):
-        return self.__class__.__name__ + \
-               f'(keys={self.keys}, meta_keys={self.meta_keys})'
+        return self.__class__.__name__ + f'(keys={self.keys}, meta_keys={self.meta_keys})'
 
 
 @PIPELINES.register_module()

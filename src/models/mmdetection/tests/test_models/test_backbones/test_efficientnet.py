@@ -1,6 +1,5 @@
 import pytest
 import torch
-
 from mmdet.models.backbones import EfficientNet
 
 

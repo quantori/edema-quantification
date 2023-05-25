@@ -6,10 +6,10 @@ from collections import OrderedDict
 import mmcv
 import numpy as np
 from mmcv.utils import print_log
+from mmdet.core import eval_map, eval_recalls
 from terminaltables import AsciiTable
 from torch.utils.data import Dataset
 
-from mmdet.core import eval_map, eval_recalls
 from .builder import DATASETS
 from .pipelines import Compose
 
@@ -56,18 +56,20 @@ class CustomDataset(Dataset):
 
     PALETTE = None
 
-    def __init__(self,
-                 ann_file,
-                 pipeline,
-                 classes=None,
-                 data_root=None,
-                 img_prefix='',
-                 seg_prefix=None,
-                 seg_suffix='.png',
-                 proposal_file=None,
-                 test_mode=False,
-                 filter_empty_gt=True,
-                 file_client_args=dict(backend='disk')):
+    def __init__(
+        self,
+        ann_file,
+        pipeline,
+        classes=None,
+        data_root=None,
+        img_prefix='',
+        seg_prefix=None,
+        seg_suffix='.png',
+        proposal_file=None,
+        test_mode=False,
+        filter_empty_gt=True,
+        file_client_args=dict(backend='disk'),
+    ):
         self.ann_file = ann_file
         self.data_root = data_root
         self.img_prefix = img_prefix
@@ -87,10 +89,11 @@ class CustomDataset(Dataset):
                 self.img_prefix = osp.join(self.data_root, self.img_prefix)
             if not (self.seg_prefix is None or osp.isabs(self.seg_prefix)):
                 self.seg_prefix = osp.join(self.data_root, self.seg_prefix)
-            if not (self.proposal_file is None
-                    or osp.isabs(self.proposal_file)):
-                self.proposal_file = osp.join(self.data_root,
-                                              self.proposal_file)
+            if not (self.proposal_file is None or osp.isabs(self.proposal_file)):
+                self.proposal_file = osp.join(
+                    self.data_root,
+                    self.proposal_file,
+                )
         # load annotations (and proposals)
         if hasattr(self.file_client, 'get_local_path'):
             with self.file_client.get_local_path(self.ann_file) as local_path:
@@ -100,20 +103,23 @@ class CustomDataset(Dataset):
                 'The used MMCV version does not have get_local_path. '
                 f'We treat the {self.ann_file} as local paths and it '
                 'might cause errors if the path is not a local path. '
-                'Please use MMCV>= 1.3.16 if you meet errors.')
+                'Please use MMCV>= 1.3.16 if you meet errors.',
+            )
             self.data_infos = self.load_annotations(self.ann_file)
 
         if self.proposal_file is not None:
             if hasattr(self.file_client, 'get_local_path'):
                 with self.file_client.get_local_path(
-                        self.proposal_file) as local_path:
+                    self.proposal_file,
+                ) as local_path:
                     self.proposals = self.load_proposals(local_path)
             else:
                 warnings.warn(
                     'The used MMCV version does not have get_local_path. '
                     f'We treat the {self.ann_file} as local paths and it '
                     'might cause errors if the path is not a local path. '
-                    'Please use MMCV>= 1.3.16 if you meet errors.')
+                    'Please use MMCV>= 1.3.16 if you meet errors.',
+                )
                 self.proposals = self.load_proposals(self.proposal_file)
         else:
             self.proposals = None
@@ -179,7 +185,8 @@ class CustomDataset(Dataset):
         """Filter images too small."""
         if self.filter_empty_gt:
             warnings.warn(
-                'CustomDataset does not support filtering empty gt images.')
+                'CustomDataset does not support filtering empty gt images.',
+            )
         valid_inds = []
         for i, img_info in enumerate(self.data_infos):
             if min(img_info['width'], img_info['height']) >= min_size:
@@ -309,13 +316,15 @@ class CustomDataset(Dataset):
     def format_results(self, results, **kwargs):
         """Place holder to format result to dataset specific output."""
 
-    def evaluate(self,
-                 results,
-                 metric='mAP',
-                 logger=None,
-                 proposal_nums=(100, 300, 1000),
-                 iou_thr=0.5,
-                 scale_ranges=None):
+    def evaluate(
+        self,
+        results,
+        metric='mAP',
+        logger=None,
+        proposal_nums=(100, 300, 1000),
+        iou_thr=0.5,
+        scale_ranges=None,
+    ):
         """Evaluate the dataset.
 
         Args:
@@ -351,14 +360,20 @@ class CustomDataset(Dataset):
                     scale_ranges=scale_ranges,
                     iou_thr=iou_thr,
                     dataset=self.CLASSES,
-                    logger=logger)
+                    logger=logger,
+                )
                 mean_aps.append(mean_ap)
                 eval_results[f'AP{int(iou_thr * 100):02d}'] = round(mean_ap, 3)
             eval_results['mAP'] = sum(mean_aps) / len(mean_aps)
         elif metric == 'recall':
             gt_bboxes = [ann['bboxes'] for ann in annotations]
             recalls = eval_recalls(
-                gt_bboxes, results, proposal_nums, iou_thr, logger=logger)
+                gt_bboxes,
+                results,
+                proposal_nums,
+                iou_thr,
+                logger=logger,
+            )
             for i, num in enumerate(proposal_nums):
                 for j, iou in enumerate(iou_thrs):
                     eval_results[f'recall@{num}@{iou}'] = recalls[i, j]
@@ -371,9 +386,11 @@ class CustomDataset(Dataset):
     def __repr__(self):
         """Print the number of instance number."""
         dataset_type = 'Test' if self.test_mode else 'Train'
-        result = (f'\n{self.__class__.__name__} {dataset_type} dataset '
-                  f'with number of images {len(self)}, '
-                  f'and instance counts: \n')
+        result = (
+            f'\n{self.__class__.__name__} {dataset_type} dataset '
+            f'with number of images {len(self)}, '
+            f'and instance counts: \n'
+        )
         if self.CLASSES is None:
             result += 'Category names are not provided. \n'
             return result
