@@ -159,10 +159,9 @@ class LungSegmenter:
 
     def __call__(
         self,
-        img_path: str,
+        img: np.ndarray,
         scale_output: bool = False,
     ) -> np.ndarray:
-        img = cv2.imread(img_path)
         img_tensor = torch.unsqueeze(self.preprocess_image(img), dim=0).to(self.device)
         prob_map = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
         if scale_output:
@@ -201,11 +200,12 @@ class LungSegmenter:
 if __name__ == '__main__':
     model_name = 'DeepLabV3+'
     img_path = 'data/demo/input/10000032_50414267.png'
+    img = cv2.imread(img_path)
     model = LungSegmenter(
         model_dir=f'models/lung_segmentation/{model_name}',
         device='auto',
     )
-    map = model(img_path=img_path, scale_output=True)
+    map = model(img=img, scale_output=True)
     mask = model.binarize(map=map, threshold_method='otsu')
     mask = cv2.resize(mask, (1024, 1024))
     cv2.imwrite(f'data/demo/mask_{model_name}.png', mask)
