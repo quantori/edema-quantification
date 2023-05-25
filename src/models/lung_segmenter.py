@@ -12,19 +12,13 @@ from src.models import smp
 
 
 class LungSegmenter:
-    """Class used to predict lungs on X-ray images."""
+    """A segmentation model used to predict the lungs from X-ray images."""
 
     def __init__(
         self,
         model_dir: str,
-        threshold: float = 0.5,
         device: str = 'auto',
-        raw_output: bool = False,
     ) -> None:
-        assert (
-            0 <= threshold <= 1
-        ), f'Threshold should be in the range [0,1], while it is {threshold}'
-
         # Model settings
         f = open(os.path.join(model_dir, 'config.json'))
         _model_params = json.load(f)
@@ -39,8 +33,6 @@ class LungSegmenter:
         self.input_channels = model_params['input_channels']
         self.num_classes = model_params['num_classes']
         self.activation = model_params['activation']
-        self.threshold = threshold
-        self.raw_output = raw_output
         self.preprocessing = smp.encoders.get_preprocessing_params(
             encoder_name=self.encoder_name,
             pretrained=self.encoder_weights,
@@ -85,8 +77,6 @@ class LungSegmenter:
         logging.info(f'Model dir.................: {model_dir}')
         logging.info(f'Model name................: {self.model_name}')
         logging.info(f'Input size................: {self.input_size}')
-        logging.info(f'Threshold.................: {self.threshold}')
-        logging.info(f'Raw output................: {self.raw_output}')
         logging.info(f'Device....................: {self.device.upper()}')
 
     def build_model(self) -> Any:
@@ -170,15 +160,41 @@ class LungSegmenter:
     def __call__(
         self,
         img_path: str,
+        scale_output: bool = False,
     ) -> np.ndarray:
         img = cv2.imread(img_path)
         img_tensor = torch.unsqueeze(self.preprocess_image(img), dim=0).to(self.device)
-        mask = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
-        if self.raw_output:
-            mask = (mask * 255).astype(np.uint8)
+        prob_map = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
+        if scale_output:
+            prob_map = (prob_map * 255).astype(np.uint8)
+        return prob_map
+
+    @staticmethod
+    def binarize(
+        map: np.ndarray,
+        threshold_method: str = 'otsu',
+    ) -> np.ndarray:
+        assert threshold_method in [
+            'otsu',
+            'triangle',
+        ], f'Invalid threshold_method: {threshold_method}'
+        if threshold_method == 'otsu':
+            threshold_val, mask = cv2.threshold(
+                map,
+                0,
+                255,
+                cv2.THRESH_BINARY + cv2.THRESH_OTSU,
+            )
+        elif threshold_method == 'triangle':
+            threshold_val, mask = cv2.threshold(
+                map,
+                0,
+                255,
+                cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE,
+            )
         else:
-            mask = mask >= self.threshold
-            mask = 255 * mask.astype(np.uint8)
+            raise ValueError(f'Invalid threshold_method: {threshold_method}')
+
         return mask
 
 
@@ -187,10 +203,9 @@ if __name__ == '__main__':
     img_path = 'data/demo/input/10000032_50414267.png'
     model = LungSegmenter(
         model_dir=f'models/lung_segmentation/{model_name}',
-        threshold=0.50,
         device='auto',
-        raw_output=True,
     )
-    mask = model(img_path)
+    map = model(img_path=img_path, scale_output=True)
+    mask = model.binarize(map=map, threshold_method='otsu')
     mask = cv2.resize(mask, (1024, 1024))
     cv2.imwrite(f'data/demo/mask_{model_name}.png', mask)
