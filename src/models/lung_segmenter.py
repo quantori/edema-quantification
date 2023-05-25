@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 
+from src.data.utils_sly import get_box_sizes
 from src.models import smp
 
 
@@ -169,7 +170,7 @@ class LungSegmenter:
         return prob_map
 
     @staticmethod
-    def binarize(
+    def binarize_map(
         map: np.ndarray,
         threshold_method: str = 'otsu',
     ) -> np.ndarray:
@@ -196,6 +197,62 @@ class LungSegmenter:
 
         return mask
 
+    @staticmethod
+    def smooth_mask(
+        mask: np.ndarray,
+    ) -> np.ndarray:
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+
+        # Perform morphological opening to smooth the edges
+        opened_mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+        # Perform morphological closing to restore the object size
+        closed_mask = cv2.morphologyEx(opened_mask, cv2.MORPH_CLOSE, kernel)
+
+        # Perform morphological dilation to fill the holes
+        filled_mask = cv2.morphologyEx(closed_mask, cv2.MORPH_DILATE, kernel)
+
+        return filled_mask
+
+    @staticmethod
+    def keep_lungs(
+        mask: np.ndarray,
+    ) -> np.ndarray:
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        areas = []
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            areas.append(area)
+
+        sorted_areas = sorted(areas, reverse=True)
+        two_biggest_areas = sorted_areas[:2]
+
+        biggest_contours = []
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area in two_biggest_areas:
+                biggest_contours.append(cnt)
+
+        mask = cv2.drawContours(mask.copy(), biggest_contours, -1, (0, 255, 0), 3)
+
+        return mask
+
+    @staticmethod
+    def compute_lung_coords(
+        mask: np.ndarray,
+    ) -> dict:
+        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        # TODO: add get_box_sizes for computation of lung coordinates
+        for contour in contours:
+            x1, y1, lung_width, lung_height = cv2.boundingRect(contour)
+            x2 = x1 + lung_width
+            y2 = y1 + lung_height
+            lung_size = get_box_sizes(x1, y1, x2, y2)
+
+        return lung_size
+
 
 if __name__ == '__main__':
     model_name = 'DeepLabV3+'
@@ -206,6 +263,6 @@ if __name__ == '__main__':
         device='auto',
     )
     map = model(img=img, scale_output=True)
-    mask = model.binarize(map=map, threshold_method='otsu')
+    mask = model.binarize_map(map=map, threshold_method='otsu')
     mask = cv2.resize(mask, (1024, 1024))
     cv2.imwrite(f'data/demo/mask_{model_name}.png', mask)
