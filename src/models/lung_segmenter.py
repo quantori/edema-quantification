@@ -215,7 +215,7 @@ class LungSegmenter:
         return filled_mask
 
     @staticmethod
-    def keep_lungs(
+    def remove_artifacts(
         mask: np.ndarray,
     ) -> np.ndarray:
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -234,44 +234,40 @@ class LungSegmenter:
             if area in two_biggest_areas:
                 biggest_contours.append(cnt)
 
-        mask = cv2.drawContours(mask.copy(), biggest_contours, -1, (0, 255, 0), 3)
+        # Draw the contours of the two biggest objects on the new mask
+        mask = np.zeros_like(mask)
+        mask = cv2.drawContours(mask, biggest_contours, -1, 255, thickness=cv2.FILLED)
 
         return mask
 
     @staticmethod
-    def compute_lung_coords(
+    def compute_lungs_info(
         mask: np.ndarray,
     ) -> dict:
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        lungs_info: dict = {
-            'Left lung': {},
-            'Right lung': {},
-        }
+
         lung_coords = []
         for contour in contours:
-            x1, y1, lung_width, lung_height = cv2.boundingRect(contour)
-            x2 = x1 + lung_width
-            y2 = y1 + lung_height
+            x, y, width, height = cv2.boundingRect(contour)
+            x1, y1, x2, y2 = x, y, x + width, y + height
             lung_coords.append([x1, y1, x2, y2])
-        lung_coords = sorted(lung_coords, key=lambda x: x[0])
 
-        if len(lung_coords) != 2:
-            logging.warning('The number of lungs is not equal to 2')
+        x1_values, y1_values, x2_values, y2_values = zip(*lung_coords)
+        x1, y1 = min(x1_values), min(y1_values)
+        x2, y2 = max(x2_values), max(y2_values)
 
-        for i, lung_name in enumerate(lungs_info):
-            lung_info = lungs_info[lung_name]
-            lung_info.update(
-                {
-                    'Feature ID': FEATURE_MAP[lung_name],
-                    'Feature': lung_name,
-                    'Reference type': FEATURE_TYPE[lung_name],
-                    'x1': lung_coords[i][0],
-                    'y1': lung_coords[i][1],
-                    'x2': lung_coords[i][2],
-                    'y2': lung_coords[i][3],
-                },
-            )
-            lung_info.update(get_box_sizes(*lung_coords[i]))
+        feature_name = 'Lungs'
+        lungs_info = {
+            'Feature ID': FEATURE_MAP[feature_name],
+            'Feature': feature_name,
+            'Reference type': FEATURE_TYPE[feature_name],
+            'x1': x1,
+            'y1': y1,
+            'x2': x2,
+            'y2': y2,
+        }
+
+        lungs_info.update(get_box_sizes(x1=x1, y1=y1, x2=x2, y2=y2))
 
         return lungs_info
 
