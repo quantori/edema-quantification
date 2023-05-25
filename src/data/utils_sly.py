@@ -27,6 +27,7 @@ FEATURE_MAP = {
     'Effusion': 7,
     'Bat': 8,
     'Infiltrate': 9,
+    'Lungs': 10,
 }
 
 FEATURE_MAP_REVERSED = dict((v, k) for k, v in FEATURE_MAP.items())
@@ -41,6 +42,7 @@ FEATURE_TYPE = {
     'Bat': 'polygon',
     'Infiltrate': 'polygon',
     'Cuffing': 'bitmap',
+    'Lungs': 'bitmap',
 }
 
 METADATA_COLUMNS = [
