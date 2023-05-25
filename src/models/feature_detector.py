@@ -93,9 +93,9 @@ class FeatureDetector:
             'y1',
             'x2',
             'y2',
-            'Class ID',
-            'Class',
-            'confidence',
+            'Feature ID',
+            'Feature',
+            'Confidence',
         ]
 
         # Iterate over images
@@ -121,10 +121,16 @@ class FeatureDetector:
                     df_.at[idx, 'y1'] = int(box[1])
                     df_.at[idx, 'x2'] = int(box[2])
                     df_.at[idx, 'y2'] = int(box[3])
-                    df_.at[idx, 'Figure ID'] = class_idx + 1
-                    df_.at[idx, 'Figure'] = self.classes[class_idx]
-                    df_.at[idx, 'Confidence'] = box[4]  # TODO
+                    df_.at[idx, 'Feature ID'] = class_idx + 1
+                    df_.at[idx, 'Feature'] = self.classes[class_idx]
+                    df_.at[idx, 'Confidence'] = box[4]
+
                 df = pd.concat([df, df_])
+
+        df['Box width'] = abs(df.x2 - df.x1 + 1)
+        df['Box height'] = abs(df.y2 - df.y1 + 1)
+        df['Box area'] = df['Box width'] * df['Box height']
+        # df['bbox'] = [df.x1, df.y1, df.width, df.height]
 
         df.sort_values('Image path', inplace=True)
         df.reset_index(drop=True, inplace=True)
@@ -133,14 +139,14 @@ class FeatureDetector:
 
 
 if __name__ == '__main__':
+    test_dir = 'data/coco/test/'
     img_paths = get_file_list(
-        src_dirs='data/coco/test/data',
+        src_dirs=os.path.join(test_dir, 'data'),
         ext_list='.png',
     )
-    img_paths = img_paths[:2]
-    save_dir = 'data/sigh_detector'
+    img_paths = img_paths[:3]
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN_014121_110323',
+        model_dir='models/sign_detection/VFNet',
         conf_threshold=0.01,
         device='auto',
     )
@@ -149,9 +155,8 @@ if __name__ == '__main__':
         img_paths=img_paths,
         detections=dets,
     )
-    os.makedirs(save_dir, exist_ok=True)
     res_det.to_excel(
-        os.path.join(save_dir, f'{model.config_name}.xlsx'),
+        os.path.join(test_dir, 'predictions.xlsx'),
         sheet_name='Detections',
         index=True,
         index_label='ID',
