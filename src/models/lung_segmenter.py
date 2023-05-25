@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 
-from src.data.utils_sly import get_box_sizes
+from src.data.utils_sly import FEATURE_MAP, FEATURE_TYPE, get_box_sizes
 from src.models import smp
 
 
@@ -243,15 +243,37 @@ class LungSegmenter:
         mask: np.ndarray,
     ) -> dict:
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        # TODO: add get_box_sizes for computation of lung coordinates
+        lungs_info: dict = {
+            'Left lung': {},
+            'Right lung': {},
+        }
+        lung_coords = []
         for contour in contours:
             x1, y1, lung_width, lung_height = cv2.boundingRect(contour)
             x2 = x1 + lung_width
             y2 = y1 + lung_height
-            lung_size = get_box_sizes(x1, y1, x2, y2)
+            lung_coords.append([x1, y1, x2, y2])
+        lung_coords = sorted(lung_coords, key=lambda x: x[0])
 
-        return lung_size
+        if len(lung_coords) != 2:
+            logging.warning('The number of lungs is not equal to 2')
+
+        for i, lung_name in enumerate(lungs_info):
+            lung_info = lungs_info[lung_name]
+            lung_info.update(
+                {
+                    'Feature ID': FEATURE_MAP[lung_name],
+                    'Feature': lung_name,
+                    'Reference type': FEATURE_TYPE[lung_name],
+                    'x1': lung_coords[i][0],
+                    'y1': lung_coords[i][1],
+                    'x2': lung_coords[i][2],
+                    'y2': lung_coords[i][3],
+                },
+            )
+            lung_info.update(get_box_sizes(*lung_coords[i]))
+
+        return lungs_info
 
 
 if __name__ == '__main__':
