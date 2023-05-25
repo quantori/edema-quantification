@@ -2,9 +2,7 @@ defaults:
 - main
 - _self_
 
-img_dir: data/demo/input
-model_dir: models/lung_segmentation/DeepLabV3+
-output_size: [1024, 1024]
-threshold_method: otsu    # otsu, triangle, manual
-threshold_val:            # only if threshold_method is manual
-save_dir: data/demo/output
+img_dir: data/interim
+model_names: ['DeepLabV3', 'MAnet', 'Unet++']    # Unet, Unet++, DeepLabV3, DeepLabV3+, FPN, Linknet, PSPNet, PAN, MAnet
+model_dirs: models/lung_segmentation
+save_dir: data/interim_lungs
