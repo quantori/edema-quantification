@@ -54,7 +54,7 @@ class PrototypeLoggerCompNumpy(
         self.heatmap_mask_weight = logger_config.heatmap_mask_weight
 
     def _get_epoch_dir(self, epoch_num: int) -> str:
-        return os.getcwd() + self._dir + '/' + 'epoch_' + str(epoch_num) + '/'
+        return os.getcwd() + self._dir + '/' + 'real_epoch_' + str(epoch_num) + '/'
 
     @staticmethod
     def _make_heatmap(upsampled_act_distances: np.ndarray) -> np.ndarray:

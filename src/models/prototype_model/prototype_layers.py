@@ -136,8 +136,8 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
                 self._update_prototypes_on_batch(model, batch, batch_index, logger)
         self._copy_to_protoytpe_layer()
         if logger is not None:
-            logger.save_boxes(self._proto_rf_boxes, 'rf', model.current_epoch)
-            logger.save_boxes(self._proto_bound_boxes, 'bound', model.current_epoch)
+            logger.save_boxes(self._proto_rf_boxes, 'rf', model._real_epoch)
+            logger.save_boxes(self._proto_bound_boxes, 'bound', model._real_epoch)
 
     def _update_prototypes_on_batch(
         self,
@@ -206,17 +206,17 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
                 )
 
                 self._save_info_in_proto_bound_boxes(
-                    prototype_idx, high_proto_activation_roi_coords, labels, rf_prototype 
+                    prototype_idx, high_proto_activation_roi_coords, labels, rf_prototype
                 )
 
                 if logger is not None:
                     logger.save_prototype_distances(
-                        proto_distances, prototype_idx, model.current_epoch
+                        proto_distances, prototype_idx, model._real_epoch
                     )
                     logger.save_graphics(
                         prototype_idx,
                         prototype_class=self._get_target_class(prototype_idx),
-                        epoch_num=model.current_epoch,
+                        epoch_num=model._real_epoch,
                         rf_proto=img_crop_of_proto_rf,
                         act_roi=high_proto_activation_roi_crop,
                         original_img=original_img_for_shortest_proto_dist,

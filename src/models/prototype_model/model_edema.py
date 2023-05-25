@@ -84,6 +84,12 @@ class EdemaPrototypeNet(pl.LightningModule):
             'last_layer': self.last_layer,
         }
 
+        # Crutches for a custom training loop
+        self._training_status = ' '
+        self._real_epoch = 0
+        self._num_last_epochs = settings_model.num_last_epochs
+        self._last_step = settings_model.num_last_epochs
+
     def forward(self, x):
         # x is a batch of images having (batch, 3, H, W) dimensions
         if x.shape[1] != 3:
@@ -142,27 +148,40 @@ class EdemaPrototypeNet(pl.LightningModule):
         return {'loss': loss, 'f1_train': f1_train}
 
     def on_train_epoch_start(self):
-        if self.current_epoch < self.num_warm_epochs:
+        if self._real_epoch < self.num_warm_epochs:
             _warm(**self.blocks)
             _print_status_bar(self.trainer, self.blocks, status='WARM')
+            self._real_epoch += 1
+        elif self._training_status == 'last':
+            _last(**self.blocks)
+            self._last_step -= 1
+            _print_status_bar(
+                self.trainer, self.blocks, status=f'LAST-({self._last_step} epochs left)'
+            )
         else:
             _joint(**self.blocks)
             _print_status_bar(self.trainer, self.blocks, status='JOINT')
+            self._real_epoch += 1
 
     def on_train_epoch_end(self):
         # here, we have to put push_prototypes function
         # logs costs after a training epoch
-        if self.current_epoch >= self.push_start and self.current_epoch in self.push_epochs:
-            self.prototype_layer.update(
-                self, self.trainer.train_dataloader.loaders, self._prototype_logger
-            )
-            self.val_epoch(self.trainer.val_dataloaders[0], position=3)
+        if self._real_epoch >= self.push_start and self._real_epoch in self.push_epochs:
+            if self._last_step == self._num_last_epochs:
+                self.prototype_layer.update(
+                    self, self.trainer.train_dataloader.loaders, self._prototype_logger
+                )
+                self._training_status = 'last'
+            elif self._last_step == 0:
+                self._training_status = 'joint'
+                self._last_step = self._num_last_epochs
+            # self.val_epoch(self.trainer.val_dataloaders[0], position=3)
             # self.trainer.validate(self, self.trainer.train_dataloader.loaders)
             # TODO: save the model if the performance metric is better
-            self.train_last_only(
-                self.trainer.train_dataloader.loaders,
-                self.trainer.val_dataloaders[0],
-            )
+            # self.train_last_only(
+            #     self.trainer.train_dataloader.loaders,
+            #     self.trainer.val_dataloaders[0],
+            # )
 
             # save model performance
             # TODO: calculate performance and update the global performance criterium, if it is
@@ -321,7 +340,7 @@ class EdemaPrototypeNet(pl.LightningModule):
 
         cost = cross_entropy + 0.8 * cluster_cost - 0.08 * separation_cost + 0.001 * fine_cost
 
-        f1_score = multilabel_f1_score(output, labels, num_labels=self.num_classes, threshold=0.5)
+        f1_score = multilabel_f1_score(output, labels, num_labels=self.num_classes, threshold=0.3)
 
         # x, y = batch
         # y_hat = self(x)

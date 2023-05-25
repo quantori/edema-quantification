@@ -5,6 +5,7 @@ import pytorch_lightning as pl
 import torch
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning import seed_everything
 
 from src.data.data_classes import EdemaDataModule
 from model_edema import EdemaPrototypeNet
@@ -24,6 +25,7 @@ from loggers import PrototypeLoggerCompNumpy
 def main(cfg: DictConfig):
     # Clean the gpu cache
     torch.cuda.empty_cache()
+    seed_everything(42, workers=True)
 
     # Create blocks and model
     encoder = ENCODERS['squezee_net']()
@@ -45,13 +47,13 @@ def main(cfg: DictConfig):
     # pull the dataset and dataloader
     datamaodlule = EdemaDataModule(
         data_dir='data/interim',
-        batch_size=16,
+        batch_size=cfg.model.batch_size,
         resize=(cfg.model.img_size, cfg.model.img_size),
         normalize_tensors=False,
     )
     datamaodlule.setup('fit')
-    train_dataloader = datamaodlule.train_dataloader(num_workers=1)
-    test_dataloader = datamaodlule.test_dataloader(num_workers=1)
+    train_dataloader = datamaodlule.train_dataloader(num_workers=cfg.model.num_cpu)
+    test_dataloader = datamaodlule.test_dataloader(num_workers=cfg.model.num_cpu)
 
     # create model checkpoint and trainer and start training
     checkpoint = ModelCheckpoint(
@@ -62,12 +64,13 @@ def main(cfg: DictConfig):
         save_on_train_epoch_end=False,
     )
     trainer = pl.Trainer(
-        max_epochs=10,
+        max_epochs=83,
         logger=True,
         enable_checkpointing=True,
         gpus=1,
         log_every_n_steps=5,
         callbacks=[PNetProgressBar(), checkpoint],
+        deterministic=False,
     )
     trainer.fit(edema_net, train_dataloaders=train_dataloader, val_dataloaders=test_dataloader)
 
