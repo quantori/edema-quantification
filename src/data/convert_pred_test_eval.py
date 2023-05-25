@@ -1,11 +1,8 @@
 import json
 import logging
 import os
-import uuid
 
 import numpy as np
-from omegaconf import DictConfig, OmegaConf
-import hydra
 import pandas as pd
 
 log = logging.getLogger(__name__)
@@ -22,11 +19,13 @@ def detections_by_img_name(img_name: str, df: pd.DataFrame) -> []:
                 tags=[],
                 attributes=dict(),
                 label=row['Feature'],
-                bounding_box=[row['x1'] / row['Image width'],
-                              row['y1'] / row['Image height'],
-                              row['Box width'] / row['Image width'],
-                              row['Box height'] / row['Image height']],
-                area=row['Box area']
+                bounding_box=[
+                    row['x1'] / row['Image width'],
+                    row['y1'] / row['Image height'],
+                    row['Box width'] / row['Image width'],
+                    row['Box height'] / row['Image height'],
+                ],
+                area=row['Box area'],
             )
 
             if 'Confidence' in df_filtered.columns:
@@ -35,8 +34,10 @@ def detections_by_img_name(img_name: str, df: pd.DataFrame) -> []:
     return detections
 
 
-def process_data(gt_path: str,
-                 pred_path: str):
+def process_data(
+    gt_path: str,
+    pred_path: str,
+):
     use_columns = [
         'Image name',
         'Image width',
@@ -48,7 +49,7 @@ def process_data(gt_path: str,
         'x1',
         'y1',
         'x2',
-        'y2'
+        'y2',
     ]
     ground_truth = pd.read_excel(gt_path, usecols=use_columns)
 
@@ -60,7 +61,7 @@ def process_data(gt_path: str,
             filepath='fiftyone.core.fields.StringField',
             metadata='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.metadata.ImageMetadata)',
             ground_truth='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
-            predictions='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)'
+            predictions='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
         ),
         info=dict(),
     )
@@ -70,15 +71,23 @@ def process_data(gt_path: str,
         samples.append(
             dict(
                 filepath=os.path.join('data', 'coco', 'test', 'data', img_name),
-                tags=["validation"],
+                tags=['validation'],
                 metadata=None,
-                ground_truth=dict(_cls='Detections',
-                                  detections=detections_by_img_name(img_name=img_name,
-                                                                    df=ground_truth)),
-                predictions=dict(_cls='Detections',
-                                 detections=detections_by_img_name(img_name=img_name,
-                                                                   df=predictions))
-            )
+                ground_truth=dict(
+                    _cls='Detections',
+                    detections=detections_by_img_name(
+                        img_name=img_name,
+                        df=ground_truth,
+                    ),
+                ),
+                predictions=dict(
+                    _cls='Detections',
+                    detections=detections_by_img_name(
+                        img_name=img_name,
+                        df=predictions,
+                    ),
+                ),
+            ),
         )
 
     dataset.update(dict(samples=samples))
@@ -88,8 +97,10 @@ def process_data(gt_path: str,
 
 
 def main() -> None:
-    process_data(gt_path='data/coco/test/labels.xlsx',
-                 pred_path='data/coco/test/predictions.xlsx')
+    process_data(
+        gt_path='data/coco/test/labels.xlsx',
+        pred_path='data/coco/test/predictions.xlsx',
+    )
 
     log.info('Complete')
 
