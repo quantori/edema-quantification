@@ -1,8 +1,6 @@
 import cv2
 import numpy as np
 
-from src.data.utils_sly import FEATURE_MAP, FEATURE_TYPE, get_box_sizes
-
 
 class MapFuser:
     """MaskFuser is a class for fusing multiple probability maps into a single fused mask.
@@ -65,38 +63,6 @@ class MapFuser:
         return fused_map
 
 
-# TODO: move this function to the pipeline
-def compute_lungs_info(
-    mask: np.ndarray,
-) -> dict:
-    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-    lung_coords = []
-    for contour in contours:
-        x, y, width, height = cv2.boundingRect(contour)
-        x1, y1, x2, y2 = x, y, x + width, y + height
-        lung_coords.append([x1, y1, x2, y2])
-
-    x1_values, y1_values, x2_values, y2_values = zip(*lung_coords)
-    x1, y1 = min(x1_values), min(y1_values)
-    x2, y2 = max(x2_values), max(y2_values)
-
-    feature_name = 'Lungs'
-    lungs_info = {
-        'Feature ID': FEATURE_MAP[feature_name],
-        'Feature': feature_name,
-        'Reference type': FEATURE_TYPE[feature_name],
-        'x1': x1,
-        'y1': y1,
-        'x2': x2,
-        'y2': y2,
-    }
-
-    lungs_info.update(get_box_sizes(x1=x1, y1=y1, x2=x2, y2=y2))
-
-    return lungs_info
-
-
 if __name__ == '__main__':
     # Create an instance of MaskFuser
     fuser = MapFuser()
@@ -118,5 +84,4 @@ if __name__ == '__main__':
     mask_bin = processor.binarize_image(image=fused_map)
     mask_smooth = processor.smooth_mask(mask=mask_bin)
     mask_clean = processor.remove_artifacts(mask=mask_smooth)
-    lungs_info = compute_lungs_info(mask=mask_clean)
     print('text')
