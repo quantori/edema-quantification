@@ -8,7 +8,6 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 
-from src.data.utils_sly import FEATURE_MAP, FEATURE_TYPE, get_box_sizes
 from src.models import smp
 
 
@@ -169,108 +168,6 @@ class LungSegmenter:
             prob_map = (prob_map * 255).astype(np.uint8)
         return prob_map
 
-    @staticmethod
-    def binarize_map(
-        map: np.ndarray,
-        threshold_method: str = 'otsu',
-    ) -> np.ndarray:
-        assert threshold_method in [
-            'otsu',
-            'triangle',
-        ], f'Invalid threshold_method: {threshold_method}'
-        if threshold_method == 'otsu':
-            threshold_val, mask = cv2.threshold(
-                map,
-                0,
-                255,
-                cv2.THRESH_BINARY + cv2.THRESH_OTSU,
-            )
-        elif threshold_method == 'triangle':
-            threshold_val, mask = cv2.threshold(
-                map,
-                0,
-                255,
-                cv2.THRESH_BINARY + cv2.THRESH_TRIANGLE,
-            )
-        else:
-            raise ValueError(f'Invalid threshold_method: {threshold_method}')
-
-        return mask
-
-    @staticmethod
-    def smooth_mask(
-        mask: np.ndarray,
-    ) -> np.ndarray:
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-
-        # Perform morphological opening to smooth the edges
-        opened_mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-
-        # Perform morphological closing to restore the object size
-        closed_mask = cv2.morphologyEx(opened_mask, cv2.MORPH_CLOSE, kernel)
-
-        # Perform morphological dilation to fill the holes
-        filled_mask = cv2.morphologyEx(closed_mask, cv2.MORPH_DILATE, kernel)
-
-        return filled_mask
-
-    @staticmethod
-    def remove_artifacts(
-        mask: np.ndarray,
-    ) -> np.ndarray:
-        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        areas = []
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            areas.append(area)
-
-        sorted_areas = sorted(areas, reverse=True)
-        two_biggest_areas = sorted_areas[:2]
-
-        biggest_contours = []
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area in two_biggest_areas:
-                biggest_contours.append(cnt)
-
-        # Draw the contours of the two biggest objects on the new mask
-        mask = np.zeros_like(mask)
-        mask = cv2.drawContours(mask, biggest_contours, -1, 255, thickness=cv2.FILLED)
-
-        return mask
-
-    @staticmethod
-    def compute_lungs_info(
-        mask: np.ndarray,
-    ) -> dict:
-        contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        lung_coords = []
-        for contour in contours:
-            x, y, width, height = cv2.boundingRect(contour)
-            x1, y1, x2, y2 = x, y, x + width, y + height
-            lung_coords.append([x1, y1, x2, y2])
-
-        x1_values, y1_values, x2_values, y2_values = zip(*lung_coords)
-        x1, y1 = min(x1_values), min(y1_values)
-        x2, y2 = max(x2_values), max(y2_values)
-
-        feature_name = 'Lungs'
-        lungs_info = {
-            'Feature ID': FEATURE_MAP[feature_name],
-            'Feature': feature_name,
-            'Reference type': FEATURE_TYPE[feature_name],
-            'x1': x1,
-            'y1': y1,
-            'x2': x2,
-            'y2': y2,
-        }
-
-        lungs_info.update(get_box_sizes(x1=x1, y1=y1, x2=x2, y2=y2))
-
-        return lungs_info
-
 
 if __name__ == '__main__':
     model_name = 'DeepLabV3+'
@@ -281,6 +178,5 @@ if __name__ == '__main__':
         device='auto',
     )
     map = model(img=img, scale_output=True)
-    mask = model.binarize_map(map=map, threshold_method='otsu')
-    mask = cv2.resize(mask, (1024, 1024))
-    cv2.imwrite(f'data/demo/mask_{model_name}.png', mask)
+    mask = cv2.resize(map, (1024, 1024))
+    cv2.imwrite(f'{model_name}.png', mask)
