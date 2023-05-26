@@ -1,0 +1,122 @@
+import cv2
+import numpy as np
+
+from src.data.utils_sly import FEATURE_MAP, FEATURE_TYPE, get_box_sizes
+
+
+class MapFuser:
+    """MaskFuser is a class for fusing multiple probability maps into a single fused mask.
+
+    It supports adding probability maps, calculating the conditional probability fusion,
+    and obtaining the fused mask.
+    """
+
+    def __init__(self):
+        self.prob_maps = []
+
+    def add_prob_map(
+        self,
+        map_path: str,
+    ):
+        # Read the mask using OpenCV
+        prob_map = cv2.imread(map_path, cv2.IMREAD_GRAYSCALE)
+        if prob_map is None:
+            raise ValueError(f'Failed to read the mask: {map_path}')
+
+        # Ensure the input mask has the same shape as existing masks
+        if self.prob_maps:
+            assert (
+                prob_map.shape == self.prob_maps[0].shape
+            ), 'Input mask must have the same shape as existing masks'
+
+        # Check the scale type of the mask
+        if np.max(prob_map) > 1.0:
+            prob_map = prob_map / 255.0
+
+        self.prob_maps.append(prob_map)
+
+    def conditional_probability_fusion(self):
+        # Ensure at least one map has been added
+        assert len(self.prob_maps) > 0, 'No prob_maps have been added'
+
+        if len(self.prob_maps) == 1:
+            return self.prob_maps[0]
+
+        # Calculate the conditional probability fusion
+        fused_map = np.zeros_like(self.prob_maps[0])
+
+        for y in range(fused_map.shape[0]):
+            for x in range(fused_map.shape[1]):
+                # Calculate the conditional probability of foreground
+                prob_foreground = np.prod([mask[y, x] for mask in self.prob_maps])
+
+                # Calculate the conditional probability of background
+                prob_background = 1 - prob_foreground
+
+                # Normalize the probabilities
+                total_prob = prob_foreground + prob_background
+                if total_prob > 0:
+                    prob_foreground /= total_prob
+                    prob_background /= total_prob
+
+                # Assign the fused probability to the foreground class
+                fused_map[y, x] = prob_foreground
+
+        return fused_map
+
+
+# TODO: move this function to the pipeline
+def compute_lungs_info(
+    mask: np.ndarray,
+) -> dict:
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    lung_coords = []
+    for contour in contours:
+        x, y, width, height = cv2.boundingRect(contour)
+        x1, y1, x2, y2 = x, y, x + width, y + height
+        lung_coords.append([x1, y1, x2, y2])
+
+    x1_values, y1_values, x2_values, y2_values = zip(*lung_coords)
+    x1, y1 = min(x1_values), min(y1_values)
+    x2, y2 = max(x2_values), max(y2_values)
+
+    feature_name = 'Lungs'
+    lungs_info = {
+        'Feature ID': FEATURE_MAP[feature_name],
+        'Feature': feature_name,
+        'Reference type': FEATURE_TYPE[feature_name],
+        'x1': x1,
+        'y1': y1,
+        'x2': x2,
+        'y2': y2,
+    }
+
+    lungs_info.update(get_box_sizes(x1=x1, y1=y1, x2=x2, y2=y2))
+
+    return lungs_info
+
+
+if __name__ == '__main__':
+    # Create an instance of MaskFuser
+    fuser = MapFuser()
+
+    # Add prob_map paths
+    map1_path = 'data/interim_lungs/MAnet/10013643_58785837.png'
+    map2_path = 'data/interim_lungs/DeepLabV3/10013643_58785837.png'
+    map3_path = 'data/interim_lungs/Unet++/10013643_58785837.png'
+    fuser.add_prob_map(map1_path)
+    fuser.add_prob_map(map2_path)
+    fuser.add_prob_map(map3_path)
+    fused_map = fuser.conditional_probability_fusion()
+    fused_map = (fused_map * 255.0).astype(np.uint8)
+
+    # Process probability map
+    from src.models.mask_processor import MaskProcessor
+
+    processor = MaskProcessor()
+    mask_bin = processor.binarize_image(image=fused_map)
+    mask_smooth = processor.smooth_mask(mask=mask_bin)
+    mask_clean = processor.remove_artifacts(mask=mask_smooth)
+    lungs_info = compute_lungs_info(mask=mask_clean)
+    print('text')
