@@ -46,8 +46,11 @@ class MapFuser:
         return (image * 255.0).astype(np.uint8)
 
     def conditional_probability_fusion(self):
-        # Ensure at least one mask has been added
+        # Ensure at least one map has been added
         assert len(self.maps) > 0, 'No maps have been added'
+
+        if len(self.maps) == 1:
+            return self.maps[0]
 
         # Calculate the conditional probability fusion
         fused_map = np.zeros_like(self.maps[0])
@@ -85,6 +88,6 @@ if __name__ == '__main__':
     fuser.add_prob_map(map3_path)
 
     # Call the conditional_probability_fusion method
-    fused_mask = fuser.conditional_probability_fusion()
-    cv2.imwrite('fused_mask.png', fused_mask)
+    fused_map = fuser.conditional_probability_fusion()
+    cv2.imwrite('fused_mask.png', fused_map)
     print('text')
