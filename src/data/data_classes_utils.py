@@ -10,7 +10,7 @@ import torch
 from PIL import Image, ImageDraw, ImageOps
 from torch.utils.data import Dataset, Subset
 
-from src.data.utils_sly import FEATURE_MAP, convert_base64_to_image
+from src.data.utils_sly import FEATURE_MAP, convert_base64_to_mask
 
 __all__ = [
     'resize_and_create_masks',
@@ -116,7 +116,7 @@ def make_masks(
             # draw finding mask represented by bitmaps
             elif annotations[finding]['bitmaps']:
                 for bitmap in annotations[finding]['bitmaps']:
-                    bitmap_array = convert_base64_to_image(bitmap['Mask'])
+                    bitmap_array = convert_base64_to_mask(bitmap['Mask'])
                     bitmap_mask = Image.fromarray(bitmap_array).convert('1')
                     inverted_bitmap_mask = ImageOps.invert(bitmap_mask)
 
