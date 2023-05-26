@@ -66,6 +66,8 @@ def main(cfg: DictConfig) -> None:
         gc.collect()
         torch.cuda.empty_cache()
 
+    log.info('Complete')
+
 
 if __name__ == '__main__':
     main()
