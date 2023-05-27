@@ -173,10 +173,11 @@ if __name__ == '__main__':
     model_name = 'DeepLabV3+'
     img_path = 'data/demo/input/10000032_50414267.png'
     img = cv2.imread(img_path)
+    height, width = img.shape[:2]
     model = LungSegmenter(
         model_dir=f'models/lung_segmentation/{model_name}',
         device='auto',
     )
-    map = model(img=img, scale_output=True)
-    mask = cv2.resize(map, (1024, 1024))
-    cv2.imwrite(f'{model_name}.png', mask)
+    prob_map_ = model(img=img, scale_output=True)
+    prob_map = cv2.resize(prob_map_, (width, height))
+    cv2.imwrite(f'{model_name}.png', prob_map)
