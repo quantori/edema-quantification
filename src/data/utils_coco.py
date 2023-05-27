@@ -30,14 +30,14 @@ def get_ann_info(
     for _, row in df.iterrows():
         label: Dict[str, Union[int, List[int]]] = {}
         if row['Class ID'] > 0:
-            box_extension_figure = box_extension[FEATURE_MAP_REVERSED[row['Feature ID']]]
+            box_extension_feature = box_extension[FEATURE_MAP_REVERSED[row['Feature ID']]]
             x1, y1 = (
-                int(row['x1']) - box_extension_figure[0],
-                int(row['y1']) - box_extension_figure[1],
+                int(row['x1']) - box_extension_feature[0],
+                int(row['y1']) - box_extension_feature[1],
             )
             x2, y2 = (
-                int(row['x2']) + box_extension_figure[0],
-                int(row['y2']) + box_extension_figure[1],
+                int(row['x2']) + box_extension_feature[0],
+                int(row['y2']) + box_extension_feature[1],
             )
             width = abs(x2 - x1 + 1)
             height = abs(y2 - y1 + 1)
