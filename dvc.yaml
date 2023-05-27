@@ -2,7 +2,7 @@ stages:
 
   convert_sly_to_int:
     cmd:
-    - rm -rf data/interim
+    - rm -rf data/interim || true
     - python src/data/convert_sly_to_int.py
     deps:
     - src/data/convert_sly_to_int.py
@@ -13,9 +13,37 @@ stages:
     - data/interim/img
     - data/interim/metadata.xlsx
 
+  segment_lungs:
+    cmd:
+    - rm -rf data/interim_lung_seg || true
+    - python src/segment_lungs.py
+    deps:
+    - src/segment_lungs.py
+    - src/models/lung_segmenter.py
+    - configs/segment_lungs.yaml
+    - data/interim/img
+    outs:
+    - data/interim_lung_seg
+
+  fuse_maps:
+    cmd:
+    - rm -rf data/interim_lung_seg_fused || true
+    - python src/fuse_maps.py
+    deps:
+    - src/fuse_maps.py
+    - src/models/map_fuser.py
+    - src/models/mask_processor.py
+    - src/data/utils_sly.py
+    - configs/fuse_maps.yaml
+    - data/interim_lung_seg
+    outs:
+    - data/interim_lung_seg_fused/map
+    - data/interim_lung_seg_fused/mask
+    - data/interim_lung_seg_fused/metadata.xlsx
+
   convert_int_to_coco:
     cmd:
-    - rm -rf data/coco
+    - rm -rf data/coco || true
     - python src/data/convert_int_to_coco.py
     deps:
     - src/data/convert_int_to_coco.py
@@ -23,6 +51,7 @@ stages:
     - configs/convert_int_to_coco.yaml
     - data/interim/img
     - data/interim/metadata.xlsx
+    - data/interim_lung_seg_fused/metadata.xlsx
     outs:
     - data/coco/train
     - data/coco/test
