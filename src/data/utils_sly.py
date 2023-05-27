@@ -303,12 +303,3 @@ def get_box_sizes(
         'Box area': box_area,
         'Box label': box_label,
     }
-
-
-if __name__ == '__main__':
-    mask = cv2.imread(
-        'data/interim_lung_seg_fused/mask/10005866_55665483.png',
-        cv2.IMREAD_GRAYSCALE,
-    )
-    a = convert_mask_to_base64(mask)
-    print('')
