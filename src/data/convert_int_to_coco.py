@@ -25,15 +25,50 @@ def _modify_box_geometry(
 ) -> pd.DataFrame:
     for idx in tqdm(df.index, desc='Modify box geometry', unit=' boxes'):
         box_extension_feature = box_extension[FEATURE_MAP_REVERSED[df.at[idx, 'Feature ID']]]
-        df.at[idx, 'x1'] -= box_extension_feature[0]
-        df.at[idx, 'y1'] -= box_extension_feature[1]
-        df.at[idx, 'x2'] += box_extension_feature[0]
-        df.at[idx, 'y2'] += box_extension_feature[1]
+
+        image_width = df.at[idx, 'Image width']
+        image_height = df.at[idx, 'Image height']
+
+        x1 = df.at[idx, 'x1'] - box_extension_feature[0]
+        y1 = df.at[idx, 'y1'] - box_extension_feature[1]
+        x2 = df.at[idx, 'x2'] + box_extension_feature[2]
+        y2 = df.at[idx, 'y2'] + box_extension_feature[3]
+
+        # Check if the box coordinates exceed image dimensions
+        if x1 < 0:
+            log.warning(
+                f'x1 = {x1} is out of bound = {0}. Image: {df.at[idx, "Image name"]}',
+            )
+        if y1 < 0:
+            log.warning(
+                f'y1 = {y1} is out of bound = {0}. Image: {df.at[idx, "Image name"]}',
+            )
+        if x2 > image_width:
+            log.warning(
+                f'x2 = {x2} is out of bound = {image_width}. Image: {df.at[idx, "Image name"]}',
+            )
+        if y2 > image_height:
+            log.warning(
+                f'y2 = {y2} is out of bound = {image_height}. Image: {df.at[idx, "Image name"]}',
+            )
+
+        # Clamp coordinates to image dimensions if necessary
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(image_width, x2)
+        y2 = min(image_height, y2)
+
+        # Update object coordinates and relative metadata
+        df.at[idx, 'x1'] = x1
+        df.at[idx, 'y1'] = y1
+        df.at[idx, 'x2'] = x2
+        df.at[idx, 'y2'] = y2
+
         box_sizes = get_box_sizes(
-            x1=df.at[idx, 'x1'],
-            y1=df.at[idx, 'y1'],
-            x2=df.at[idx, 'x2'],
-            y2=df.at[idx, 'y2'],
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2,
         )
         df.at[
             idx,
