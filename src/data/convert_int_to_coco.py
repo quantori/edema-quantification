@@ -101,8 +101,38 @@ def _modify_image_geometry(
     return df
 
 
+def _merge_metadata(
+    df1_path: str,
+    df2_path: str,
+) -> pd.DataFrame:
+    # Read the metadata
+    df1 = pd.read_excel(df1_path)
+    df2 = pd.read_excel(df2_path)
+
+    # Merge the data frames
+    df_merged = pd.concat([df1, df2], axis=0)
+    df_merged.drop(columns=['ID'], inplace=True)
+    df_merged.reset_index(drop=True, inplace=True)
+
+    # Fill empty fields
+    df_out = pd.DataFrame(columns=df_merged.columns)
+    gb = df_merged.groupby(['Image name', 'Subject ID', 'Study ID'])
+    columns_to_fill = ['Image path', 'Dataset', 'Class', 'Class ID']
+    for _, df_sample in gb:
+        for column in columns_to_fill:
+            unique_values = df_sample[column].dropna().unique()
+            assert len(unique_values) == 1, f'Column "{column}" has more than one unique value'
+            df_sample[column].fillna(unique_values[0], inplace=True)
+        df_out = pd.concat([df_out, df_sample], axis=0)
+    df_out.sort_values(by=['Image path'], inplace=True)
+    df_out.reset_index(drop=True, inplace=True)
+
+    return df_out
+
+
 def process_metadata(
     dataset_dir: str,
+    dataset_dir_fused: str,
     output_size: List[int],
     box_extension: dict,
     excluded_features: List[str] = None,
@@ -111,13 +141,17 @@ def process_metadata(
 
     Args:
         dataset_dir: a path to the directory containing series with images and labels
+        dataset_dir_fused: path to a directory containing fused probability maps and their metadata
         output_size: a list specifying the desired image size
         box_extension: a dictionary specifying box offsets for each feature
         excluded_features: a list of features to be excluded from the COCO dataset
     Returns:
         metadata: an updated metadata dataframe
     """
-    metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
+    metadata = _merge_metadata(
+        df1_path=os.path.join(dataset_dir, 'metadata.xlsx'),
+        df2_path=os.path.join(dataset_dir_fused, 'metadata.xlsx'),
+    )
     metadata = metadata[metadata['View'] == 'Frontal']
     metadata = metadata[~metadata['Feature'].isin(excluded_features)]
     metadata = metadata.dropna(subset=['Class ID'])
@@ -321,6 +355,7 @@ def main(cfg: DictConfig) -> None:
 
     Args:
         dataset_dir: path to directory containing series with images and labels inside
+        dataset_dir_fused: path to a directory containing fused probability maps and their metadata
         save_dir: directory where split datasets are saved to
         excluded_features: a list of features to exclude from the COCO dataset
         train_size: a fraction used to split dataset into train and test subsets
@@ -329,7 +364,8 @@ def main(cfg: DictConfig) -> None:
     Returns:
         None
     """
-    log.info(f'Input directory...........: {cfg.dataset_dir}')
+    log.info(f'Source data directory.....: {cfg.dataset_dir}')
+    log.info(f'Fused data directory......: {cfg.dataset_dir_fused}')
     log.info(f'Output size...............: {cfg.output_size}')
     log.info(f'Excluded features.........: {cfg.excluded_features}')
     log.info(f'Train/Test split..........: {cfg.train_size:.2f} / {(1 - cfg.train_size):.2f}')
@@ -339,6 +375,7 @@ def main(cfg: DictConfig) -> None:
 
     metadata = process_metadata(
         dataset_dir=cfg.dataset_dir,
+        dataset_dir_fused=cfg.dataset_dir_fused,
         output_size=cfg.output_size,
         box_extension=cfg.box_extension,
         excluded_features=cfg.excluded_features,
