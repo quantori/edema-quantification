@@ -48,7 +48,9 @@ def compute_lungs_info(
     lungs_info = {
         'Feature ID': FEATURE_MAP[feature_name],
         'Feature': feature_name,
+        'Source type': 'bitmap',
         'Reference type': FEATURE_TYPE[feature_name],
+        'Match': 1,
         'x1': x1,
         'y1': y1,
         'x2': x2,
