@@ -11,14 +11,11 @@ box_extension:
   Cephalization: [0, 0, 0, 0]
   Artery: [0, 0, 0, 0]
   Heart: [0, 0, 0, 0]
-  Kerley: [0, 0, 0, 0]
+  Kerley: [0, 5, 0, 5]
   Bronchus: [0, 0, 0, 0]
   Effusion: [0, 0, 0, 0]
   Bat: [0, 0, 0, 0]
   Infiltrate: [0, 0, 0, 0]
   Cuffing: [0, 0, 0, 0]
-  Lungs: [0, 0, 0, 0]
-excluded_features: []
-train_size: 0.80
-seed: 11
-save_dir: data/coco
+  Lungs: [50, 50, 50, 150]
+save_dir: data/final
