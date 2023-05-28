@@ -83,34 +83,47 @@ def _modify_image_geometry(
     output_size: List[int],
 ) -> pd.DataFrame:
     # TODO: update sizes of images and boxes
-    transform = A.Compose(
-        [
-            A.LongestMaxSize(
-                max_size=max(output_size),
-                interpolation=1,
-                p=1.0,
+    # Process boxes for each image independently
+    pd.DataFrame(columns=df.columns)
+    gb = df.groupby(['Image path'])
+
+    for _, df_sample in gb:
+        df_lungs = df_sample.loc[df_sample['Feature'] == 'Lungs']
+        x1 = df_lungs.at[df_lungs.index[0], 'x1']
+        y1 = df_lungs.at[df_lungs.index[0], 'y1']
+        x2 = df_lungs.at[df_lungs.index[0], 'x2']
+        y2 = df_lungs.at[df_lungs.index[0], 'y2']
+
+        transform = A.Compose(
+            [
+                A.Crop(
+                    x_min=x1,
+                    y_min=y1,
+                    x_max=x2,
+                    y_max=y2,
+                    always_apply=True,
+                ),
+                A.LongestMaxSize(
+                    max_size=max(output_size),
+                    interpolation=1,
+                    always_apply=True,
+                ),
+                A.PadIfNeeded(
+                    min_width=output_size[0],
+                    min_height=output_size[1],
+                    position='center',
+                    border_mode=cv2.BORDER_CONSTANT,
+                    value=0,
+                    always_apply=True,
+                ),
+            ],
+            bbox_params=A.BboxParams(
+                format='pascal_voc',
+                min_area=0,
+                min_visibility=0,
+                label_fields=['class_labels'],
             ),
-            A.PadIfNeeded(
-                min_width=output_size[0],
-                min_height=output_size[1],
-                position='center',
-                border_mode=cv2.BORDER_CONSTANT,
-                value=0,
-                p=1.0,
-            ),
-            # FIXME: CenterCrop sometimes cut out a part of the lungs
-            A.CenterCrop(
-                width=output_size[0],
-                height=output_size[1],
-            ),
-        ],
-        bbox_params=A.BboxParams(
-            format='pascal_voc',
-            min_area=0,
-            min_visibility=0,
-            label_fields=['class_labels'],
-        ),
-    )
+        )
 
     for idx in tqdm(df.index):
         img_path = df.at[idx, 'Image path']
