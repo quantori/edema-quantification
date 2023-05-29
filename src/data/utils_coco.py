@@ -4,8 +4,6 @@ from typing import Any, Dict, List, Tuple, Union
 import cv2
 import pandas as pd
 
-from src.data.utils_sly import FEATURE_MAP_REVERSED
-
 
 def get_img_info(
     img_path: str,
@@ -24,20 +22,18 @@ def get_ann_info(
     df: pd.DataFrame,
     img_id: int,
     ann_id: int,
-    box_extension: dict,
 ) -> Tuple[List[Any], int]:
     ann_data = []
     for _, row in df.iterrows():
         label: Dict[str, Union[int, List[int]]] = {}
         if row['Class ID'] > 0:
-            box_extension_feature = box_extension[FEATURE_MAP_REVERSED[row['Feature ID']]]
             x1, y1 = (
-                int(row['x1']) - box_extension_feature[0],
-                int(row['y1']) - box_extension_feature[1],
+                int(row['x1']),
+                int(row['y1']),
             )
             x2, y2 = (
-                int(row['x2']) + box_extension_feature[0],
-                int(row['y2']) + box_extension_feature[1],
+                int(row['x2']),
+                int(row['y2']),
             )
             width = abs(x2 - x1 + 1)
             height = abs(y2 - y1 + 1)
