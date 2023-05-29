@@ -41,18 +41,17 @@ stages:
     - data/interim_fused/mask
     - data/interim_fused/metadata.xlsx
 
-  convert_int_to_coco:
+  convert_int_to_final:
     cmd:
-    - rm -rf data/coco || true
-    - python src/data/convert_int_to_coco.py
+    - rm -rf data/final || true
+    - python src/data/convert_int_to_final.py
     deps:
-    - src/data/convert_int_to_coco.py
-    - src/data/utils_coco.py
-    - configs/convert_int_to_coco.yaml
+    - src/data/convert_int_to_final.py
+    - src/data/utils_sly.py
+    - configs/convert_int_to_final.yaml
     - data/interim/img
     - data/interim/metadata.xlsx
     - data/interim_fused/metadata.xlsx
     outs:
-    - data/coco/train
-    - data/coco/test
-    - data/coco/metadata.xlsx
+    - data/final/img
+    - data/final/metadata.xlsx
