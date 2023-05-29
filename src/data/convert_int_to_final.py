@@ -103,32 +103,44 @@ def modify_box_geometry(
         # Check if the box coordinates exceed image dimensions
         if x1 < 0:
             log.warning(
-                f'x1 = {x1} is out of bound = {0}. Image: {df.at[idx, "Image name"]}, Feature: {df.at[idx, "Feature"]}',
+                f'x1 = {x1} exceeds the left edge of the image = {0}. '
+                f'Image: {df.at[idx, "Image name"]}. '
+                f'Feature: {df.at[idx, "Feature"]}',
             )
         if y1 < 0:
             log.warning(
-                f'y1 = {y1} is out of bound = {0}. Image: {df.at[idx, "Image name"]}, Feature: {df.at[idx, "Feature"]}',
+                f'y1 = {y1} exceeds the top edge of the image = {0}. '
+                f'Image: {df.at[idx, "Image name"]}. '
+                f'Feature: {df.at[idx, "Feature"]}',
             )
         if x2 > image_width:
             log.warning(
-                f'x2 = {x2} is out of bound = {image_width}. Image: {df.at[idx, "Image name"]}, Feature: {df.at[idx, "Feature"]}',
+                f'x2 = {x2} exceeds the right edge of the image = {image_width}. '
+                f'Image: {df.at[idx, "Image name"]}. '
+                f'Feature: {df.at[idx, "Feature"]}',
             )
         if y2 > image_height:
             log.warning(
-                f'y2 = {y2} is out of bound = {image_height}. Image: {df.at[idx, "Image name"]}, Feature: {df.at[idx, "Feature"]}',
+                f'y2 = {y2} exceeds the bottom edge of the image ={image_height}. '
+                f'Image: {df.at[idx, "Image name"]}. '
+                f'Feature: {df.at[idx, "Feature"]}',
             )
 
         # Check if x2 is greater than x1 and y2 is greater than y1
         if x2 <= x1:
             log.warning(
-                f'x2 = {x2} is not greater than x1 = {x1}. Image: {df.at[idx, "Image name"]}, Feature: {df.at[idx, "Feature"]}',
+                f'x2 = {x2} is not greater than x1 = {x1}. '
+                f'Image: {df.at[idx, "Image name"]}. '
+                f'Feature: {df.at[idx, "Feature"]}',
             )
         if y2 <= y1:
             log.warning(
-                f'y2 = {y2} is not greater than y1 = {y1}. Image: {df.at[idx, "Image name"]}, Feature: {df.at[idx, "Feature"]}',
+                f'y2 = {y2} is not greater than y1 = {y1}. '
+                f'Image: {df.at[idx, "Image name"]}. '
+                f'Feature: {df.at[idx, "Feature"]}',
             )
 
-        # Clamp coordinates to image dimensions if necessary
+        # Clip coordinates to image dimensions if necessary
         x1 = max(0, x1)
         y1 = max(0, y1)
         x2 = min(image_width, x2)
@@ -139,6 +151,8 @@ def modify_box_geometry(
         df.at[idx, 'y1'] = y1
         df.at[idx, 'x2'] = x2
         df.at[idx, 'y2'] = y2
+
+    log.warning('All coordinates that exceed image dimensions are clipped')
 
     return df
 
@@ -154,11 +168,10 @@ def crop_images(
     os.makedirs(img_dir, exist_ok=True)
     gb = df.groupby(['Image path'])
 
-    # TODO: Fix view for 10263098_52746676.png Effusion (Lateral exceeding)
-    # TODO: Fix view for 12152816_58885266.png Effusion (Frontal exceeding)
-    for img_path, df_img in tqdm(gb, desc='Processing images..', unit=' images'):
+    for img_path, df_img in tqdm(gb, desc='Processing images', unit=' images'):
         df_img.reset_index(drop=True, inplace=True)
         df_lungs = df_img.loc[df_img['Feature'] == 'Lungs']
+        assert len(df_lungs) == 1, 'More than one lung object found'
         x1 = df_lungs.at[df_lungs.index[0], 'x1']
         y1 = df_lungs.at[df_lungs.index[0], 'y1']
         x2 = df_lungs.at[df_lungs.index[0], 'x2']
@@ -176,7 +189,7 @@ def crop_images(
                 ),
                 A.LongestMaxSize(
                     max_size=max(output_size),
-                    interpolation=1,
+                    interpolation=4,
                     always_apply=True,
                 ),
                 A.PadIfNeeded(
@@ -330,7 +343,7 @@ def main(cfg: DictConfig) -> None:
     # Crop and save images
     metadata = crop_images(
         df=metadata,
-        output_size=cfg.output_size,  # TODO: check
+        output_size=cfg.output_size,
         save_dir=cfg.save_dir,
     )
 
