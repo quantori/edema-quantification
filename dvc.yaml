@@ -47,7 +47,7 @@ stages:
     - python src/data/convert_int_to_final.py
     deps:
     - src/data/convert_int_to_final.py
-    - src/data/utils_sly.py
+    - src/data/utils_final.py
     - configs/convert_int_to_final.yaml
     - data/interim/img
     - data/interim/metadata.xlsx
