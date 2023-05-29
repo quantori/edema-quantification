@@ -109,6 +109,12 @@ def process_images(
         save_path = os.path.join(img_dir, img_name)
         cv2.imwrite(save_path, img)
         df_out = pd.concat([df_out, df_img], axis=0)
+
+    # Update path column, sort, reset index
+    df_out['Image path'] = df_out.apply(
+        func=lambda row: os.path.join(img_dir, row['Image name']),
+        axis=1,
+    )
     df_out.sort_values(by=['Image path'], inplace=True)
     df_out.reset_index(drop=True, inplace=True)
 
