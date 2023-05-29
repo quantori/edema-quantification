@@ -151,13 +151,18 @@ def prepare_coco(
 
         # Save a JSON file with annotations
         save_img_dir = os.path.join(save_dir, subset, 'data')
-        copy_files(file_list=list(df_subset['Image path']), save_dir=save_img_dir)
+        files_to_copy = list(df_subset['Image path'].unique())
+        copy_files(file_list=files_to_copy, save_dir=save_img_dir)
         save_ann_path = os.path.join(save_dir, subset, 'labels.json')
         with open(save_ann_path, 'w') as file:
             json.dump(dataset, file)
 
     # Save COCO metadata
     save_path = os.path.join(save_dir, 'metadata.xlsx')
+    df['Image path'] = df.apply(
+        func=lambda row: os.path.join(save_dir, row['Split'], 'data', row['Image name']),
+        axis=1,
+    )
     df.index += 1
     df.to_excel(
         save_path,
