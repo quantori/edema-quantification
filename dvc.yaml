@@ -55,3 +55,19 @@ stages:
     outs:
     - data/final/img
     - data/final/metadata.xlsx
+
+  convert_final_to_coco:
+    cmd:
+    - rm -rf data/coco || true
+    - python src/data/convert_final_to_coco.py
+    deps:
+    - src/data/convert_final_to_coco.py
+    - src/data/utils_coco.py
+    - src/data/utils_sly.py
+    - configs/convert_final_to_coco.yaml
+    - data/final/img
+    - data/final/metadata.xlsx
+    outs:
+    - data/coco/train
+    - data/coco/test
+    - data/coco/metadata.xlsx
