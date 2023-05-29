@@ -96,12 +96,12 @@ def process_images(
             df=df_img,
             features=features,
         )
+        df_img = update_bbox_metadata(
+            df=df_img,
+        )
         df_img = update_image_metadata(
             df=df_img,
             img_size=img.shape[:2],
-        )
-        df_img = update_bbox_metadata(
-            df=df_img,
         )
 
         # Save image and update corresponding dataframe
@@ -112,7 +112,7 @@ def process_images(
     df_out.sort_values(by=['Image path'], inplace=True)
     df_out.reset_index(drop=True, inplace=True)
 
-    return df
+    return df_out
 
 
 def _merge_metadata(
@@ -156,15 +156,15 @@ def process_metadata(
     Returns:
         metadata: an updated metadata dataframe
     """
-    metadata = _merge_metadata(
+    df = _merge_metadata(
         df1_path=os.path.join(dataset_dir, 'metadata.xlsx'),
         df2_path=os.path.join(dataset_dir_fused, 'metadata.xlsx'),
     )
-    metadata = metadata[metadata['View'] == 'Frontal']
-    metadata = metadata.dropna(subset=['Class ID'])
-    metadata = metadata.drop(['Mask', 'Points'], axis=1)
+    df = df[df['View'] == 'Frontal']
+    df = df.dropna(subset=['Class ID'])
+    df = df.drop(['Mask', 'Points'], axis=1)
 
-    return metadata
+    return df
 
 
 @hydra.main(
@@ -217,7 +217,6 @@ def main(cfg: DictConfig) -> None:
     )
 
     # Save updated metadata
-    metadata.reset_index(drop=True, inplace=True)
     save_path = os.path.join(cfg.save_dir, 'metadata.xlsx')
     metadata.index += 1
     metadata.to_excel(
