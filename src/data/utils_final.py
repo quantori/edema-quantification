@@ -24,8 +24,7 @@ def get_bboxes(
 def get_features(
     df: pd.DataFrame,
 ) -> List[str]:
-    df_out = df.copy(deep=True)
-    features = df_out['Feature'].tolist()
+    features = df['Feature'].tolist()
     return features
 
 
