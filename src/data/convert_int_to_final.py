@@ -3,239 +3,102 @@ import os
 from pathlib import Path
 from typing import List
 
-import albumentations as A
 import cv2
 import hydra
 import pandas as pd
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-from src.data.utils_sly import FEATURE_MAP_REVERSED, get_box_sizes
+from src.data.utils_final import (
+    crop_image,
+    get_bboxes,
+    get_features,
+    modify_box_geometry,
+    pad_image,
+    resize_image,
+    set_bboxes,
+    set_features,
+    update_bbox_metadata,
+    update_image_metadata,
+)
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 
-def get_bboxes(
+def process_images(
     df: pd.DataFrame,
-) -> List[List[int]]:
-    bboxes = []
-    for _, row in df.iterrows():
-        x1, y1, x2, y2 = row['x1'], row['y1'], row['x2'], row['y2']
-        bbox = [x1, y1, x2, y2]
-        bboxes.append(bbox)
-    return bboxes
-
-
-def get_features(
-    df: pd.DataFrame,
-) -> List[str]:
-    df_out = df.copy(deep=True)
-    features = df_out['Feature'].tolist()
-    return features
-
-
-def set_bboxes(
-    df: pd.DataFrame,
-    bboxes: List[List[int]],
-) -> pd.DataFrame:
-    for i, bbox in enumerate(bboxes):
-        df.loc[i, 'x1'] = bbox[0]
-        df.loc[i, 'y1'] = bbox[1]
-        df.loc[i, 'x2'] = bbox[2]
-        df.loc[i, 'y2'] = bbox[3]
-    return df
-
-
-def set_features(
-    df: pd.DataFrame,
-    features: List[str],
-) -> pd.DataFrame:
-    df['Feature'] = features
-    return df
-
-
-def update_image_metadata(
-    df: pd.DataFrame,
-    img_size: List[int],
-) -> pd.DataFrame:
-    img_height = img_size[0]
-    img_width = img_size[1]
-    img_ratio = img_height / img_width
-    df['Image height'] = img_height
-    df['Image width'] = img_width
-    df['Image ratio'] = img_ratio
-    return df
-
-
-def update_bbox_metadata(
-    df: pd.DataFrame,
-) -> pd.DataFrame:
-    for idx in df.index:
-        box_sizes = get_box_sizes(
-            x1=df.at[idx, 'x1'],
-            y1=df.at[idx, 'y1'],
-            x2=df.at[idx, 'x2'],
-            y2=df.at[idx, 'y2'],
-        )
-        df.at[
-            idx,
-            ['xc', 'yc', 'Box width', 'Box height', 'Box ratio', 'Box area', 'Box label'],
-        ] = box_sizes
-    return df
-
-
-def modify_box_geometry(
-    df: pd.DataFrame,
-    box_extension: dict,
-) -> pd.DataFrame:
-    for idx in tqdm(df.index, desc='Modify box geometry', unit=' boxes'):
-        box_extension_feature = box_extension[FEATURE_MAP_REVERSED[df.at[idx, 'Feature ID']]]
-
-        image_width = df.at[idx, 'Image width']
-        image_height = df.at[idx, 'Image height']
-
-        x1 = df.at[idx, 'x1'] - box_extension_feature[0]
-        y1 = df.at[idx, 'y1'] - box_extension_feature[1]
-        x2 = df.at[idx, 'x2'] + box_extension_feature[2]
-        y2 = df.at[idx, 'y2'] + box_extension_feature[3]
-
-        # Check if the box coordinates exceed image dimensions
-        if x1 < 0:
-            log.warning(
-                f'x1 = {x1} exceeds the left edge of the image = {0}. '
-                f'Image: {df.at[idx, "Image name"]}. '
-                f'Feature: {df.at[idx, "Feature"]}',
-            )
-        if y1 < 0:
-            log.warning(
-                f'y1 = {y1} exceeds the top edge of the image = {0}. '
-                f'Image: {df.at[idx, "Image name"]}. '
-                f'Feature: {df.at[idx, "Feature"]}',
-            )
-        if x2 > image_width:
-            log.warning(
-                f'x2 = {x2} exceeds the right edge of the image = {image_width}. '
-                f'Image: {df.at[idx, "Image name"]}. '
-                f'Feature: {df.at[idx, "Feature"]}',
-            )
-        if y2 > image_height:
-            log.warning(
-                f'y2 = {y2} exceeds the bottom edge of the image ={image_height}. '
-                f'Image: {df.at[idx, "Image name"]}. '
-                f'Feature: {df.at[idx, "Feature"]}',
-            )
-
-        # Check if x2 is greater than x1 and y2 is greater than y1
-        if x2 <= x1:
-            log.warning(
-                f'x2 = {x2} is not greater than x1 = {x1}. '
-                f'Image: {df.at[idx, "Image name"]}. '
-                f'Feature: {df.at[idx, "Feature"]}',
-            )
-        if y2 <= y1:
-            log.warning(
-                f'y2 = {y2} is not greater than y1 = {y1}. '
-                f'Image: {df.at[idx, "Image name"]}. '
-                f'Feature: {df.at[idx, "Feature"]}',
-            )
-
-        # Clip coordinates to image dimensions if necessary
-        x1 = max(0, x1)
-        y1 = max(0, y1)
-        x2 = min(image_width, x2)
-        y2 = min(image_height, y2)
-
-        # Update object coordinates and relative metadata
-        df.at[idx, 'x1'] = x1
-        df.at[idx, 'y1'] = y1
-        df.at[idx, 'x2'] = x2
-        df.at[idx, 'y2'] = y2
-
-    log.warning('All coordinates that exceed image dimensions are clipped')
-
-    return df
-
-
-def crop_images(
-    df: pd.DataFrame,
+    enable_cropping: bool,
+    enable_resizing: bool,
+    enable_padding: bool,
     output_size: List[int],
     save_dir: str,
 ) -> pd.DataFrame:
-    # Process boxes for each image independently
+    # Process images independently
     df_out = pd.DataFrame(columns=df.columns)
     img_dir = os.path.join(save_dir, 'img')
     os.makedirs(img_dir, exist_ok=True)
     gb = df.groupby(['Image path'])
 
     for img_path, df_img in tqdm(gb, desc='Processing images', unit=' images'):
+        # Read image and get box dimensions
         df_img.reset_index(drop=True, inplace=True)
-        df_lungs = df_img.loc[df_img['Feature'] == 'Lungs']
-        assert len(df_lungs) == 1, 'More than one lung object found'
-        x1 = df_lungs.at[df_lungs.index[0], 'x1']
-        y1 = df_lungs.at[df_lungs.index[0], 'y1']
-        x2 = df_lungs.at[df_lungs.index[0], 'x2']
-        y2 = df_lungs.at[df_lungs.index[0], 'y2']
-
-        # Define transformation
-        transform = A.Compose(
-            [
-                A.Crop(
-                    x_min=x1,
-                    y_min=y1,
-                    x_max=x2,
-                    y_max=y2,
-                    always_apply=True,
-                ),
-                A.LongestMaxSize(
-                    max_size=max(output_size),
-                    interpolation=4,
-                    always_apply=True,
-                ),
-                A.PadIfNeeded(
-                    min_width=output_size[0],
-                    min_height=output_size[1],
-                    position='center',
-                    border_mode=cv2.BORDER_CONSTANT,
-                    value=0,
-                    always_apply=True,
-                ),
-            ],
-            bbox_params=A.BboxParams(
-                format='pascal_voc',
-                min_area=0,
-                min_visibility=0,
-                label_fields=['class_labels'],
-            ),
-        )
-
-        # Crop image and update metadata
         img = cv2.imread(img_path)
         bboxes = get_bboxes(df_img)
         features = get_features(df_img)
-        trans = transform(
-            image=img,
-            bboxes=bboxes,
-            class_labels=features,
-        )
-        img_trans = trans['image']
-        bboxes_trans = [[round(value) for value in tup] for tup in trans['bboxes']]
-        features_trans = trans['class_labels']
-        if len(bboxes) != len(bboxes_trans):
-            log.warn(f'Different number of boxes after transformation: {Path(img_path).name}')
+
+        # Crop using lung coordinates
+        if enable_cropping:
+            df_lungs = df_img.loc[df_img['Feature'] == 'Lungs']
+            assert len(df_lungs) == 1, 'More than one lung object found'
+            x1 = df_lungs.at[df_lungs.index[0], 'x1']
+            y1 = df_lungs.at[df_lungs.index[0], 'y1']
+            x2 = df_lungs.at[df_lungs.index[0], 'x2']
+            y2 = df_lungs.at[df_lungs.index[0], 'y2']
+
+            img, bboxes, features = crop_image(
+                img=img,
+                bboxes=bboxes,
+                features=features,
+                x1=x1,
+                y1=y1,
+                x2=x2,
+                y2=y2,
+            )
+
+        # Resize image while keeping aspect ratio
+        if enable_resizing:
+            img, bboxes, features = resize_image(
+                img=img,
+                bboxes=bboxes,
+                features=features,
+                output_size=output_size,
+            )
+
+        # Pad image
+        if enable_padding:
+            img, bboxes, features = pad_image(
+                img=img,
+                bboxes=bboxes,
+                features=features,
+                output_size=output_size,
+            )
+
+        # Round box coordinates
+        bboxes = [[round(value) for value in tup] for tup in bboxes]
 
         # Update box and image metadata
         df_img = set_bboxes(
             df=df_img,
-            bboxes=bboxes_trans,
+            bboxes=bboxes,
         )
         df_img = set_features(
             df=df_img,
-            features=features_trans,
+            features=features,
         )
         df_img = update_image_metadata(
             df=df_img,
-            img_size=img_trans.shape[:2],
+            img_size=img.shape[:2],
         )
         df_img = update_bbox_metadata(
             df=df_img,
@@ -244,7 +107,7 @@ def crop_images(
         # Save image and update corresponding dataframe
         img_name = Path(img_path).name
         save_path = os.path.join(img_dir, img_name)
-        cv2.imwrite(save_path, img_trans)
+        cv2.imwrite(save_path, img)
         df_out = pd.concat([df_out, df_img], axis=0)
     df_out.sort_values(by=['Image path'], inplace=True)
     df_out.reset_index(drop=True, inplace=True)
@@ -324,6 +187,9 @@ def main(cfg: DictConfig) -> None:
     """
     log.info(f'Source data directory.....: {cfg.dataset_dir}')
     log.info(f'Fused data directory......: {cfg.dataset_dir_fused}')
+    log.info(f'Enable cropping...........: {cfg.enable_cropping}')
+    log.info(f'Enable resizing...........: {cfg.enable_resizing}')
+    log.info(f'Enable padding............: {cfg.enable_padding}')
     log.info(f'Output size...............: {cfg.output_size}')
     log.info(f'Box extension.............: {cfg.box_extension}')
     log.info(f'Output directory..........: {cfg.save_dir}')
@@ -340,9 +206,12 @@ def main(cfg: DictConfig) -> None:
         box_extension=cfg.box_extension,
     )
 
-    # Crop and save images
-    metadata = crop_images(
+    # Process and save images
+    metadata = process_images(
         df=metadata,
+        enable_cropping=cfg.enable_cropping,
+        enable_resizing=cfg.enable_resizing,
+        enable_padding=cfg.enable_padding,
         output_size=cfg.output_size,
         save_dir=cfg.save_dir,
     )

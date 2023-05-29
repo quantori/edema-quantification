@@ -12,7 +12,7 @@ from src.data.utils_sly import FEATURE_MAP_REVERSED, get_box_sizes
 
 def get_bboxes(
     df: pd.DataFrame,
-) -> List[List[int]]:
+) -> List[List[Union[int, float]]]:
     bboxes = []
     for _, row in df.iterrows():
         x1, y1, x2, y2 = row['x1'], row['y1'], row['x2'], row['y2']
@@ -31,7 +31,7 @@ def get_features(
 
 def set_bboxes(
     df: pd.DataFrame,
-    bboxes: List[List[int]],
+    bboxes: List[List[Union[int, float]]],
 ) -> pd.DataFrame:
     for i, bbox in enumerate(bboxes):
         df.loc[i, 'x1'] = bbox[0]
