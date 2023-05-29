@@ -217,7 +217,6 @@ def main(cfg: DictConfig) -> None:
     )
 
     # Save updated metadata
-    metadata['Confidence'] = 1.0
     metadata.reset_index(drop=True, inplace=True)
     save_path = os.path.join(cfg.save_dir, 'metadata.xlsx')
     metadata.index += 1
