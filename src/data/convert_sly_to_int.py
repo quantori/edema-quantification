@@ -96,7 +96,10 @@ def process_annotation(
         xy = get_object_box(obj)
         box = get_box_sizes(*xy.values())
         mask_points = get_mask_points(obj)
-        view = 'Lateral' if xy['x1'] > img_info['Image width'] else 'Frontal'
+        if xy['x1'] > img_info['Image width'] or xy['x2'] > img_info['Image width']:
+            view = 'Lateral'
+        else:
+            view = 'Frontal'
 
         obj_info = {
             'Feature ID': FEATURE_MAP[feature_name],
