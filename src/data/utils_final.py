@@ -114,7 +114,7 @@ def modify_box_geometry(
             )
         if y2 > image_height:
             logging.warning(
-                f'y2 = {y2} exceeds the bottom edge of the image ={image_height}. '
+                f'y2 = {y2} exceeds the bottom edge of the image = {image_height}. '
                 f'Image: {df.at[idx, "Image name"]}. '
                 f'Feature: {df.at[idx, "Feature"]}',
             )
