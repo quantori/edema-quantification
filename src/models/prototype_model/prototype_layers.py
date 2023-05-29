@@ -1,15 +1,14 @@
-from typing import List, Optional, Sequence, Dict, Union, Tuple, TypeVar
 import math
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple, TypeVar, Union
 
-import torch
-from torch import nn
-import numpy as np
-from torch.utils.data import DataLoader
-import pytorch_lightning as pl
 import cv2
-from tqdm.auto import tqdm
-
+import numpy as np
+import pytorch_lightning as pl
+import torch
 from loggers import IPrototypeLogger
+from torch import nn
+from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 from utils import copy_tensor_to_nparray
 
 T = TypeVar('T')
@@ -18,8 +17,8 @@ T = TypeVar('T')
 class IPrototypeLayer:
     """Abstract base class for edema protoype layers."""
 
-    def update(self) -> None:
-        """Exchanges the prototypes with the embeddings of real images with the closest distance"""
+    def update(self, *args, **kwargs) -> None:
+        """Exchanges the prototypes with the embeddings of real images with the closest distance."""
 
     def warm(self) -> None:
         """Sets grad policy for the warm training stage."""
@@ -41,22 +40,24 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         to be filled
     """
 
-    def __new__(
-        cls,
+    def __new__(cls, prototype_shape: Sequence[int], *args, **kwargs):
+        return super().__new__(cls, data=torch.rand(*prototype_shape))
+
+    def __init__(
+        self,
+        prototype_shape: Sequence[int],
         num_classes: int,
         num_prototypes: int,
-        prototype_shape: Sequence[int],
         prototype_layer_stride: int = 1,
         epsilon: float = 1e-4,
     ):
-        instance = super().__new__(cls, data=torch.rand(*prototype_shape))
-        instance._num_classes = num_classes
-        instance._num_prototypes = num_prototypes
-        instance._shape = prototype_shape
-        instance._layer_stride = prototype_layer_stride
-        instance._epsilon = epsilon
-        instance._global_min_proto_dists: Optional[np.ndarray] = None
-        instance._global_min_fmap_patches: Optional[np.ndarray] = None
+        self._num_classes = num_classes
+        self._num_prototypes = num_prototypes
+        self._shape = prototype_shape
+        self._layer_stride = prototype_layer_stride
+        self._epsilon = epsilon
+        self._global_min_proto_dists: Optional[np.ndarray] = None
+        self._global_min_fmap_patches: Optional[np.ndarray] = None
 
         # Dicts for storing the receptive-field and bound boxes of the prototypes. They are
         # supposed to have the following structure:
@@ -66,11 +67,8 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         #     3: width start index
         #     4: width end index
         #     5: class identities
-        instance._proto_rf_boxes: Optional[Dict[int, Dict[str, Union[int, Sequence[int]]]]] = None
-        instance._proto_bound_boxes: Optional[
-            Dict[int, Dict[str, Union[int, Sequence[int]]]]
-        ] = None
-        return instance
+        self._proto_rf_boxes: Optional[Dict[int, Dict[str, Union[int, Sequence[int]]]]] = None
+        self._proto_bound_boxes: Optional[Dict[int, Dict[str, Union[int, Sequence[int]]]]] = None
 
     @property
     def num_classes(self) -> int:
@@ -134,6 +132,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
             for iter, batch in enumerate(dataloader):
                 batch_index = _get_batch_index(iter, dataloader.batch_size)
                 self._update_prototypes_on_batch(model, batch, batch_index, logger)
+                t.update()
         self._copy_to_protoytpe_layer()
         if logger is not None:
             logger.save_boxes(self._proto_rf_boxes, 'rf', model._real_epoch)
@@ -151,25 +150,28 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         class_to_img_index_dict = _form_class_to_img_index_dict(self.num_classes, labels)
 
         for prototype_idx in range(self.num_prototypes):
-
             one_proto_dists = self._get_one_prototype_distances(
-                prototype_idx, class_to_img_index_dict, proto_distances
+                prototype_idx,
+                class_to_img_index_dict,
+                proto_distances,
             )
             if one_proto_dists is None:
                 continue
 
             batch_min_proto_dist = np.amin(one_proto_dists)
             if batch_min_proto_dist < self._global_min_proto_dists[prototype_idx]:
-
                 batch_argmin_proto_dist = PrototypeLayer._get_batch_argmin_proto_dist(
-                    one_proto_dists
+                    one_proto_dists,
                 )
                 batch_argmin_proto_dist_indexed = self._change_to_batch_index(
-                    prototype_idx, batch_argmin_proto_dist, class_to_img_index_dict
+                    prototype_idx,
+                    batch_argmin_proto_dist,
+                    class_to_img_index_dict,
                 )
 
                 batch_min_fmap_patch = self._get_fmap_patch(
-                    batch_argmin_proto_dist_indexed, proto_layer_input
+                    batch_argmin_proto_dist_indexed,
+                    proto_layer_input,
                 )
 
                 self._global_min_proto_dists[prototype_idx] = batch_min_proto_dist
@@ -185,33 +187,43 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
                 masks_for_shortest_proto_dist = _get_masks(masks, rf_prototype[0])
 
                 img_crop_of_proto_rf = _crop_out_rf(
-                    original_img_for_shortest_proto_dist, rf_prototype
+                    original_img_for_shortest_proto_dist,
+                    rf_prototype,
                 )
 
                 self._save_info_in_proto_rf_boxes(prototype_idx, rf_prototype, labels, batch_index)
 
                 prototype_distances = PrototypeLayer._get_prototype_distances(
-                    proto_distances, batch_argmin_proto_dist_indexed[0], prototype_idx
+                    proto_distances,
+                    batch_argmin_proto_dist_indexed[0],
+                    prototype_idx,
                 )
                 prototype_distances_act = self._activate(prototype_distances)
                 upsampled_act_distances = _upsample(
-                    prototype_distances_act, original_img_for_shortest_proto_dist.shape[-1]
+                    prototype_distances_act,
+                    original_img_for_shortest_proto_dist.shape[-1],
                 )
 
                 high_proto_activation_roi_coords = _find_high_activation_roi(
-                    upsampled_act_distances
+                    upsampled_act_distances,
                 )
                 high_proto_activation_roi_crop = _get_roi_crop(
-                    original_img_for_shortest_proto_dist, high_proto_activation_roi_coords
+                    original_img_for_shortest_proto_dist,
+                    high_proto_activation_roi_coords,
                 )
 
                 self._save_info_in_proto_bound_boxes(
-                    prototype_idx, high_proto_activation_roi_coords, labels, rf_prototype
+                    prototype_idx,
+                    high_proto_activation_roi_coords,
+                    labels,
+                    rf_prototype,
                 )
 
                 if logger is not None:
                     logger.save_prototype_distances(
-                        proto_distances, prototype_idx, model._real_epoch
+                        proto_distances,
+                        prototype_idx,
+                        model._real_epoch,
                     )
                     logger.save_graphics(
                         prototype_idx,
@@ -225,7 +237,9 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
                     )
 
     def _get_input_output_of_proto_layer(
-        self, model: pl.LightningModule, images: torch.Tensor
+        self,
+        model: pl.LightningModule,
+        images: torch.Tensor,
     ) -> np.ndarray:
         if model.training:
             model.eval()
@@ -233,7 +247,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
             search_batch = images.cuda()
             # this computation currently is not parallelized
             proto_layer_input_torch, proto_distances_torch = model.update_prototypes_forward(
-                search_batch
+                search_batch,
             )
         proto_layer_input = copy_tensor_to_nparray(proto_layer_input_torch)
         proto_distances = copy_tensor_to_nparray(proto_distances_torch)
@@ -243,7 +257,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
     def _get_one_prototype_distances(
         self,
         prototype_idx: int,
-        class_to_img_index_dict: Dict[int, Sequence[int]],
+        class_to_img_index_dict: Mapping[int, Sequence[int]],
         proto_distances: np.ndarray,
     ) -> Optional[np.ndarray]:
         # If there are not images of the target_class from this batch we go on to the next prototype
@@ -269,8 +283,8 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
     def _change_to_batch_index(
         self,
         prototype_idx: int,
-        batch_argmin_proto_dist: Sequence[int],
-        class_to_img_index_dict: Dict[int, Sequence[int]],
+        batch_argmin_proto_dist: List[int],
+        class_to_img_index_dict: Mapping[int, Sequence[int]],
     ) -> List[int]:
         # Change the index of the smallest distance from the class specific index to the whole
         # search batch index
@@ -280,7 +294,9 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         return batch_argmin_proto_dist
 
     def _get_fmap_patch(
-        self, batch_argmin_proto_dist_indexed: Sequence[int], proto_layer_input: np.ndarray
+        self,
+        batch_argmin_proto_dist_indexed: Sequence[int],
+        proto_layer_input: np.ndarray,
     ) -> np.ndarray:
         # Retrieve the corresponding feature map patch
         img_index_in_batch = batch_argmin_proto_dist_indexed[0]
@@ -297,7 +313,9 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         return batch_min_fmap_patch
 
     def _compute_proto_layer_rf_info(
-        self, img_size: int, conv_info: Dict[str, int]
+        self,
+        img_size: int,
+        conv_info: Dict[str, List[int]],
     ) -> List[Union[int, float]]:
         # Receptive-field information that is needed to cut out the chosen upsampled fmap patch
         _check_dimensions(conv_info)
@@ -377,7 +395,9 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
 
     @staticmethod
     def _get_prototype_distances(
-        distances: np.ndarray, img_index_in_batch: int, prototype_idx: int
+        distances: np.ndarray,
+        img_index_in_batch: int,
+        prototype_idx: int,
     ) -> np.ndarray:
         # Get the embeddings array of prototype distances
         return distances[img_index_in_batch, prototype_idx, :, :]
@@ -436,7 +456,7 @@ def _get_batch_index(iter: int, batch_size: int) -> int:
 
 def _form_class_to_img_index_dict(num_classes: int, labels: torch.Tensor) -> Dict[int, List[int]]:
     # form a dict with {class:[images_idxs]}
-    class_to_img_index_dict = {key: [] for key in range(num_classes)}
+    class_to_img_index_dict: Dict[int, List[int]] = {key: [] for key in range(num_classes)}
     for img_index, img_y in enumerate(labels):
         img_y.tolist()
         for idx, i in enumerate(img_y):
@@ -445,11 +465,11 @@ def _form_class_to_img_index_dict(num_classes: int, labels: torch.Tensor) -> Dic
     return class_to_img_index_dict
 
 
-def _check_dimensions(conv_info: Dict[str, int]) -> None:
+def _check_dimensions(conv_info: Dict[str, List[int]]) -> None:
     if len(conv_info['kernel_sizes']) != len(conv_info['strides']):
-        raise Exception("The number of kernels has to be equla to the number of strides")
+        raise Exception('The number of kernels has to be equla to the number of strides')
     if len(conv_info['kernel_sizes']) != len(conv_info['paddings']):
-        raise Exception("The number of kernels has to be equla to the number of paddings")
+        raise Exception('The number of kernels has to be equla to the number of paddings')
 
 
 def _get_img(batch_imgs: torch.Tensor, num_img: int) -> np.ndarray:
@@ -468,7 +488,8 @@ def _get_masks(batch_masks: torch.Tensor, num_masks: int) -> np.ndarray:
 
 
 def _crop_out_rf(
-    original_img_for_shortest_proto_dist: torch.Tensor, rf_prototype: Sequence[int]
+    original_img_for_shortest_proto_dist: torch.Tensor,
+    rf_prototype: Sequence[int],
 ) -> np.ndarray:
     # Crop out the prototype receptive field from the original image
     return original_img_for_shortest_proto_dist[
@@ -477,7 +498,8 @@ def _crop_out_rf(
 
 
 def _extract_network_rf_info(
-    conv_info: Dict[str, int], rf_info: Sequence[Union[int, float]]
+    conv_info: Dict[str, List[int]],
+    rf_info: List[Union[int, float]],
 ) -> List[Union[int, float]]:
     for i in range(len(conv_info['kernel_sizes'])):
         rf_info = _compute_layer_rf_info(
@@ -492,7 +514,7 @@ def _extract_network_rf_info(
 def _compute_layer_rf_info(
     layer_filter_size: int,
     layer_stride: int,
-    layer_padding: int,
+    layer_padding: Union[str, int],
     previous_layer_rf_info: Sequence[Union[int, float]],
 ) -> List[Union[int, float]]:
     # based on https://blog.mlreview.com/a-guide-to-receptive-field-arithmetic-for-convolutional-neural-networks-e0f514068807
@@ -504,23 +526,23 @@ def _compute_layer_rf_info(
     if layer_padding == 'SAME':
         n_out = math.ceil(float(n_in) / float(layer_stride))
         if n_in % layer_stride == 0:
-            pad = max(layer_filter_size - layer_stride, 0)
+            pad = max(layer_filter_size - layer_stride, 0)  # type: ignore
         else:
-            pad = max(layer_filter_size - (n_in % layer_stride), 0)
+            pad = max(layer_filter_size - (n_in % layer_stride), 0)  # type: ignore
         assert (
             n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
         )  # sanity check
         assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
     elif layer_padding == 'VALID':
         n_out = math.ceil(float(n_in - layer_filter_size + 1) / float(layer_stride))
-        pad = 0
+        pad = 0  # type: ignore
         assert (
             n_out == math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
         )  # sanity check
         assert pad == (n_out - 1) * layer_stride - n_in + layer_filter_size  # sanity check
     else:
         # layer_padding is an int that is the amount of padding on one side
-        pad = layer_padding * 2
+        pad = layer_padding * 2  # type: ignore
         # with math.floor n_out of the protoype layers has (1x1) pixels less then the
         # convulution transformations from the encoder
         # n_out = math.floor((n_in - layer_filter_size + pad) / layer_stride) + 1
@@ -535,7 +557,8 @@ def _compute_layer_rf_info(
 
 
 def _find_high_activation_roi(
-    act_img: np.ndarray, percentile: int = 95
+    act_img: np.ndarray,
+    percentile: int = 95,
 ) -> Tuple[int, int, int, int]:
     # Find a high activation ROI (default treshold = 95 %)
     threshold = np.percentile(act_img, percentile)

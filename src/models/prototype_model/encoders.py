@@ -1,20 +1,20 @@
-from typing import Dict, TypeVar, Generic
+from typing import Dict, Generic, List, TypeVar
 
-from torch import nn
 import torch
+from torch import nn
 from torchvision import transforms
 
-T_co = TypeVar('T_co', covariant=True)
+T = TypeVar('T')
 
 
-class IEncoderEdema(nn.Module, Generic[T_co]):
+class IEncoderEdema(nn.Module, Generic[T]):
     """Abstract class for edema encoders."""
 
-    def forward(self, x: T_co) -> T_co:
+    def forward(self, x: T) -> T:
         """Implement this for the forward pass of the encoder."""
         raise NotImplementedError
 
-    def conv_info(self) -> Dict[str, int]:
+    def conv_info(self) -> Dict[str, List[int]]:
         """Reterns convolutional information on the encoder."""
         raise NotImplementedError
 
@@ -51,7 +51,10 @@ class SqueezeNet(IEncoderEdema[torch.Tensor]):
     ) -> None:
         super().__init__()
         self.model = torch.hub.load(
-            "pytorch/vision:v0.10.0", "squeezenet1_1", pretrained=pretrained, verbose=False
+            'pytorch/vision:v0.10.0',
+            'squeezenet1_1',
+            pretrained=pretrained,
+            verbose=False,
         )
         del self.model.classifier
         self._preprocessed = preprocessed
@@ -78,13 +81,13 @@ class SqueezeNet(IEncoderEdema[torch.Tensor]):
                 transforms.CenterCrop(224),
                 # transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
+            ],
         )
         return preprocess(x)
 
-    def conv_info(self) -> Dict[str, int]:
+    def conv_info(self) -> Dict[str, List[int]]:
         """Reterns info about the convolutional layers of the encoder."""
-        features = {}
+        features: Dict[str, List[int]] = {}
         features['kernel_sizes'] = []
         features['strides'] = []
         features['paddings'] = []

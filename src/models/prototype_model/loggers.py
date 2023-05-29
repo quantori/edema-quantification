@@ -1,19 +1,20 @@
+# type: ignore
+
 import json
 import os
 from abc import ABC, abstractclassmethod
-from typing import Union, Dict, Sequence, Mapping, Optional, TypeVar, Generic
+from typing import Dict, Generic, Mapping, Sequence, TypeVar, Union
 
-from omegaconf import DictConfig
-import numpy as np
-import torch
-from PIL import Image
 import cv2
+import numpy as np
+from omegaconf import DictConfig
+from PIL import Image
 
-DIST_co = TypeVar('DIST_co', covariant=True)
-BOXES_co = TypeVar('BOXES_co', covariant=True)
+DIST = TypeVar('DIST')
+BOXES = TypeVar('BOXES')
 
 
-class IPrototypeLogger(ABC, Generic[DIST_co, BOXES_co]):
+class IPrototypeLogger(ABC, Generic[DIST, BOXES]):
     """Abstract base class for prototype loggers."""
 
     @abstractclassmethod
@@ -23,19 +24,19 @@ class IPrototypeLogger(ABC, Generic[DIST_co, BOXES_co]):
 
     @abstractclassmethod
     def save_prototype_distances(
-        self, distances: DIST_co, prototype_idx: int, *args, **kwargs
+        self, distances: DIST, prototype_idx: int, *args, **kwargs
     ) -> None:
         """Called when prototype distances need to be saved."""
         raise NotImplementedError
 
     @abstractclassmethod
-    def save_boxes(self, boxes: BOXES_co, *args, **kwargs) -> None:
+    def save_boxes(self, boxes: BOXES, *args, **kwargs) -> None:
         """Called when receptive field and/or bound boxes data need to be saved."""
         raise NotImplementedError
 
 
 class PrototypeLoggerCompNumpy(
-    IPrototypeLogger[np.ndarray, Dict[int, Dict[str, Union[int, Sequence[int]]]]]
+    IPrototypeLogger[np.ndarray, Dict[int, Dict[str, Union[int, Sequence[int]]]]],
 ):
     """Logger for prototypes data.
 
@@ -82,7 +83,9 @@ class PrototypeLoggerCompNumpy(
             return stacked_mask, image_mask
 
     def _get_overlayed_act_img(
-        self, original_img_trasnposed: np.ndarray, upsampled_act_distances: np.ndarray
+        self,
+        original_img_trasnposed: np.ndarray,
+        upsampled_act_distances: np.ndarray,
     ) -> np.ndarray:
         # Overlay (upsampled) activated distances on the original image
         heatmap_act = PrototypeLoggerCompNumpy._make_heatmap(upsampled_act_distances)
@@ -93,7 +96,10 @@ class PrototypeLoggerCompNumpy(
         return overlayed_act_img
 
     def _get_overlayed_mask_img(
-        self, original_img: np.ndarray, prototype_class: int, masks: np.ndarray
+        self,
+        original_img: np.ndarray,
+        prototype_class: int,
+        masks: np.ndarray,
     ) -> np.ndarray:
         # Overlay masks on the original image
         one_img_mask = masks[prototype_class]
@@ -102,19 +108,25 @@ class PrototypeLoggerCompNumpy(
         return overlayed_mask_img
 
     def _make_composition(
-        self, prototype_class: int, composition_items: Mapping[str, np.ndarray]
+        self,
+        prototype_class: int,
+        composition_items: Mapping[str, np.ndarray],
     ) -> Image:
         # Transpose the orig image to match the heatmap dimensions (e.g., 400x400x3)
         original_img_transposed = np.transpose(composition_items['original_img'], (1, 2, 0))
         overlayed_act_img = self._get_overlayed_act_img(
-            original_img_transposed, composition_items['upsampled_act_distances']
+            original_img_transposed,
+            composition_items['upsampled_act_distances'],
         )
         overlayed_mask_img = self._get_overlayed_mask_img(
-            original_img_transposed, prototype_class, composition_items['masks']
+            original_img_transposed,
+            prototype_class,
+            composition_items['masks'],
         )
         # Make composition: original image + overlay (activated distances) + overlay (masks)
         composition_numpy = np.concatenate(
-            (original_img_transposed, overlayed_act_img, overlayed_mask_img), axis=1
+            (original_img_transposed, overlayed_act_img, overlayed_mask_img),
+            axis=1,
         )
         # Adjust the values of the composition_numpy array in 0..255 and change float32->uint8
         composition_pil = Image.fromarray((composition_numpy * 255).astype(np.uint8))
@@ -165,7 +177,10 @@ class PrototypeLoggerCompNumpy(
         self._save_act_roi(act_roi, prototype_idx, epoch_num)
 
     def save_prototype_distances(
-        self, distances: np.ndarray, prototype_idx: int, epoch_num: int
+        self,
+        distances: np.ndarray,
+        prototype_idx: int,
+        epoch_num: int,
     ) -> None:
         # Save activated prototype distances as numpy array (the activation function of the
         # distances is log)

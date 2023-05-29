@@ -1,11 +1,11 @@
-from typing import Optional
 import sys
+from typing import Optional
 
-from pytorch_lightning.callbacks import TQDMProgressBar
-import pytorch_lightning as pl
-from tqdm import tqdm
-import torch
 import numpy as np
+import pytorch_lightning as pl
+import torch
+from pytorch_lightning.callbacks import TQDMProgressBar
+from tqdm import tqdm
 
 
 class PNetProgressBar(TQDMProgressBar):
@@ -19,7 +19,7 @@ class PNetProgressBar(TQDMProgressBar):
     def status_bar(self) -> tqdm:
         if self._status_bar is None:
             raise TypeError(
-                f"The `{self.__class__.__name__}._status_bar` reference has not been set yet."
+                f'The `{self.__class__.__name__}._status_bar` reference has not been set yet.',
             )
         return self._status_bar
 

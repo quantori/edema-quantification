@@ -2,29 +2,25 @@
 
 The description to be filled...
 """
-import json
 import os
 import sys
-from typing import Dict, Optional, Union, List
 from statistics import mean
+from typing import Dict, Optional
 
-import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
+from encoders import IEncoderEdema
+from last_layers import ILastLayers
+from loggers import IPrototypeLogger
 from omegaconf import DictConfig
+from prototype_layers import IPrototypeLayer
 from torch import nn
 from torch.utils.data import DataLoader
 from torchmetrics.functional.classification import multilabel_f1_score
 from tqdm.auto import tqdm
-
-from encoders import IEncoderEdema
 from transient_layers import ITransientLayers
-from prototype_layers import IPrototypeLayer
-from last_layers import ILastLayers
-from loggers import IPrototypeLogger
 
 
 class EdemaPrototypeNet(pl.LightningModule):
@@ -33,6 +29,14 @@ class EdemaPrototypeNet(pl.LightningModule):
     A complete model is implemented (includes the encoder, transient, prototype and fully connected
     layers). The transient layers are required to concatenate the main encoder layers with the
     prototype layer. The encoder is the variable part of EdemaNet, which is passed as an argument.
+
+    Args:
+        encoder: the encoder of the EdemaNet.
+        transient_layers: the transient of the EdemaNet.
+        prototype_layer: the prototype layer of the EdemaNet.
+        last_layer: the last layer of the EdemaNet.
+        settings_model: the model's settings from a hydra config.
+        prototype_logger: a custom logger for logging training artefacts.
     """
 
     def __init__(
@@ -44,11 +48,6 @@ class EdemaPrototypeNet(pl.LightningModule):
         settings_model: DictConfig,
         prototype_logger: Optional[IPrototypeLogger] = None,
     ) -> None:
-        """Pytorch Lightning model class.
-
-        Args:
-            settings: DictConfig with configuration parameters for the model.
-        """
         super().__init__()
         self.top_k = settings_model.top_k  # for a 14x14: top_k=3 is 1.5%, top_k=9 is 4.5%
         self.epsilon = settings_model.epsilon  # needed for the similarity calculation
@@ -156,7 +155,9 @@ class EdemaPrototypeNet(pl.LightningModule):
             _last(**self.blocks)
             self._last_step -= 1
             _print_status_bar(
-                self.trainer, self.blocks, status=f'LAST-({self._last_step} epochs left)'
+                self.trainer,
+                self.blocks,
+                status=f'LAST-({self._last_step} epochs left)',
             )
         else:
             _joint(**self.blocks)
@@ -169,9 +170,12 @@ class EdemaPrototypeNet(pl.LightningModule):
         if self._real_epoch >= self.push_start and self._real_epoch in self.push_epochs:
             if self._last_step == self._num_last_epochs:
                 self.prototype_layer.update(
-                    self, self.trainer.train_dataloader.loaders, self._prototype_logger
+                    self,
+                    self.trainer.train_dataloader.loaders,
+                    self._prototype_logger,
                 )
                 self._training_status = 'last'
+                self.train()
             elif self._last_step == 0:
                 self._training_status = 'joint'
                 self._last_step = self._num_last_epochs
@@ -212,7 +216,10 @@ class EdemaPrototypeNet(pl.LightningModule):
         self.eval()
         with torch.no_grad():
             with tqdm(
-                total=len(dataloader), desc='Validating', position=position, leave=False
+                total=len(dataloader),
+                desc='Validating',
+                position=position,
+                leave=False,
             ) as t1:
                 for idx, batch in enumerate(dataloader):
                     preds = self.custom_val_step(batch)
@@ -227,7 +234,9 @@ class EdemaPrototypeNet(pl.LightningModule):
                     t.refresh()
         if mean(f1_all) > self.trainer.logged_metrics['f1_val']:
             _save_new_checkpoint(
-                self.trainer.checkpoint_callback.best_model_path, self.trainer, mean(f1_all)
+                self.trainer.checkpoint_callback.best_model_path,
+                self.trainer,
+                mean(f1_all),
             )
         self.log('f1_val', mean(f1_all), on_step=False, prog_bar=True)
         self.train()
@@ -370,7 +379,7 @@ class EdemaPrototypeNet(pl.LightningModule):
         # if the input is (batch, 512, 14, 14) and the kernel_size=(1, 1), the output will be
         # (batch, 512=512*1*1, 196=14*14)
         expanded_x = nn.Unfold(
-            kernel_size=(self.prototype_layer.shape[2], self.prototype_layer.shape[3])
+            kernel_size=(self.prototype_layer.shape[2], self.prototype_layer.shape[3]),
         )(x)
 
         # expanded shape = [1, batch, number of such blocks, channel*proto_shape[2]*proto_shape[3]]
@@ -392,8 +401,8 @@ class EdemaPrototypeNet(pl.LightningModule):
         # is (1, num_prototypes, 512=512*1*1, 1=1*1).
         # Expanded proto shape = [1, proto num, channel*proto_shape[2]*proto_shape[3], 1]
         expanded_proto = nn.Unfold(
-            kernel_size=(self.prototype_layer.shape[2], self.prototype_layer.shape[3])
-        )(self.prototype_layer,).unsqueeze(0)
+            kernel_size=(self.prototype_layer.shape[2], self.prototype_layer.shape[3]),
+        )(self.prototype_layer).unsqueeze(0)
 
         # if the input is (1, num_prototypes, 512, 1), the output is (1, num_prototypes, 512=512*1)
         expanded_proto = expanded_proto.contiguous().view(1, expanded_proto.shape[1], -1)
@@ -951,7 +960,7 @@ def _print_status_bar(trainer: pl.Trainer, blocks: Dict, status: str = '') -> No
             # protoype layer is inhereted from Tensor and, therefore, has the requires_grad attr
             prot=blocks['prototype_layer'].requires_grad,
             last=_get_grad_status(blocks['last_layer']),
-        )
+        ),
     )
 
 
@@ -961,14 +970,14 @@ def _get_grad_status(block: nn.Module) -> bool:
         return first_param.requires_grad
     else:
         raise Exception(
-            f'Not all the parmaters in {block.__class__.__name__} have the same grad status'
+            f'Not all the parmaters in {block.__class__.__name__} have the same grad status',
         )
 
 
 def _save_new_checkpoint(path_best_model: str, trainer: pl.Trainer, f1_val: float = 0) -> None:
     os.remove(path_best_model)
     new_checkpoint = trainer.checkpoint_callback.format_checkpoint_name(
-        dict(epoch=trainer.current_epoch, step=trainer.global_step, f1_val=f1_val)
+        dict(epoch=trainer.current_epoch, step=trainer.global_step, f1_val=f1_val),
     )
     trainer.save_checkpoint(new_checkpoint)
     trainer.checkpoint_callback.best_model_path = new_checkpoint

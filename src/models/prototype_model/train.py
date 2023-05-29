@@ -3,18 +3,18 @@ import os
 import hydra
 import pytorch_lightning as pl
 import torch
-from omegaconf import DictConfig
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning import seed_everything
-
-from src.data.data_classes import EdemaDataModule
-from model_edema import EdemaPrototypeNet
-from utils import PNetProgressBar
 from encoders import ENCODERS
-from transient_layers import TransientLayers
-from prototype_layers import PrototypeLayer
 from last_layers import LastLayers
 from loggers import PrototypeLoggerCompNumpy
+from model_edema import EdemaPrototypeNet
+from omegaconf import DictConfig
+from prototype_layers import PrototypeLayer
+from pytorch_lightning import seed_everything
+from pytorch_lightning.callbacks import ModelCheckpoint
+from transient_layers import TransientLayers
+from utils import PNetProgressBar
+
+from src.data.data_classes import EdemaDataModule
 
 
 @hydra.main(
@@ -31,16 +31,21 @@ def main(cfg: DictConfig):
     encoder = ENCODERS['squezee_net']()
     transient_layers = TransientLayers(encoder, cfg.model.prototype_shape)
     prototype_layer = PrototypeLayer(
+        cfg.model.prototype_shape,
         cfg.model.num_classes,
         cfg.model.num_prototypes,
-        cfg.model.prototype_shape,
         prototype_layer_stride=cfg.model.prototype_layer_stride,
         epsilon=cfg.model.epsilon,
     )
     last_layers = LastLayers(cfg.model.num_prototypes, cfg.model.num_classes, bias=False)
     prototype_logger = PrototypeLoggerCompNumpy(logger_config=cfg.logger)
     edema_net_st = EdemaPrototypeNet(
-        encoder, transient_layers, prototype_layer, last_layers, cfg.model, prototype_logger
+        encoder,
+        transient_layers,
+        prototype_layer,
+        last_layers,
+        cfg.model,
+        prototype_logger,
     )
     edema_net = edema_net_st.cuda()
 
