@@ -261,9 +261,9 @@ def extract_model_params(
     ]
 
     model_params = {
-        'model_name': None,
-        'encoder_name': None,
-        'encoder_weights': None,
+        'model_name': '',
+        'encoder_name': '',
+        'encoder_weights': '',
     }
     for model in models:
         if model + '_' in model_path:

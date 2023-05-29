@@ -1,46 +1,65 @@
-from typing import List
+from typing import Dict, Generic, List, TypeVar
 
 import torch
 from torch import nn
 from torchvision import transforms
 
-from src.models.prototype_model.prototype_model_utils import _make_layers
+T = TypeVar('T')
 
 
-class SqueezeNet(nn.Module):
+class IEncoderEdema(nn.Module, Generic[T]):
+    """Abstract class for edema encoders."""
+
+    def forward(self, x: T) -> T:
+        """Implement this for the forward pass of the encoder."""
+        raise NotImplementedError
+
+    def conv_info(self) -> Dict[str, List[int]]:
+        """Reterns convolutional information on the encoder."""
+        raise NotImplementedError
+
+    def warm(self) -> None:
+        """Sets grad policy for the warm training stage."""
+        raise NotImplementedError
+
+    def joint(self) -> None:
+        """Sets grad policy for the joint training stage."""
+        raise NotImplementedError
+
+    def last(self) -> None:
+        """Sets grad policy for the last training stage."""
+        raise NotImplementedError
+
+
+class SqueezeNet(IEncoderEdema[torch.Tensor]):
     """SqueezeNet encoder.
 
     The pre-trained model expects input images normalized in the same way, i.e. mini-batches of
     3-channel RGB images of shape (3 x H x W), where H and W are expected to be at least 224. The
     images have to be loaded in to a range of [0, 1] and then normalized using
     mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225].
+
+    Args:
+        preprocessed: flag for preprocessing an input image. Defaults to False.
+        pretrained: flag for using pretrained weights. Defaults to True.
     """
 
     def __init__(
         self,
         preprocessed: bool = False,
         pretrained: bool = True,
-    ):
-        """SqueezeNet encoder.
-
-        Args:
-            preprocessed (bool, optional): _description_. Defaults to True.
-            pretrained (bool, optional): _description_. Defaults to True.
-        """
-
+    ) -> None:
         super().__init__()
-
         self.model = torch.hub.load(
             'pytorch/vision:v0.10.0',
             'squeezenet1_1',
-            pretrained=True,
+            pretrained=pretrained,
             verbose=False,
         )
         del self.model.classifier
+        self._preprocessed = preprocessed
 
-        self.preprocessed = preprocessed
-
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward implementation.
 
         Uses only the model.features component of SqueezeNet without model.classifier.
@@ -51,23 +70,11 @@ class SqueezeNet(nn.Module):
         Returns:
             torch.Tensor: convolution layers after passing the SqueezNet backbone
         """
-        if self.preprocessed:
+        if self._preprocessed:
             x = self.preprocess(x)
-
         return self.model.features(x)
 
-    def preprocess(self, x):
-        """Image preprocessing function.
-
-        To make image preprocessing model specific and modular.
-
-        Args:
-            x: input image.
-
-        Returns:
-            preprocessed image.
-        """
-
+    def preprocess(self, x: torch.Tensor) -> torch.Tensor:
         preprocess = transforms.Compose(
             [
                 transforms.Resize(256),
@@ -76,15 +83,14 @@ class SqueezeNet(nn.Module):
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ],
         )
-
         return preprocess(x)
 
-    def conv_info(self):
-        features = {}
+    def conv_info(self) -> Dict[str, List[int]]:
+        """Reterns info about the convolutional layers of the encoder."""
+        features: Dict[str, List[int]] = {}
         features['kernel_sizes'] = []
         features['strides'] = []
         features['paddings'] = []
-
         for module in self.modules():
             if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
                 if isinstance(module.kernel_size, tuple):
@@ -101,7 +107,6 @@ class SqueezeNet(nn.Module):
                     features['paddings'].append(module.padding[0])
                 else:
                     features['paddings'].append(module.padding)
-
         return features
 
     def warm(self) -> None:
@@ -114,40 +119,5 @@ class SqueezeNet(nn.Module):
         self.requires_grad_(False)
 
 
-ENCODERS = {'squezeenet': SqueezeNet()}
-
-
-class TransientLayers(nn.Sequential):
-    def __init__(self, encoder: nn.Module, prototype_shape: List = [9, 512, 1, 1]):
-        super().__init__(*_make_layers(encoder, prototype_shape))
-
-    def warm(self) -> None:
-        self.requires_grad_(True)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(False)
-
-
-class PrototypeLayer(nn.Parameter):
-    def warm(self) -> None:
-        self.requires_grad_(True)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(False)
-
-
-class LastLayer(nn.Linear):
-    def warm(self) -> None:
-        self.requires_grad_(True)
-
-    def joint(self) -> None:
-        self.requires_grad_(True)
-
-    def last(self) -> None:
-        self.requires_grad_(True)
+ENCODERS = {}
+ENCODERS.update({'squezee_net': SqueezeNet})
