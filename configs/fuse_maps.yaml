@@ -3,7 +3,7 @@ defaults:
 - _self_
 
 img_dir: data/interim_lung_seg
-# Unet, Unet++, DeepLabV3, DeepLabV3+, FPN, Linknet, PSPNet, PAN, MAnet
+# Unet, Unet++, DeepLabV3, DeepLabV3+, FPN, PAN, MAnet
 # Linknet and PSPNet work on torch == 1.8.1 and earlier
-model_names: [Unet++, DeepLabV3+, MAnet]
+model_names: [DeepLabV3, FPN, MAnet]
 save_dir: data/interim_fused
