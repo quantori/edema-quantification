@@ -1,0 +1,6 @@
+defaults:
+- main
+- _self_
+
+eval_dataset_path: data/coco/test/eval_dataset.json
+n_most_common_classes: 10
