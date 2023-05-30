@@ -56,7 +56,7 @@ def process_images(
             x2 = df_lungs.at[df_lungs.index[0], 'x2']
             y2 = df_lungs.at[df_lungs.index[0], 'y2']
 
-            img, bboxes, features = crop_image(
+            img, bboxes, features, drop_idx = crop_image(
                 img=img,
                 bboxes=bboxes,
                 features=features,
@@ -65,6 +65,10 @@ def process_images(
                 x2=x2,
                 y2=y2,
             )
+
+            if len(drop_idx) > 0:
+                log.info(f'{len(drop_idx)} object(s) dropped from {Path(img_path).name}')
+                df_img = df_img.drop(drop_idx).reset_index(drop=True)
 
         # Resize image while keeping aspect ratio
         if enable_resizing:
