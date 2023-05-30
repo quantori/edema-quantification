@@ -5,6 +5,9 @@ import os
 import numpy as np
 import pandas as pd
 
+import hydra
+from omegaconf import DictConfig, OmegaConf
+
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
@@ -91,16 +94,25 @@ def process_data(
         )
 
     dataset.update(dict(samples=samples))
-    save_path = 'data/coco/test/eval_dataset.json'
-    with open(save_path, 'w') as file:
-        json.dump(dataset, file)
+
+    return dataset
 
 
-def main() -> None:
-    process_data(
-        gt_path='data/coco/test/labels.xlsx',
-        pred_path='data/coco/test/predictions.xlsx',
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), 'configs'),
+    config_name='combine_gt_pred',
+    version_base=None,
+)
+def main(cfg: DictConfig) -> None:
+    log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
+
+    dataset = process_data(
+        gt_path=cfg.gt_path,
+        pred_path=cfg.pred_path,
     )
+
+    with open(cfg.save_path, 'w') as file:
+        json.dump(dataset, file)
 
     log.info('Complete')
 
