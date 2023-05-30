@@ -38,6 +38,18 @@ stages:
       md5: bbfe62305cf388907a4e2bc6e49497ac.dir
       size: 4423453676
       nfiles: 1000
+    - path: models/lung_segmentation/DeepLabV3
+      md5: 23bcccd42b02a0336679aa1c94b4ad28.dir
+      size: 29553652
+      nfiles: 2
+    - path: models/lung_segmentation/FPN
+      md5: 90c509bca903391eee9b1c1f2bbf14b2.dir
+      size: 23356472
+      nfiles: 2
+    - path: models/lung_segmentation/MAnet
+      md5: fc289dfc9f719c4c2a22c25dc002a299.dir
+      size: 54276574
+      nfiles: 2
     - path: src/models/lung_segmenter.py
       md5: 85474d2973187bb20a5851aad6a158cb
       size: 6506
