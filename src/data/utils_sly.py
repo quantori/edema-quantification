@@ -1,4 +1,5 @@
 import base64
+import io
 import logging
 import os
 import zlib
@@ -8,6 +9,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import supervisely_lib as sly
+from PIL import Image
 
 CLASS_MAP = {
     '': None,
@@ -27,6 +29,7 @@ FEATURE_MAP = {
     'Effusion': 7,
     'Bat': 8,
     'Infiltrate': 9,
+    'Lungs': 10,
 }
 
 FEATURE_MAP_REVERSED = dict((v, k) for k, v in FEATURE_MAP.items())
@@ -41,6 +44,7 @@ FEATURE_TYPE = {
     'Bat': 'polygon',
     'Infiltrate': 'polygon',
     'Cuffing': 'bitmap',
+    'Lungs': 'bitmap',
 }
 
 METADATA_COLUMNS = [
@@ -135,27 +139,37 @@ def read_sly_project(
     return df
 
 
-def convert_base64_to_image(
+def convert_base64_to_mask(
     encoded_mask: str,
 ) -> np.ndarray:
-    """The convert_base64_to_image function converts a base64 encoded string to a numpy array.
+    """Converts a base64 encoded string to a numpy array."""
+    decoded_bytes = base64.b64decode(encoded_mask)
+    decompressed_bytes = zlib.decompress(decoded_bytes)
+    np_arr = np.frombuffer(decompressed_bytes, dtype=np.uint8)
+    img_decoded = cv2.imdecode(np_arr, cv2.IMREAD_UNCHANGED)
 
-    Args:
-        encoded_mask: bitmap represented as a string
-    Returns:
-        mask: bitmap represented as a numpy array
-    """
-    z = zlib.decompress(base64.b64decode(encoded_mask))
-    n = np.frombuffer(z, np.uint8)
-
-    img_decoded = cv2.imdecode(n, cv2.IMREAD_UNCHANGED)
-    if (len(img_decoded.shape) == 3) and (img_decoded.shape[2] >= 4):
+    if len(img_decoded.shape) == 3 and img_decoded.shape[2] >= 4:
         mask = img_decoded[:, :, 3].astype(np.uint8)
     elif len(img_decoded.shape) == 2:
         mask = img_decoded.astype(np.uint8)
     else:
         raise RuntimeError('Wrong internal mask format.')
+
     return mask
+
+
+def convert_mask_to_base64(
+    mask: np.ndarray,
+) -> str:
+    """Converts a numpy array to a base64 encoded string."""
+    img_pil = Image.fromarray(mask.astype(np.uint8))
+    img_pil.putpalette([0, 0, 0, 255, 255, 255])
+    bytes_io = io.BytesIO()
+    img_pil.save(bytes_io, format='PNG', transparency=0, optimize=0)
+    bytes_enc = bytes_io.getvalue()
+    encoded_mask = base64.b64encode(zlib.compress(bytes_enc)).decode('utf-8')
+
+    return encoded_mask
 
 
 def get_class_name(
@@ -234,7 +248,7 @@ def get_object_box(
         dictionary which contains coordinates for a rectangle (left, top, right, bottom)
     """
     if obj['geometryType'] == 'bitmap':
-        bitmap = convert_base64_to_image(obj['bitmap']['data'])
+        bitmap = convert_base64_to_mask(obj['bitmap']['data'])
         x1, y1 = obj['bitmap']['origin'][0], obj['bitmap']['origin'][1]
         x2 = x1 + bitmap.shape[1]
         y2 = y1 + bitmap.shape[0]
@@ -267,8 +281,8 @@ def get_box_sizes(
     Returns:
         dictionary which contains coordinates for rectangle (a center point and a width/height)
     """
-    box_width = x2 - x1
-    box_height = y2 - y1
+    box_width = abs(x2 - x1 + 1)
+    box_height = abs(y2 - y1 + 1)
     xc = x1 + box_width // 2
     yc = y1 + box_height // 2
     box_area = box_height * box_width

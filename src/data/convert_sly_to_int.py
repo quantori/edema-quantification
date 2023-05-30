@@ -91,19 +91,22 @@ def process_annotation(
     for obj in ann['objects']:
         log.debug(f'Processing object {obj}')
 
-        figure_name = obj['classTitle']
+        feature_name = obj['classTitle']
         rp = get_tag_value(obj, tag_name='RP')
         xy = get_object_box(obj)
         box = get_box_sizes(*xy.values())
         mask_points = get_mask_points(obj)
-        view = 'Lateral' if xy['x1'] > img_info['Image width'] else 'Frontal'
+        if xy['x1'] > img_info['Image width'] or xy['x2'] > img_info['Image width']:
+            view = 'Lateral'
+        else:
+            view = 'Frontal'
 
         obj_info = {
-            'Feature ID': FEATURE_MAP[figure_name],
-            'Feature': figure_name,
+            'Feature ID': FEATURE_MAP[feature_name],
+            'Feature': feature_name,
             'Source type': obj['geometryType'],
-            'Reference type': FEATURE_TYPE[figure_name],
-            'Match': int(obj['geometryType'] == FEATURE_TYPE[figure_name]),
+            'Reference type': FEATURE_TYPE[feature_name],
+            'Match': int(obj['geometryType'] == FEATURE_TYPE[feature_name]),
             'RP': rp,
             'View': view,
             'Class ID': CLASS_MAP[class_name],
