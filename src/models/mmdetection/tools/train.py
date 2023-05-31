@@ -59,6 +59,7 @@ def parse_args():
     )
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
+    parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
     parser.add_argument(
         '--num-workers',
         type=int,
@@ -203,6 +204,12 @@ def main():
         cfg.model.bbox_head.num_classes = len(CLASSES)
     except Exception:
         cfg.model.roi_head.bbox_head.num_classes = len(CLASSES)
+
+    # Modify anchor box ratios
+    try:
+        cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
+    except Exception as e:
+        raise ValueError(e)     # TODO: set ratios if their location is different from cfg.model.rpn_head.anchor_generator
 
     cfg.data.train.type = args.dataset_type
     cfg.data.train.classes = cfg.classes
