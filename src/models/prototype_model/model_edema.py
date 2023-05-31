@@ -3,8 +3,6 @@
 The description to be filled...
 """
 import os
-import sys
-from statistics import mean
 from typing import Dict, Optional
 
 import numpy as np
@@ -17,9 +15,7 @@ from loggers import IPrototypeLogger
 from omegaconf import DictConfig
 from prototype_layers import IPrototypeLayer
 from torch import nn
-from torch.utils.data import DataLoader
 from torchmetrics.functional.classification import multilabel_f1_score
-from tqdm.auto import tqdm
 from transient_layers import ITransientLayers
 
 
@@ -75,6 +71,11 @@ class EdemaPrototypeNet(pl.LightningModule):
         # last fully connected layer for the classification of edema features. The bias is not used
         # in the original paper
         self.last_layer = last_layer
+
+        # Model paramters.
+        self.lr = settings_model.lr
+        self.fine_cost_weight = settings_model.fine_cost_weight
+        self.f1_treshold = settings_model.f1_treshold
 
         self.blocks = {
             'encoder': self.encoder,
@@ -165,8 +166,7 @@ class EdemaPrototypeNet(pl.LightningModule):
             self._real_epoch += 1
 
     def on_train_epoch_end(self):
-        # here, we have to put push_prototypes function
-        # logs costs after a training epoch
+        # Here we update prototypes and check the performance of the model.
         if self._real_epoch >= self.push_start and self._real_epoch in self.push_epochs:
             if self._last_step == self._num_last_epochs:
                 self.prototype_layer.update(
@@ -201,105 +201,105 @@ class EdemaPrototypeNet(pl.LightningModule):
         cost, f1_score = self.train_val_test(batch)
         return cost
 
-    def custom_val_step(self, batch: torch.Tensor) -> Dict[str, torch.Tensor]:
-        loss, f1_val = self.train_val_test(batch)
-        self.log('val_loss', loss)
-        return {'loss': loss, 'f1_val': f1_val}
+    # def custom_val_step(self, batch: torch.Tensor) -> Dict[str, torch.Tensor]:
+    #     loss, f1_val = self.train_val_test(batch)
+    #     self.log('val_loss', loss)
+    #     return {'loss': loss, 'f1_val': f1_val}
 
-    def val_epoch(
-        self,
-        dataloader: DataLoader,
-        t: Optional[tqdm] = None,
-        position: int = 4,
-    ) -> None:
-        f1_all = []
-        self.eval()
-        with torch.no_grad():
-            with tqdm(
-                total=len(dataloader),
-                desc='Validating',
-                position=position,
-                leave=False,
-            ) as t1:
-                for idx, batch in enumerate(dataloader):
-                    preds = self.custom_val_step(batch)
-                    f1_all.append(preds['f1_val'].item())
-                    t1.update()
-                if t:
-                    preds = self.refactor_val_dict(preds)
-                    to_postfix = self.str_to_dict(t.postfix)
-                    to_postfix.update({'f1_val': round(preds['f1_val'], 3)})
-                    t.set_postfix(to_postfix)
-                    t.n += idx + 1
-                    t.refresh()
-        if mean(f1_all) > self.trainer.logged_metrics['f1_val']:
-            _save_new_checkpoint(
-                self.trainer.checkpoint_callback.best_model_path,
-                self.trainer,
-                mean(f1_all),
-            )
-        self.log('f1_val', mean(f1_all), on_step=False, prog_bar=True)
-        self.train()
+    # def val_epoch(
+    #     self,
+    #     dataloader: DataLoader,
+    #     t: Optional[tqdm] = None,
+    #     position: int = 4,
+    # ) -> None:
+    #     f1_all = []
+    #     self.eval()
+    #     with torch.no_grad():
+    #         with tqdm(
+    #             total=len(dataloader),
+    #             desc='Validating',
+    #             position=position,
+    #             leave=False,
+    #         ) as t1:
+    #             for idx, batch in enumerate(dataloader):
+    #                 preds = self.custom_val_step(batch)
+    #                 f1_all.append(preds['f1_val'].item())
+    #                 t1.update()
+    #             if t:
+    #                 preds = self.refactor_val_dict(preds)
+    #                 to_postfix = self.str_to_dict(t.postfix)
+    #                 to_postfix.update({'f1_val': round(preds['f1_val'], 3)})
+    #                 t.set_postfix(to_postfix)
+    #                 t.n += idx + 1
+    #                 t.refresh()
+    #     if mean(f1_all) > self.trainer.logged_metrics['f1_val']:
+    #         _save_new_checkpoint(
+    #             self.trainer.checkpoint_callback.best_model_path,
+    #             self.trainer,
+    #             mean(f1_all),
+    #         )
+    #     self.log('f1_val', mean(f1_all), on_step=False, prog_bar=True)
+    #     self.train()
 
-    def train_epoch(self, dataloader: DataLoader, t: tqdm):
-        for idx, batch in enumerate(dataloader):
-            preds = self.training_step(batch, idx)
-            preds = self.refactor_train_dict(preds)
-            if t.postfix is not None:
-                to_postfix = self.str_to_dict(t.postfix)
-                to_postfix.update(preds)
-                t.set_postfix(to_postfix)
-            else:
-                t.set_postfix(preds)
-            t.n = idx + 1
-            t.refresh()
+    # def train_epoch(self, dataloader: DataLoader, t: tqdm):
+    #     for idx, batch in enumerate(dataloader):
+    #         preds = self.training_step(batch, idx)
+    #         preds = self.refactor_train_dict(preds)
+    #         if t.postfix is not None:
+    #             to_postfix = self.str_to_dict(t.postfix)
+    #             to_postfix.update(preds)
+    #             t.set_postfix(to_postfix)
+    #         else:
+    #             t.set_postfix(preds)
+    #         t.n = idx + 1
+    #         t.refresh()
 
-    def train_last_only(
-        self,
-        train_dataloader: DataLoader,
-        val_dataloader: DataLoader,
-        epochs: int = 2,
-    ) -> None:
-        _last(**self.blocks)
-        _print_status_bar(self.trainer, self.blocks, status='LAST')
-        with tqdm(
-            leave=False,
-            dynamic_ncols=True,
-            position=3,
-            file=sys.stdout,
-        ) as t:
-            total = len(train_dataloader) + len(val_dataloader)
-            for epoch in range(epochs):
-                t.reset(total=total)
-                t.initial = 0
-                t.set_description(f'Training last, Epoch {epoch}')
-                self.train_epoch(train_dataloader, t)
-                self.val_epoch(val_dataloader, t)
-            t.close()
+    # def train_last_only(
+    #     self,
+    #     train_dataloader: DataLoader,
+    #     val_dataloader: DataLoader,
+    #     epochs: int = 2,
+    # ) -> None:
+    #     _last(**self.blocks)
+    #     _print_status_bar(self.trainer, self.blocks, status='LAST')
+    #     with tqdm(
+    #         leave=False,
+    #         dynamic_ncols=True,
+    #         position=3,
+    #         file=sys.stdout,
+    #     ) as t:
+    #         total = len(train_dataloader) + len(val_dataloader)
+    #         for epoch in range(epochs):
+    #             t.reset(total=total)
+    #             t.initial = 0
+    #             t.set_description(f'Training last, Epoch {epoch}')
+    #             self.train_epoch(train_dataloader, t)
+    #             self.val_epoch(val_dataloader, t)
+    #         t.close()
 
-    def refactor_train_dict(self, d: Dict[str, torch.Tensor]) -> Dict[str, float]:
-        d_new = {}
-        d_new['loss_train'] = d['loss'].item()
-        d_new['f1_train'] = d['f1_train'].item()
-        del d
-        return d_new
+    # def refactor_train_dict(self, d: Dict[str, torch.Tensor]) -> Dict[str, float]:
+    #     d_new = {}
+    #     d_new['loss_train'] = d['loss'].item()
+    #     d_new['f1_train'] = d['f1_train'].item()
+    #     del d
+    #     return d_new
 
-    def refactor_val_dict(self, d: Dict[str, torch.Tensor]) -> Dict[str, float]:
-        d_new = {}
-        d_new['loss_val'] = d['loss'].item()
-        d_new['f1_val'] = d['f1_val'].item()
-        del d
-        return d_new
+    # def refactor_val_dict(self, d: Dict[str, torch.Tensor]) -> Dict[str, float]:
+    #     d_new = {}
+    #     d_new['loss_val'] = d['loss'].item()
+    #     d_new['f1_val'] = d['f1_val'].item()
+    #     del d
+    #     return d_new
 
-    def str_to_dict(self, string: str) -> Dict[str, float]:
-        # pattern for string -- 'f1_train=0.001, loss_train=0.001, ...'
-        d = {}
-        splitted_str = string.split(',')
-        for sub in splitted_str:
-            sub = sub.strip()
-            sub_list = sub.split('=')
-            d.update({sub_list[0]: float(sub_list[1])})
-        return d
+    # def str_to_dict(self, string: str) -> Dict[str, float]:
+    #     # pattern for string -- 'f1_train=0.001, loss_train=0.001, ...'
+    #     d = {}
+    #     splitted_str = string.split(',')
+    #     for sub in splitted_str:
+    #         sub = sub.strip()
+    #         sub_list = sub.split('=')
+    #         d.update({sub_list[0]: float(sub_list[1])})
+    #     return d
 
     def train_val_test(self, batch):
         images, labels = batch
@@ -347,9 +347,19 @@ class EdemaPrototypeNet(pl.LightningModule):
             self.prototype_layer.num_prototypes_per_class,
         )
 
-        cost = cross_entropy + 0.8 * cluster_cost - 0.08 * separation_cost + 0.001 * fine_cost
+        cost = (
+            cross_entropy
+            + 0.8 * cluster_cost
+            - 0.08 * separation_cost
+            + self.fine_cost_weight * fine_cost
+        )
 
-        f1_score = multilabel_f1_score(output, labels, num_labels=self.num_classes, threshold=0.3)
+        f1_score = multilabel_f1_score(
+            output,
+            labels,
+            num_labels=self.num_classes,
+            threshold=self.f1_treshold,
+        )
 
         # x, y = batch
         # y_hat = self(x)
@@ -358,7 +368,7 @@ class EdemaPrototypeNet(pl.LightningModule):
 
     def configure_optimizers(self):
         # TODO configure the optimizer properly
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optimizer
 
     def prototype_distances(self, x: torch.Tensor) -> torch.Tensor:

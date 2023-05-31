@@ -10,7 +10,7 @@ import torch
 from PIL import Image, ImageDraw, ImageOps
 from torch.utils.data import Dataset, Subset
 
-from src.data.utils_sly import FIGURE_MAP, convert_base64_to_image
+from src.data.utils_sly import FEATURE_MAP, convert_base64_to_mask
 
 __all__ = [
     'resize_and_create_masks',
@@ -25,7 +25,7 @@ IMAGE_DTYPE = torch.float32
 MASK_DTYPE = np.float32
 TENSOR_DTYPE = torch.float32
 # all relevant edema findings for which masks will be prepared subsequently
-EDEMA_FINDINGS = [k for k in FIGURE_MAP.keys() if k != 'Heart']
+EDEMA_FINDINGS = [k for k in FEATURE_MAP.keys() if k != 'Heart']
 
 
 def parse_coord_string(coord_string: str) -> np.ndarray:
@@ -43,24 +43,24 @@ def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[DefaultDict[A
         annotations: dict with processed annotation data for a given image
     """
     # for "No edema" class there are no findings
-    if group_df['Figure'].isna().all():
+    if group_df['Feature'].isna().all():
         return {'No_findings': None}
 
     # for other classes we create dict with finding_name as a key
     # and values are the lists containing
     # coordinates of points for polygon annotations and mask data for mask annotations
     annotations: Dict[str, Union[DefaultDict[Any, list], None]] = {
-        k: defaultdict(list) for k in group_df['Figure'].unique()
+        k: defaultdict(list) for k in group_df['Feature'].unique()
     }
 
     # change 'x1', 'y1' columns type from float (due to NANs presence) to int
-    group_df = group_df[['Figure', 'x1', 'y1', 'Mask', 'Points']].astype(int, errors='ignore')
+    group_df = group_df[['Feature', 'x1', 'y1', 'Mask', 'Points']].astype(int, errors='ignore')
 
     for _, data in group_df.iterrows():
         if pd.notna(data['Mask']):
-            annotations[data['Figure']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())  # type: ignore
+            annotations[data['Feature']]['bitmaps'].append(data.loc['x1':'Mask'].to_dict())  # type: ignore
         else:
-            annotations[data['Figure']]['polygons'].append(parse_coord_string(data['Points']))
+            annotations[data['Feature']]['polygons'].append(parse_coord_string(data['Points']))
 
     return annotations
 
@@ -116,7 +116,7 @@ def make_masks(
             # draw finding mask represented by bitmaps
             elif annotations[finding]['bitmaps']:
                 for bitmap in annotations[finding]['bitmaps']:
-                    bitmap_array = convert_base64_to_image(bitmap['Mask'])
+                    bitmap_array = convert_base64_to_mask(bitmap['Mask'])
                     bitmap_mask = Image.fromarray(bitmap_array).convert('1')
                     inverted_bitmap_mask = ImageOps.invert(bitmap_mask)
 

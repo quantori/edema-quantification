@@ -5,11 +5,14 @@ prototype_shape: [9, 512, 1, 1]
 prototype_layer_stride: 1
 top_k: 1
 epsilon: 1e-4
-num_real_epochs: 38
-num_warm_epochs: 1
-push_start: 1
-num_last_epochs: 1
-push_epochs: [1, 3, 24, 31]
+num_real_epochs: 40
+num_warm_epochs: 10
+push_start: 10
+num_last_epochs: 10
+push_epochs: [10, 20, 30, 40]
 img_size: 1400
 num_cpu: 4
 batch_size: 4
+lr: 1e-3
+fine_cost_weight: 0.001
+f1_treshold: 0.3
