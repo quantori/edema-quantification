@@ -100,14 +100,14 @@ def split_dataset(
 def prepare_coco(
     df: pd.DataFrame,
     save_dir: str,
-) -> None:
+) -> pd.DataFrame:
     """Prepare and save training and test subsets in COCO format.
 
     Args:
         df: dataframe containing information about the training and test subsets
         save_dir: directory where split datasets are stored
     Returns:
-        None
+        df: COCO dataframe with training and test subsets
     """
     categories_coco = []
     for idx, (key, value) in enumerate(FEATURE_MAP.items()):
@@ -157,12 +157,21 @@ def prepare_coco(
         with open(save_ann_path, 'w') as file:
             json.dump(dataset, file)
 
-    # Save COCO metadata
-    save_path = os.path.join(save_dir, 'metadata.xlsx')
+    # Update image paths
     df['Image path'] = df.apply(
         func=lambda row: os.path.join(save_dir, row['Split'], 'data', row['Image name']),
         axis=1,
     )
+
+    return df
+
+
+def save_subset_metadata(
+    df: pd.DataFrame,
+    save_dir: str,
+) -> None:
+    # Save main dataset metadata
+    save_path = os.path.join(save_dir, 'metadata.xlsx')
     df.index += 1
     df.to_excel(
         save_path,
@@ -170,6 +179,38 @@ def prepare_coco(
         index=True,
         index_label='ID',
     )
+
+    # Save additional subset metadata
+    columns_to_keep = [
+        'Image path',
+        'Image name',
+        'Image width',
+        'Image height',
+        'x1',
+        'y1',
+        'x2',
+        'y2',
+        'Box width',
+        'Box height',
+        'Box area',
+        'Feature',
+        'Split',
+    ]
+    df = df[columns_to_keep]
+    subset_list = list(df['Split'].unique())
+    for subset in subset_list:
+        df_subset = df[df['Split'] == subset]
+        df_subset = df_subset.drop(labels='Split', axis=1)
+        df_subset.reset_index(drop=True, inplace=True)
+        save_path = os.path.join(save_dir, f'{subset}', 'labels.xlsx')
+        df_subset.index += 1
+        df_subset.to_excel(
+            save_path,
+            sheet_name='Metadata',
+            index=True,
+            index_label='ID',
+        )
+        log.info(f'{subset.capitalize()} metadata saved.......: {save_path}')
 
 
 @hydra.main(
@@ -207,8 +248,13 @@ def main(cfg: DictConfig) -> None:
         seed=cfg.seed,
     )
 
-    prepare_coco(
+    df = prepare_coco(
         df=metadata,
+        save_dir=cfg.save_dir,
+    )
+
+    save_subset_metadata(
+        df=df,
         save_dir=cfg.save_dir,
     )
 
