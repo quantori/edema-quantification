@@ -234,7 +234,7 @@ def main():
         cfg.data.workers_per_gpu = args.num_workers
 
     cfg.evaluation.metric = 'bbox'
-    cfg.optimizer.lr = 0.001
+    cfg.optimizer.lr = 0.005
     cfg.lr_config.warmup = None
 
     cfg.log_config.interval = 1  # Equal to batch_size
