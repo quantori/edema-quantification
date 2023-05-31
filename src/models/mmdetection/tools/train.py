@@ -32,7 +32,12 @@ def parse_args():
     parser.add_argument(
         '--config',
         type=str,
-        default='src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
+        # TODO: add paths to config files
+        choices=[
+            'src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
+            'option2',
+            'option3',
+        ],
         help='path to a train config file',
     )
     parser.add_argument(
@@ -53,6 +58,7 @@ def parse_args():
         help='whether to exclude the empty GT images',
     )
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
+    parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
     parser.add_argument(
         '--num-workers',
         type=int,
@@ -63,7 +69,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument(
         '--work-dir',
-        default='models/sign_detection',
+        default='models/feature_detection',
         help='the dir to save logs and models',
     )
     parser.add_argument(
@@ -221,7 +227,7 @@ def main():
         cfg.data.workers_per_gpu = args.num_workers
 
     cfg.evaluation.metric = 'bbox'
-    cfg.optimizer.lr = 0.02 / 8  # The original learning rate is set for 8-GPU training.
+    cfg.optimizer.lr = 0.001
     cfg.lr_config.warmup = None
 
     cfg.log_config.interval = 1  # Equal to batch_size
@@ -253,7 +259,7 @@ def main():
                 type='Resize',
                 img_scale=cfg.data.train.pipeline[2].img_scale,
                 multiscale_mode='range',
-                ratio_range=[0.8, 1],
+                ratio_range=[0.75, 1],
                 keep_ratio=True,
                 bbox_clip_border=True,
             ),
@@ -313,7 +319,18 @@ def main():
             ),
         ]
 
-    # Final config used for training
+    for pipeline in [
+        cfg.data.train.pipeline,
+        cfg.data.val.pipeline,
+        cfg.data.test.pipeline,
+        cfg.train_pipeline,
+        cfg.test_pipeline,
+    ]:
+        for step in pipeline:
+            if 'img_scale' in step:
+                step['img_scale'] = tuple(args.img_size)
+
+    # Final config used for training and testing
     print(f'Config:\n{cfg.pretty_text}')
     # ------------------------------------------------------------------------------------------------------------------
 
