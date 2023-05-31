@@ -3,8 +3,6 @@
 The description to be filled...
 """
 import os
-import sys
-from statistics import mean
 from typing import Dict, Optional
 
 import numpy as np
@@ -17,9 +15,7 @@ from loggers import IPrototypeLogger
 from omegaconf import DictConfig
 from prototype_layers import IPrototypeLayer
 from torch import nn
-from torch.utils.data import DataLoader
 from torchmetrics.functional.classification import multilabel_f1_score
-from tqdm.auto import tqdm
 from transient_layers import ITransientLayers
 
 
@@ -359,7 +355,10 @@ class EdemaPrototypeNet(pl.LightningModule):
         )
 
         f1_score = multilabel_f1_score(
-            output, labels, num_labels=self.num_classes, threshold=self.f1_treshold
+            output,
+            labels,
+            num_labels=self.num_classes,
+            threshold=self.f1_treshold,
         )
 
         # x, y = batch

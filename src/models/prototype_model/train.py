@@ -30,7 +30,7 @@ def main(cfg: DictConfig):
         f' f1_tresholf: {cfg.model.f1_treshold},'
         f' img_size: {cfg.model.img_size},'
         f' batch_size: {cfg.model.batch_size},'
-        f' num_prototypes: {cfg.model.num_prototypes}'
+        f' num_prototypes: {cfg.model.num_prototypes}',
     )
 
     # Clean the gpu cache and seed the the random generator.
