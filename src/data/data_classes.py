@@ -56,7 +56,6 @@ class EdemaDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.img_data[idx]['path']
         image = Image.open(img_path)
-        label = self.img_data[idx]['label']
         annotations = self.img_data[idx]['annotations']
 
         # resize image to target size and create list with masks, as well as labels array
