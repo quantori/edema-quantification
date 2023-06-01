@@ -33,11 +33,20 @@ def parse_args():
     parser.add_argument(
         '--config',
         type=str,
-        # TODO: add paths to config files
         choices=[
-            'src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
-            'option2',
-            'option3',
+            'src/models/mmdetection/configs/vfnet/vfnet_x101_64x4d_fpn_mdconv_c3-c5_mstrain_2x_coco.py',
+            'src/models/mmdetection/configs/tood/tood_r101_fpn_dconv_c3-c5_mstrain_2x_coco.py',
+            'src/models/mmdetection/configs/gfl/gfl_x101_32x4d_fpn_dconv_c4-c5_mstrain_2x_coco.py',
+            'src/models/mmdetection/configs/paa/paa_r101_fpn_mstrain_3x_coco.py',
+            'src/models/mmdetection/configs/guided_anchoring/ga_faster_x101_64x4d_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/sabl/sabl_retinanet_r101_fpn_gn_2x_ms_480_960_coco.py',
+            'src/models/mmdetection/configs/grid_rcnn/grid_rcnn_x101_64x4d_fpn_gn-head_2x_coco.py',
+            'src/models/mmdetection/configs/libra_rcnn/libra_faster_rcnn_x101_64x4d_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/fcos/fcos_x101_64x4d_fpn_gn-head_mstrain_640-800_2x_coco.py',
+            'src/models/mmdetection/configs/faster_rcnn/faster_rcnn_x101_64x4d_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/fsaf/fsaf_x101_64x4d_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/cascade_rpn/crpn_faster_rcnn_r50_caffe_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/atss/atss_r101_fpn_1x_coco.py',
         ],
         help='path to a train config file',
     )
@@ -60,9 +69,11 @@ def parse_args():
     )
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
-    parser.add_argument('--optimizer', type=str, default='Adam', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'], help='optimizer')
+    parser.add_argument('--optimizer', type=str, default='Adam', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'],
+                        help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
-    parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
+    parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0],
+                        help='anchor box ratios')
     parser.add_argument(
         '--num-workers',
         type=int,
@@ -95,14 +106,14 @@ def parse_args():
         '--gpus',
         type=int,
         help='(Deprecated, please use --gpu-id) number of gpus to use '
-        '(only applicable to non-distributed training)',
+             '(only applicable to non-distributed training)',
     )
     group_gpus.add_argument(
         '--gpu-ids',
         type=int,
         nargs='+',
         help='(Deprecated, please use --gpu-id) ids of gpus to use '
-        '(only applicable to non-distributed training)',
+             '(only applicable to non-distributed training)',
     )
     group_gpus.add_argument(
         '--gpu-id',
@@ -125,19 +136,19 @@ def parse_args():
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file (deprecate), '
-        'change to --cfg-options instead.',
+             'in xxx=yyy format will be merged into config file (deprecate), '
+             'change to --cfg-options instead.',
     )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file. If the value to '
-        'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
-        'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
-        'Note that the quotation marks are necessary and that no white space '
-        'is allowed.',
+             'in xxx=yyy format will be merged into config file. If the value to '
+             'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
+             'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
+             'Note that the quotation marks are necessary and that no white space '
+             'is allowed.',
     )
     parser.add_argument(
         '--launcher',
@@ -194,7 +205,7 @@ def main():
     categories = coco_data['categories']
     class_names_ = [category['name'] for category in categories]
     class_names = tuple(class_names_)
-    cfg.classes = class_names       # TODO: remove lungs from the COCO dataset
+    cfg.classes = class_names  # TODO: remove lungs from the COCO dataset
 
     # Set num classes of the model in box head
     try:
@@ -206,7 +217,7 @@ def main():
     try:
         cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
     except Exception as e:
-        raise ValueError(e)     # TODO: set ratios if their location is different from cfg.model.rpn_head.anchor_generator
+        raise ValueError(e)  # TODO: set ratios if their location is different from cfg.model.rpn_head.anchor_generator
 
     # Set dataset metadata
     cfg.data_root = args.data_dir
@@ -400,9 +411,9 @@ def main():
 
     if args.auto_scale_lr:
         if (
-            'auto_scale_lr' in cfg
-            and 'enable' in cfg.auto_scale_lr
-            and 'base_batch_size' in cfg.auto_scale_lr
+                'auto_scale_lr' in cfg
+                and 'enable' in cfg.auto_scale_lr
+                and 'base_batch_size' in cfg.auto_scale_lr
         ):
             cfg.auto_scale_lr.enable = True
         else:
