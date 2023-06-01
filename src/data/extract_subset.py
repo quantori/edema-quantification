@@ -53,7 +53,7 @@ def process_single_study(
                 df_study.at[idx, 'Image name'] = img_name
                 try:
                     shutil.copy(src_path, dst_path)
-                except Exception as e:
+                except Exception:
                     log.info(f'Error occurred while copying {img_name}')
             return df_study
 
@@ -72,7 +72,7 @@ def process_single_study(
             df_study.at[idx, 'Image name'] = img_name
             try:
                 shutil.copy(src_path, dst_path)
-            except Exception as e:
+            except Exception:
                 log.info(f'Error occurred while copying {img_name}')
         return df_study
 
@@ -119,7 +119,7 @@ def main(cfg: DictConfig) -> None:
     df_out = pd.concat(result)
     df_out.reset_index(drop=True, inplace=True)
     df_out.sort_values(['Subject ID', 'ID'], inplace=True)
-    save_path = os.path.join(cfg.save_dir, f'metadata.csv')
+    save_path = os.path.join(cfg.save_dir, 'metadata.csv')
     df_out.to_csv(
         save_path,
         index=False,

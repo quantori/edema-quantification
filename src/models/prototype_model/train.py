@@ -23,7 +23,17 @@ from src.data.data_classes import EdemaDataModule
     version_base=None,
 )
 def main(cfg: DictConfig):
-    # Clean the gpu cache
+    # Print the model's paramters for training.
+    print(
+        f'lr: {cfg.model.lr},'
+        f' fine_cost_weight: {cfg.model.fine_cost_weight},'
+        f' f1_tresholf: {cfg.model.f1_treshold},'
+        f' img_size: {cfg.model.img_size},'
+        f' batch_size: {cfg.model.batch_size},'
+        f' num_prototypes: {cfg.model.num_prototypes}',
+    )
+
+    # Clean the gpu cache and seed the the random generator.
     torch.cuda.empty_cache()
     seed_everything(42, workers=True)
 
@@ -69,7 +79,7 @@ def main(cfg: DictConfig):
         save_on_train_epoch_end=False,
     )
     trainer = pl.Trainer(
-        max_epochs=83,
+        max_epochs=81,
         logger=True,
         enable_checkpointing=True,
         gpus=1,

@@ -1,42 +1,167 @@
 schema: '2.0'
 stages:
-  sly_to_int:
+  convert_sly_to_int:
     cmd:
-    - rm -rf data/interim
+    - rm -rf data/interim || true
     - python src/data/convert_sly_to_int.py
     deps:
     - path: configs/convert_sly_to_int.yaml
       md5: 370c899ba0c5fcea7f28b46d00a38298
       size: 106
     - path: data/sly
-      md5: ef84515f9f19efacd1572154b70d9ebd.dir
-      size: 8210599801
-      nfiles: 2002
+      md5: efc4e9f270c20b57119a72863dc94e7f.dir
+      size: 8210582398
+      nfiles: 2001
     - path: src/data/convert_sly_to_int.py
-      md5: 4465ae582b50529429a49430439e5ec5
-      size: 5479
+      md5: 9f4a197961983bbbfd8ee971214b7a26
+      size: 5771
+    - path: src/data/utils_sly.py
+      md5: 56d50266933832f27463c69753bfad84
+      size: 7665
     outs:
-    - path: data/interim
-      md5: 199ed5a7394d5913c413f4c8603782c0.dir
-      size: 4424592880
-      nfiles: 1001
-  int_to_coco:
+    - path: data/interim/img
+      md5: bbfe62305cf388907a4e2bc6e49497ac.dir
+      size: 4423453676
+      nfiles: 1000
+    - path: data/interim/metadata.xlsx
+      md5: 0e3a44e870dfbd5ac88e7b999d29314e
+      size: 1327964
+  segment_lungs:
     cmd:
-    - rm -rf data/coco
-    - python src/data/convert_int_to_coco.py
+    - rm -rf data/interim_lung_seg || true
+    - python src/segment_lungs.py
     deps:
-    - path: configs/convert_int_to_coco.yaml
-      md5: 029b1261e1393a3af569eeaa4de25f7f
-      size: 329
-    - path: data/interim
-      md5: 199ed5a7394d5913c413f4c8603782c0.dir
-      size: 4424592880
-      nfiles: 1001
-    - path: src/data/convert_int_to_coco.py
-      md5: e230489e54dba3998276cfdd89e7284c
-      size: 6991
+    - path: configs/segment_lungs.yaml
+      md5: cf0c0f7996247f5d5b485f65327e428c
+      size: 266
+    - path: data/interim/img
+      md5: bbfe62305cf388907a4e2bc6e49497ac.dir
+      size: 4423453676
+      nfiles: 1000
+    - path: models/lung_segmentation/DeepLabV3
+      md5: 23bcccd42b02a0336679aa1c94b4ad28.dir
+      size: 29553652
+      nfiles: 2
+    - path: models/lung_segmentation/FPN
+      md5: 90c509bca903391eee9b1c1f2bbf14b2.dir
+      size: 23356472
+      nfiles: 2
+    - path: models/lung_segmentation/MAnet
+      md5: fc289dfc9f719c4c2a22c25dc002a299.dir
+      size: 54276574
+      nfiles: 2
+    - path: src/models/lung_segmenter.py
+      md5: 85474d2973187bb20a5851aad6a158cb
+      size: 6506
+    - path: src/segment_lungs.py
+      md5: 5ac91fb480b10319ab351beb12e64a07
+      size: 1957
     outs:
-    - path: data/coco
-      md5: 78261165b4aaf5b9eef7b24a3d6e148c.dir
-      size: 4425292503
-      nfiles: 1003
+    - path: data/interim_lung_seg
+      md5: e07176b49f0507192502a5ce8c8d3913.dir
+      size: 475301558
+      nfiles: 3000
+  fuse_maps:
+    cmd:
+    - rm -rf data/interim_fused || true
+    - python src/fuse_maps.py
+    deps:
+    - path: configs/fuse_maps.yaml
+      md5: 3a1d49c4e169ac78a870d017bf843903
+      size: 235
+    - path: data/interim_lung_seg
+      md5: e07176b49f0507192502a5ce8c8d3913.dir
+      size: 475301558
+      nfiles: 3000
+    - path: src/data/utils_sly.py
+      md5: 56d50266933832f27463c69753bfad84
+      size: 7665
+    - path: src/fuse_maps.py
+      md5: 70b389f5d9e8aa7f5a910450087439e6
+      size: 5652
+    - path: src/models/map_fuser.py
+      md5: 3ad810fed13938efcedfdfb9cdef9592
+      size: 2948
+    - path: src/models/mask_processor.py
+      md5: 6e4aa0e6413ffba3c790ca9b8bcf39ba
+      size: 1799
+    outs:
+    - path: data/interim_fused/map
+      md5: dee33c33a210e010a7f5d3c565eb88a6.dir
+      size: 158887463
+      nfiles: 1000
+    - path: data/interim_fused/mask
+      md5: f6c527c399485efa046cf0f1b0fd9726.dir
+      size: 16801204
+      nfiles: 1000
+    - path: data/interim_fused/metadata.xlsx
+      md5: 28b1e9550bedd4b5b20e774e9c391e17
+      size: 5657114
+  convert_int_to_final:
+    cmd:
+    - rm -rf data/final || true
+    - python src/data/convert_int_to_final.py
+    deps:
+    - path: configs/convert_int_to_final.yaml
+      md5: 704667459b706a9534ebe87089baa6b2
+      size: 611
+    - path: data/interim/img
+      md5: bbfe62305cf388907a4e2bc6e49497ac.dir
+      size: 4423453676
+      nfiles: 1000
+    - path: data/interim/metadata.xlsx
+      md5: 0e3a44e870dfbd5ac88e7b999d29314e
+      size: 1327964
+    - path: data/interim_fused/metadata.xlsx
+      md5: 28b1e9550bedd4b5b20e774e9c391e17
+      size: 5657114
+    - path: src/data/convert_int_to_final.py
+      md5: b7023dacce92b71a33579c91560b2372
+      size: 7432
+    - path: src/data/utils_final.py
+      md5: 4da614cef83cfbd017525adf5b5cc8bb
+      size: 8282
+    outs:
+    - path: data/final/img
+      md5: e845d33586856ede0fc96cea87a8ac03.dir
+      size: 2585867050
+      nfiles: 1000
+    - path: data/final/metadata.xlsx
+      md5: d84605004258f0ca4b387466462d2013
+      size: 897853
+  convert_final_to_coco:
+    cmd:
+    - rm -rf data/coco || true
+    - python src/data/convert_final_to_coco.py
+    deps:
+    - path: configs/convert_final_to_coco.yaml
+      md5: b253a8ffddf1ce7d526dc976d4f812fc
+      size: 123
+    - path: data/final/img
+      md5: e845d33586856ede0fc96cea87a8ac03.dir
+      size: 2585867050
+      nfiles: 1000
+    - path: data/final/metadata.xlsx
+      md5: d84605004258f0ca4b387466462d2013
+      size: 897853
+    - path: src/data/convert_final_to_coco.py
+      md5: f62e735c1063ce5b966d1f0e6aa1be39
+      size: 8279
+    - path: src/data/utils_coco.py
+      md5: fe5cc34646f753c926b4ae39b42a3bdd
+      size: 1412
+    - path: src/data/utils_sly.py
+      md5: 56d50266933832f27463c69753bfad84
+      size: 7665
+    outs:
+    - path: data/coco/metadata.xlsx
+      md5: f805e857c65a89b55c1dd63a8bc35eb1
+      size: 783397
+    - path: data/coco/test
+      md5: 0d7c7bf6b05ab57f9b25704ecb953f4d.dir
+      size: 513307497
+      nfiles: 202
+    - path: data/coco/train
+      md5: 786ca7a6a70a7cebe1679b1defe76c00.dir
+      size: 2073580679
+      nfiles: 802
