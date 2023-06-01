@@ -288,11 +288,10 @@ def main():
     cfg.lr_config = dict(
         policy='CosineAnnealing',
         warmup='linear',
-        # warmup_iters=8,
+        warmup_iters=int(0.2 * args.epochs),
         warmup_ratio=0.2,
         min_lr_ratio=args.lr / 100,
         by_epoch=True,
-        verbose=True,
     )
 
     # Set the evaluation metric
@@ -318,7 +317,6 @@ def main():
         type='EpochBasedRunner',
         max_epochs=args.epochs,
     )
-    cfg.workflow = [('train', 1), ('val', 1)]
 
     # Augmentation settings
     # Docs: https://mmdetection.readthedocs.io/en/v2.15.1/api.html
