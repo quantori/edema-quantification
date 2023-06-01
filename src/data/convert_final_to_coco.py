@@ -110,7 +110,9 @@ def prepare_coco(
         df: COCO dataframe with training and test subsets
     """
     categories_coco = []
-    for idx, (key, value) in enumerate(FEATURE_MAP.items()):
+    class_names = list(df['Feature'].unique())
+    filtered_feature_map = {key: value for key, value in FEATURE_MAP.items() if key in class_names}
+    for idx, (key, value) in enumerate(filtered_feature_map.items()):
         categories_coco.append({'id': value, 'name': key})
 
     # Iterate over subsets
