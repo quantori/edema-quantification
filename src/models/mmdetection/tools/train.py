@@ -1,6 +1,7 @@
 import argparse
 import copy
 import os
+import json
 import os.path as osp
 import time
 import warnings
@@ -184,32 +185,30 @@ def main():
         cfg.merge_from_dict(args.cfg_options)
 
     # ------------------------------------------------- CUSTOM CONFIG --------------------------------------------------
-    CLASSES = (
-        'Cephalization',
-        'Heart',
-        'Artery',
-        'Bronchus',
-        'Kerley',
-        'Cuffing',
-        'Effusion',
-        'Bat',
-        'Infiltrate',
-    )
-    cfg.classes = CLASSES
-    cfg.dataset_type = args.dataset_type
-    cfg.data_root = args.data_dir
+    # Set the list of classes in the dataset
+    ann_file = os.path.join(args.data_dir, 'train', 'labels.json')
+    with open(ann_file, 'r') as f:
+        coco_data = json.load(f)
+    categories = coco_data['categories']
+    class_names_ = [category['name'] for category in categories]
+    class_names = tuple(class_names_)
+    cfg.classes = class_names       # TODO: remove lungs from the COCO dataset
 
-    # Modify num classes of the model in box head
+    # Set num classes of the model in box head
     try:
-        cfg.model.bbox_head.num_classes = len(CLASSES)
+        cfg.model.bbox_head.num_classes = len(class_names)
     except Exception:
-        cfg.model.roi_head.bbox_head.num_classes = len(CLASSES)
+        cfg.model.roi_head.bbox_head.num_classes = len(class_names)
 
-    # Modify anchor box ratios
+    # Set anchor box ratios
     try:
         cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
     except Exception as e:
         raise ValueError(e)     # TODO: set ratios if their location is different from cfg.model.rpn_head.anchor_generator
+
+    # Set dataset metadata
+    cfg.data_root = args.data_dir
+    cfg.dataset_type = args.dataset_type
 
     cfg.data.train.type = args.dataset_type
     cfg.data.train.classes = cfg.classes
@@ -227,20 +226,26 @@ def main():
     cfg.data.test.ann_file = os.path.join(args.data_dir, 'test', 'labels.json')
     cfg.data.test.img_prefix = os.path.join(args.data_dir, 'test', 'data')
 
+    # Set batch size and number of workers
     if args.batch_size is not None:
         cfg.data.samples_per_gpu = args.batch_size
 
     if args.num_workers is not None:
         cfg.data.workers_per_gpu = args.num_workers
 
+    # Set optimizer and learning rate
     cfg.evaluation.metric = 'bbox'
     cfg.optimizer.lr = 0.005
     cfg.lr_config.warmup = None
 
-    cfg.log_config.interval = 1  # Equal to batch_size
+    # Modify log interval (equal to batch_size)
+    cfg.log_config.interval = 1
 
-    cfg.evaluation.interval = 1  # Set the evaluation interval
-    cfg.checkpoint_config.interval = 1  # Set the checkpoint saving interval
+    # Set the evaluation interval
+    cfg.evaluation.interval = 1
+
+    # Set the checkpoint saving interval
+    cfg.checkpoint_config.interval = 1
 
     # Set seed thus the results are more reproducible
     if args.seed is not None:
@@ -482,13 +487,19 @@ def main():
         run_name = f'{cfg.model.type}_{timestamp}'
         mlflow.set_tag('mlflow.runName', run_name)
         ml_flow_logger['params'] = dict(
-            dataset_size=len(datasets[0].data_infos),
+            train_images=len(os.listdir(cfg.data.train.img_prefix)),
+            test_images=len(os.listdir(cfg.data.test.img_prefix)),
+            classes=model.CLASSES,
+            num_classes=len(model.CLASSES),
             model=cfg.model.type,
             backbone=cfg.model.backbone.type,
             img_size=cfg.data.train.pipeline[2].img_scale,
             batch_size=cfg.data.samples_per_gpu,
+            optimizer=cfg.optimizer.type,
+            lr=cfg.optimizer.lr,
             epochs=args.epochs,
             seed=cfg.seed,
+            use_augmentation=args.use_augmentation,
             device=cfg.device,
             cfg=cfg.filename,
         )
