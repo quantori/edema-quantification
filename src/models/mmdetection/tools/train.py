@@ -60,6 +60,8 @@ def parse_args():
     )
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
+    parser.add_argument('--optimizer', type=str, default='Adam', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'], help='optimizer')
+    parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
     parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
     parser.add_argument(
         '--num-workers',
@@ -67,7 +69,7 @@ def parse_args():
         default=None,
         help='workers to pre-fetch data for each single GPU',
     )
-    parser.add_argument('--epochs', default=1, type=int, help='number of training epochs')
+    parser.add_argument('--epochs', default=20, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument(
         '--work-dir',
@@ -234,9 +236,54 @@ def main():
         cfg.data.workers_per_gpu = args.num_workers
 
     # Set optimizer and learning rate
+    if args.optimizer == 'SGD':
+        cfg.optimizer = dict(
+            type='SGD',
+            lr=args.lr,
+            momentum=0.9,
+            weight_decay=0.0001,
+        )
+    elif args.optimizer == 'RMSprop':
+        cfg.optimizer = dict(
+            type='RMSprop',
+            lr=args.lr,
+            alpha=0.99,
+            eps=1e-08,
+            weight_decay=0,
+            momentum=0,
+        )
+    elif args.optimizer == 'Adam':
+        cfg.optimizer = dict(
+            type='Adam',
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0.0001,
+        )
+    elif args.optimizer == 'RAdam':
+        cfg.optimizer = dict(
+            type='RAdam',
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0.0001,
+        )
+    else:
+        raise ValueError(f'Unknown optimizer: {args.optimizer}')
+
+    # Set learning rate scheme
+    cfg.lr_config = dict(
+        policy='CosineAnnealing',
+        warmup='linear',
+        # warmup_iters=8,
+        warmup_ratio=0.2,
+        min_lr_ratio=args.lr / 100,
+        by_epoch=True,
+        verbose=True,
+    )
+
+    # Set the evaluation metric
     cfg.evaluation.metric = 'bbox'
-    cfg.optimizer.lr = 0.005
-    cfg.lr_config.warmup = None
 
     # Modify log interval (equal to batch_size)
     cfg.log_config.interval = 1
@@ -252,8 +299,13 @@ def main():
         cfg.seed = args.seed
         set_random_seed(args.seed, deterministic=False)
 
-    cfg.runner.max_epochs = args.epochs
+    # Set training by epoch
     cfg.total_epochs = args.epochs
+    cfg.runner = dict(
+        type='EpochBasedRunner',
+        max_epochs=args.epochs,
+    )
+    cfg.workflow = [('train', 1), ('val', 1)]
 
     # Augmentation settings
     # Docs: https://mmdetection.readthedocs.io/en/v2.15.1/api.html
