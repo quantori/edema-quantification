@@ -433,7 +433,7 @@ def main():
         torch.backends.cudnn.benchmark = True
 
     # work_dir is determined in this priority: CLI > segment in file > filename
-    timestamp = time.strftime('%H%M%S_%d%m%y', time.localtime())
+    timestamp = time.strftime('%d%m_%H%M%S', time.localtime())
     if args.work_dir is not None:
         # update configs according to CLI args if args.work_dir is not None
         cfg.work_dir = osp.join(args.work_dir, f'{cfg.model.type}_{timestamp}')
