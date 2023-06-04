@@ -144,9 +144,9 @@ if __name__ == '__main__':
         src_dirs=os.path.join(test_dir, 'data'),
         ext_list='.png',
     )
-    img_paths = img_paths[:3]
+    # img_paths = img_paths[:3]
     model = FeatureDetector(
-        model_dir='models/sign_detection/VFNet',
+        model_dir='models/feature_detection/FasterRCNN',
         conf_threshold=0.01,
         device='auto',
     )
