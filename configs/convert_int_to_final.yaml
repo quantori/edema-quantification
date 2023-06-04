@@ -9,12 +9,12 @@ enable_resizing: true
 enable_padding: true
 output_size: [1536, 1536]       # output_size is only used if enable_cropping = true
 box_extension:                  # feature name: [left (x1), top (y1), right (x2), bottom (y2)]
-  Cephalization: [0, 0, 0, 0]
+  Cephalization: [20, 0, 20, 0]
   Artery: [0, 0, 0, 0]
   Heart: [0, 0, 0, 0]
-  Kerley: [0, 5, 0, 5]
+  Kerley: [10, 15, 10, 15]
   Bronchus: [0, 0, 0, 0]
-  Effusion: [0, 0, 0, 0]
+  Effusion: [0, 25, 0, 25]
   Bat: [0, 0, 0, 0]
   Infiltrate: [0, 0, 0, 0]
   Cuffing: [0, 0, 0, 0]

@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from typing import List, Tuple, Union
 
@@ -150,6 +151,40 @@ def modify_box_geometry(
     return df
 
 
+def get_unique_hashes(
+    data_list: List[str],
+) -> List[str]:
+    hashes = []
+
+    for i, item in enumerate(data_list):
+        # Create a unique identifier by combining the list element and its index
+        identifier = str(item) + str(i)
+
+        # Generate the hash value using the SHA-256 algorithm
+        hash_value = hashlib.sha256(identifier.encode()).hexdigest()
+
+        # Truncate the hash value to 16 alphanumeric characters
+        truncated_hash = hash_value[:16]
+
+        # Append the truncated hash value to the list
+        hashes.append(truncated_hash)
+
+    return hashes
+
+
+def find_dropped_elements(
+    source_list: List,
+    processed_list: List,
+) -> List[int]:
+    dropped_indices = []
+
+    for i, element in enumerate(source_list):
+        if element not in processed_list:
+            dropped_indices.append(i)
+
+    return dropped_indices
+
+
 def crop_image(
     img: np.ndarray,
     bboxes: List[List[Union[int, float]]],
@@ -158,7 +193,9 @@ def crop_image(
     y1: int,
     x2: int,
     y2: int,
-) -> Tuple[np.ndarray, List[List[Union[int, float]]], List[str]]:
+) -> Tuple[np.ndarray, List[List[Union[int, float]]], List[str], List[int]]:
+    hashes = get_unique_hashes(features)
+
     transform = A.Compose(
         [
             A.Crop(
@@ -173,7 +210,7 @@ def crop_image(
             format='pascal_voc',
             min_area=0,
             min_visibility=0,
-            label_fields=['class_labels'],
+            label_fields=['class_labels', 'class_categories'],
         ),
     )
 
@@ -181,12 +218,19 @@ def crop_image(
         image=img,
         bboxes=bboxes,
         class_labels=features,
+        class_categories=hashes,
     )
     img_trans = trans['image']
     bboxes_trans = trans['bboxes']
     features_trans = trans['class_labels']
+    hashes_trans = trans['class_categories']
 
-    return img_trans, bboxes_trans, features_trans
+    drop_idx = find_dropped_elements(
+        source_list=hashes,
+        processed_list=hashes_trans,
+    )
+
+    return img_trans, bboxes_trans, features_trans, drop_idx
 
 
 def resize_image(

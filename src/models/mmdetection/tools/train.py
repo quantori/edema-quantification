@@ -1,6 +1,7 @@
 import argparse
 import copy
 import os
+import json
 import os.path as osp
 import time
 import warnings
@@ -32,7 +33,22 @@ def parse_args():
     parser.add_argument(
         '--config',
         type=str,
-        default='src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',
+        choices=[
+            'src/models/mmdetection/configs/vfnet/vfnet_x101_64x4d_fpn_mdconv_c3-c5_mstrain_2x_coco.py',
+            'src/models/mmdetection/configs/tood/tood_r101_fpn_dconv_c3-c5_mstrain_2x_coco.py',
+            'src/models/mmdetection/configs/gfl/gfl_x101_32x4d_fpn_dconv_c4-c5_mstrain_2x_coco.py',
+            'src/models/mmdetection/configs/paa/paa_r101_fpn_mstrain_3x_coco.py',
+            'src/models/mmdetection/configs/guided_anchoring/ga_faster_x101_64x4d_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/sabl/sabl_retinanet_r101_fpn_gn_2x_ms_480_960_coco.py',
+            'src/models/mmdetection/configs/grid_rcnn/grid_rcnn_x101_64x4d_fpn_gn-head_2x_coco.py',
+            'src/models/mmdetection/configs/libra_rcnn/libra_faster_rcnn_x101_64x4d_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/fcos/fcos_x101_64x4d_fpn_gn-head_mstrain_640-800_2x_coco.py',
+            'src/models/mmdetection/configs/faster_rcnn/faster_rcnn_x101_64x4d_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/fsaf/fsaf_x101_64x4d_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/cascade_rpn/crpn_faster_rcnn_r50_caffe_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/atss/atss_r101_fpn_1x_coco.py',
+            'src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py',    # For use in debug and dev
+        ],
         help='path to a train config file',
     )
     parser.add_argument(
@@ -53,17 +69,23 @@ def parse_args():
         help='whether to exclude the empty GT images',
     )
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
+    parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
+    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'],
+                        help='optimizer')
+    parser.add_argument('--lr', type=float, default=0.1, help='optimizer learning rate')
+    parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0],
+                        help='anchor box ratios')
     parser.add_argument(
         '--num-workers',
         type=int,
         default=None,
         help='workers to pre-fetch data for each single GPU',
     )
-    parser.add_argument('--epochs', default=1, type=int, help='number of training epochs')
+    parser.add_argument('--epochs', default=20, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument(
         '--work-dir',
-        default='models/sign_detection',
+        default='models/feature_detection',
         help='the dir to save logs and models',
     )
     parser.add_argument(
@@ -85,14 +107,14 @@ def parse_args():
         '--gpus',
         type=int,
         help='(Deprecated, please use --gpu-id) number of gpus to use '
-        '(only applicable to non-distributed training)',
+             '(only applicable to non-distributed training)',
     )
     group_gpus.add_argument(
         '--gpu-ids',
         type=int,
         nargs='+',
         help='(Deprecated, please use --gpu-id) ids of gpus to use '
-        '(only applicable to non-distributed training)',
+             '(only applicable to non-distributed training)',
     )
     group_gpus.add_argument(
         '--gpu-id',
@@ -115,19 +137,19 @@ def parse_args():
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file (deprecate), '
-        'change to --cfg-options instead.',
+             'in xxx=yyy format will be merged into config file (deprecate), '
+             'change to --cfg-options instead.',
     )
     parser.add_argument(
         '--cfg-options',
         nargs='+',
         action=DictAction,
         help='override some settings in the used config, the key-value pair '
-        'in xxx=yyy format will be merged into config file. If the value to '
-        'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
-        'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
-        'Note that the quotation marks are necessary and that no white space '
-        'is allowed.',
+             'in xxx=yyy format will be merged into config file. If the value to '
+             'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
+             'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
+             'Note that the quotation marks are necessary and that no white space '
+             'is allowed.',
     )
     parser.add_argument(
         '--launcher',
@@ -177,26 +199,31 @@ def main():
         cfg.merge_from_dict(args.cfg_options)
 
     # ------------------------------------------------- CUSTOM CONFIG --------------------------------------------------
-    CLASSES = (
-        'Cephalization',
-        'Heart',
-        'Artery',
-        'Bronchus',
-        'Kerley',
-        'Cuffing',
-        'Effusion',
-        'Bat',
-        'Infiltrate',
-    )
-    cfg.classes = CLASSES
-    cfg.dataset_type = args.dataset_type
-    cfg.data_root = args.data_dir
+    # Set the list of classes in the dataset
+    ann_file = os.path.join(args.data_dir, 'train', 'labels.json')
+    with open(ann_file, 'r') as f:
+        coco_data = json.load(f)
+    categories = coco_data['categories']
+    class_names_ = [category['name'] for category in categories]
+    class_names = tuple(class_names_)
+    cfg.classes = class_names
 
-    # Modify num classes of the model in box head
+    # Set num classes of the model in box head
     try:
-        cfg.model.bbox_head.num_classes = len(CLASSES)
+        cfg.model.bbox_head.num_classes = len(class_names)
     except Exception:
-        cfg.model.roi_head.bbox_head.num_classes = len(CLASSES)
+        cfg.model.roi_head.bbox_head.num_classes = len(class_names)
+
+    # Set anchor box ratios
+    # TODO: set ratios if their location is different from cfg.model.rpn_head.anchor_generator
+    try:
+        cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
+    except Exception as e:
+        raise ValueError(e)
+
+    # Set dataset metadata
+    cfg.data_root = args.data_dir
+    cfg.dataset_type = args.dataset_type
 
     cfg.data.train.type = args.dataset_type
     cfg.data.train.classes = cfg.classes
@@ -214,28 +241,84 @@ def main():
     cfg.data.test.ann_file = os.path.join(args.data_dir, 'test', 'labels.json')
     cfg.data.test.img_prefix = os.path.join(args.data_dir, 'test', 'data')
 
+    # Set batch size and number of workers
     if args.batch_size is not None:
         cfg.data.samples_per_gpu = args.batch_size
 
     if args.num_workers is not None:
         cfg.data.workers_per_gpu = args.num_workers
 
+    # Set optimizer and learning rate
+    if args.optimizer == 'SGD':
+        cfg.optimizer = dict(
+            type='SGD',
+            lr=args.lr,
+            momentum=0.9,
+            weight_decay=0.0001,
+        )
+    elif args.optimizer == 'RMSprop':
+        cfg.optimizer = dict(
+            type='RMSprop',
+            lr=args.lr,
+            alpha=0.99,
+            eps=1e-08,
+            weight_decay=0,
+            momentum=0,
+        )
+    elif args.optimizer == 'Adam':
+        cfg.optimizer = dict(
+            type='Adam',
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0.0001,
+        )
+    elif args.optimizer == 'RAdam':
+        cfg.optimizer = dict(
+            type='RAdam',
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0.0001,
+        )
+    else:
+        raise ValueError(f'Unknown optimizer: {args.optimizer}')
+
+    # Set learning rate scheme
+    # https://github.com/open-mmlab/mmcv/blob/master/mmcv/runner/hooks/lr_updater.py
+    cfg.lr_config = dict(
+        policy='CosineAnnealing',
+        warmup='linear',
+        warmup_iters=int(0.25 * args.epochs),
+        warmup_ratio=0.1,
+        min_lr=args.lr / 100,
+        warmup_by_epoch=True,
+        by_epoch=True,
+    )
+
+    # Set the evaluation metric
     cfg.evaluation.metric = 'bbox'
-    cfg.optimizer.lr = 0.02 / 8  # The original learning rate is set for 8-GPU training.
-    cfg.lr_config.warmup = None
 
-    cfg.log_config.interval = 1  # Equal to batch_size
+    # Modify log interval (equal to batch_size)
+    cfg.log_config.interval = 1
 
-    cfg.evaluation.interval = 1  # Set the evaluation interval
-    cfg.checkpoint_config.interval = 1  # Set the checkpoint saving interval
+    # Set the evaluation interval
+    cfg.evaluation.interval = 1
+
+    # Set the checkpoint saving interval
+    cfg.checkpoint_config.interval = 1
 
     # Set seed thus the results are more reproducible
     if args.seed is not None:
         cfg.seed = args.seed
         set_random_seed(args.seed, deterministic=False)
 
-    cfg.runner.max_epochs = args.epochs
+    # Set training by epoch
     cfg.total_epochs = args.epochs
+    cfg.runner = dict(
+        type='EpochBasedRunner',
+        max_epochs=args.epochs,
+    )
 
     # Augmentation settings
     # Docs: https://mmdetection.readthedocs.io/en/v2.15.1/api.html
@@ -253,7 +336,7 @@ def main():
                 type='Resize',
                 img_scale=cfg.data.train.pipeline[2].img_scale,
                 multiscale_mode='range',
-                ratio_range=[0.8, 1],
+                ratio_range=[0.75, 1],
                 keep_ratio=True,
                 bbox_clip_border=True,
             ),
@@ -313,15 +396,26 @@ def main():
             ),
         ]
 
-    # Final config used for training
+    for pipeline in [
+        cfg.data.train.pipeline,
+        cfg.data.val.pipeline,
+        cfg.data.test.pipeline,
+        cfg.train_pipeline,
+        cfg.test_pipeline,
+    ]:
+        for step in pipeline:
+            if 'img_scale' in step:
+                step['img_scale'] = tuple(args.img_size)
+
+    # Final config used for training and testing
     print(f'Config:\n{cfg.pretty_text}')
     # ------------------------------------------------------------------------------------------------------------------
 
     if args.auto_scale_lr:
         if (
-            'auto_scale_lr' in cfg
-            and 'enable' in cfg.auto_scale_lr
-            and 'base_batch_size' in cfg.auto_scale_lr
+                'auto_scale_lr' in cfg
+                and 'enable' in cfg.auto_scale_lr
+                and 'base_batch_size' in cfg.auto_scale_lr
         ):
             cfg.auto_scale_lr.enable = True
         else:
@@ -341,7 +435,7 @@ def main():
         torch.backends.cudnn.benchmark = True
 
     # work_dir is determined in this priority: CLI > segment in file > filename
-    timestamp = time.strftime('%H%M%S_%d%m%y', time.localtime())
+    timestamp = time.strftime('%d%m_%H%M%S', time.localtime())
     if args.work_dir is not None:
         # update configs according to CLI args if args.work_dir is not None
         cfg.work_dir = osp.join(args.work_dir, f'{cfg.model.type}_{timestamp}')
@@ -458,13 +552,19 @@ def main():
         run_name = f'{cfg.model.type}_{timestamp}'
         mlflow.set_tag('mlflow.runName', run_name)
         ml_flow_logger['params'] = dict(
-            dataset_size=len(datasets[0].data_infos),
+            train_images=len(os.listdir(cfg.data.train.img_prefix)),
+            test_images=len(os.listdir(cfg.data.test.img_prefix)),
+            classes=model.CLASSES,
+            num_classes=len(model.CLASSES),
             model=cfg.model.type,
             backbone=cfg.model.backbone.type,
             img_size=cfg.data.train.pipeline[2].img_scale,
             batch_size=cfg.data.samples_per_gpu,
+            optimizer=cfg.optimizer.type,
+            lr=cfg.optimizer.lr,
             epochs=args.epochs,
             seed=cfg.seed,
+            use_augmentation=args.use_augmentation,
             device=cfg.device,
             cfg=cfg.filename,
         )
