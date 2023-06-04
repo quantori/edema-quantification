@@ -2,10 +2,9 @@ import json
 import logging
 import os
 
+import hydra
 import numpy as np
 import pandas as pd
-
-import hydra
 from omegaconf import DictConfig, OmegaConf
 
 log = logging.getLogger(__name__)
