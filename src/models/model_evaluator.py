@@ -1,8 +1,7 @@
-import json
-import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
+import fiftyone as fo
 import pandas as pd
 from tqdm import tqdm
 
@@ -12,18 +11,27 @@ class ModelEvaluator:
 
     def __init__(
         self,
-        save_dir: str,
+        iou_thresh: float = 0.5,
+        confidence_thresh: float = 0.01,
     ) -> None:
-        self.save_dir = save_dir
+        assert 0 <= iou_thresh <= 1, 'iou_thresh must lie within [0, 1]'
+        assert 0 <= confidence_thresh <= 1, 'confidence_thresh must lie within [0, 1]'
+        self.confidence_thresh = confidence_thresh
+        self.iou_thresh = iou_thresh
 
     def combine_data(
         self,
         gt_path: str,
         pred_path: str,
+        exclude_features: List[str] = None,
     ) -> Dict[str, Any]:
         # Read the ground truth and the predicted data
         df_gt = pd.read_excel(gt_path)
         df_pred = pd.read_excel(pred_path)
+        df_pred = df_pred[df_pred['Confidence'] >= self.confidence_thresh]
+        if exclude_features is not None:
+            df_gt = df_gt[~df_gt['Feature'].isin(exclude_features)]
+            df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
 
         # Initialization of the fiftyone dataset
         dataset = dict(
@@ -95,33 +103,67 @@ class ModelEvaluator:
             detections.append(det)
         return detections
 
-    def save_detections(
-        self,
-        detections: Dict[str, Any],
-        save_name: str,
-    ) -> str:
-        os.makedirs(self.save_dir, exist_ok=True)
-        save_path = os.path.join(self.save_dir, save_name)
-        with open(save_path, 'w') as file:
-            json.dump(detections, file)
-
-        return save_path
-
     def evaluate(
         self,
-        json_path: str,
-    ):
-        pass
+        detections: Dict[str, Any],
+        top_class_count: int = 7,
+    ) -> Tuple[int, int, int]:
+        # Create dataset
+        dataset = fo.Dataset(
+            name=None,
+            persistent=False,
+            overwrite=True,
+        )
+        dataset = dataset.from_dict(detections)
+
+        results = dataset.evaluate_detections(
+            pred_field='predictions',
+            gt_field='ground_truth',
+            eval_key='eval',
+            iou=self.iou_thresh,
+        )
+
+        counts = dataset.count_values('ground_truth.detections.label')
+        classes = sorted(counts, key=counts.get, reverse=True)[:top_class_count]
+        results.print_report(classes=classes)
+
+        tp = dataset.sum('eval_tp')
+        fp = dataset.sum('eval_fp')
+        fn = dataset.sum('eval_fn')
+        print(f'TP: {tp}')
+        print(f'FP: {fp}')
+        print(f'FN: {fn}')
+
+        return tp, fp, fn
+
+    def visualize(
+        self,
+        detections: Dict[str, Any],
+    ) -> None:
+        # Create dataset
+        dataset = fo.Dataset(
+            name=None,
+            persistent=False,
+            overwrite=True,
+        )
+        dataset = dataset.from_dict(detections)
+
+        # Visualize dataset
+        session = fo.launch_app(dataset=dataset)
+        session.wait()
+        dataset.delete()
 
 
 if __name__ == '__main__':
-    evaluator = ModelEvaluator(save_dir='data/eval')
-    detections = evaluator.combine_data(
+    evaluator = ModelEvaluator(
+        iou_thresh=0.5,
+        confidence_thresh=0.5,
+    )
+    dets = evaluator.combine_data(
         gt_path='data/coco/test_demo/labels.xlsx',
         pred_path='data/coco/test_demo/predictions.xlsx',
+        exclude_features=None,
     )
-    save_path = evaluator.save_detections(
-        detections=detections,
-        save_name='datections_test.json',
-    )
+    tp, fp, fn = evaluator.evaluate(detections=dets)
+    evaluator.visualize(detections=dets)
     print('Complete')
