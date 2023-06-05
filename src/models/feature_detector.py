@@ -93,6 +93,9 @@ class FeatureDetector:
             'y1',
             'x2',
             'y2',
+            'Box width',
+            'Box height',
+            'Box area',
             'Feature ID',
             'Feature',
             'Confidence',
@@ -130,8 +133,8 @@ class FeatureDetector:
         df['Box width'] = abs(df.x2 - df.x1 + 1)
         df['Box height'] = abs(df.y2 - df.y1 + 1)
         df['Box area'] = df['Box width'] * df['Box height']
-        # df['bbox'] = [df.x1, df.y1, df.width, df.height]
 
+        df.dropna(subset=['x1', 'x2', 'y1', 'y2', 'Confidence'], inplace=True)
         df.sort_values('Image path', inplace=True)
         df.reset_index(drop=True, inplace=True)
 
@@ -139,23 +142,23 @@ class FeatureDetector:
 
 
 if __name__ == '__main__':
-    test_dir = 'data/coco/test/'
+    test_dir = 'data/coco/test_demo/'
     img_paths = get_file_list(
         src_dirs=os.path.join(test_dir, 'data'),
         ext_list='.png',
     )
-    # img_paths = img_paths[:3]
+    # img_paths = img_paths[:20]
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN',
+        model_dir='models/feature_detection/FasterRCNN_0206_102457',
         conf_threshold=0.01,
         device='auto',
     )
     dets = model(img_paths)
-    res_det = model.process_detections(
+    df_dets = model.process_detections(
         img_paths=img_paths,
         detections=dets,
     )
-    res_det.to_excel(
+    df_dets.to_excel(
         os.path.join(test_dir, 'predictions.xlsx'),
         sheet_name='Detections',
         index=True,
