@@ -1,3 +1,5 @@
+import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -93,6 +95,18 @@ class ModelEvaluator:
             detections.append(det)
         return detections
 
+    def save_detections(
+        self,
+        detections: Dict[str, Any],
+        save_name: str,
+    ) -> str:
+        os.makedirs(self.save_dir, exist_ok=True)
+        save_path = os.path.join(self.save_dir, save_name)
+        with open(save_path, 'w') as file:
+            json.dump(detections, file)
+
+        return save_path
+
     def evaluate(
         self,
         json_path: str,
@@ -101,9 +115,13 @@ class ModelEvaluator:
 
 
 if __name__ == '__main__':
-    evaluator = ModelEvaluator(save_dir='data/coco/test_demo')
-    b = evaluator.combine_data(
+    evaluator = ModelEvaluator(save_dir='data/eval')
+    detections = evaluator.combine_data(
         gt_path='data/coco/test_demo/labels.xlsx',
         pred_path='data/coco/test_demo/predictions.xlsx',
     )
-    print(b)
+    save_path = evaluator.save_detections(
+        detections=detections,
+        save_name='datections_test.json',
+    )
+    print('Complete')
