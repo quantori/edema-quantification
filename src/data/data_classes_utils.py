@@ -25,7 +25,7 @@ IMAGE_DTYPE = torch.float32
 MASK_DTYPE = np.float32
 TENSOR_DTYPE = torch.float32
 # all relevant edema findings for which masks will be prepared subsequently
-EDEMA_FINDINGS = [k for k in FEATURE_MAP.keys() if k != 'Heart']
+EDEMA_FINDINGS = [k for k in FEATURE_MAP if k != 'Heart' if k != 'Lungs']
 
 
 def parse_coord_string(coord_string: str) -> np.ndarray:
@@ -43,7 +43,13 @@ def extract_annotations(group_df: pd.DataFrame) -> Dict[str, Union[DefaultDict[A
         annotations: dict with processed annotation data for a given image
     """
     # for "No edema" class there are no findings
-    if group_df['Feature'].isna().all():
+    # if group_df['Feature'].isna().all():
+    if (
+        _is_unique(group_df['Class'])
+        and group_df['Class'].iloc[0] == 'No edema'
+        and _is_unique(group_df['Feature'])
+        and group_df['Feature'].iloc[0] == 'Heart'
+    ):
         return {'No_findings': None}
 
     # for other classes we create dict with finding_name as a key
@@ -94,8 +100,10 @@ def make_masks(
         finding_mask = Image.new(mode='1', size=(width, height), color=default_mask_value)
 
         if finding in annotations.keys():
-            # for "No edema" class without findings we do nothing and proceed with default mask
+            drawn = False  # flag for including feature class into labels
+            # for "No edema" class without findings we do nothing and proceed with the default mask
             if annotations[finding] is None:
+                drawn = True
                 pass
 
             # draw finding mask represented by polygons
@@ -104,14 +112,23 @@ def make_masks(
 
                 for point_array in annotations[finding]['polygons']:
                     # for line-like findings we draw lines with default width of 15px
-                    if finding in ('Kerley', 'Cephalization'):
+                    if (
+                        finding in ('Kerley', 'Cephalization')
+                        and np.amax(point_array, axis=0)[0] < width
+                        and np.amax(point_array, axis=0)[1] < height
+                    ):
                         draw.line(
                             point_array.flatten().tolist(),
                             fill=0,
                             width=linelike_finding_width,
                         )
-                    else:
+                        drawn = True
+                    elif (
+                        np.amax(point_array, axis=0)[0] < width
+                        and np.amax(point_array, axis=0)[1] < height
+                    ):
                         draw.polygon(point_array.flatten().tolist(), fill=0, outline=0)
+                        drawn = True
 
             # draw finding mask represented by bitmaps
             elif annotations[finding]['bitmaps']:
@@ -120,17 +137,28 @@ def make_masks(
                     bitmap_mask = Image.fromarray(bitmap_array).convert('1')
                     inverted_bitmap_mask = ImageOps.invert(bitmap_mask)
 
+                    if bitmap['x1'] < width and bitmap['y1'] < height:
+                        drawn = True
                     finding_mask.paste(inverted_bitmap_mask, box=(bitmap['x1'], bitmap['y1']))
 
             else:
                 raise RuntimeError('neither polygon nor mask data is present in the metadata')
 
             masks.append(np.array(finding_mask, dtype=MASK_DTYPE))
-            findings.append(1)
+            if drawn:
+                findings.append(1)
+            else:
+                findings.append(0)
 
         else:
-            masks.append(np.array(finding_mask, dtype=MASK_DTYPE))
-            findings.append(0)
+            # Make masks == 1 for non 'No_findings' features
+            if list(annotations.keys())[0] == 'No_findings':
+                finding_mask = Image.new(mode='1', size=(width, height), color=1)
+                masks.append(np.array(finding_mask, dtype=MASK_DTYPE))
+                findings.append(0)
+            else:
+                masks.append(np.array(finding_mask, dtype=MASK_DTYPE))
+                findings.append(0)
 
     return masks, findings, default_mask_value
 
@@ -332,6 +360,11 @@ def split_dataset(
     test_subset = Subset(dataset, test_indices)
 
     return train_subset, test_subset
+
+
+def _is_unique(s: pd.Series) -> bool:
+    a = s.to_numpy()
+    return (a[0] == a).all()
 
 
 # if __name__ == '__main__':

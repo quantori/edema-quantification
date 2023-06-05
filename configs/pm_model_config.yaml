@@ -10,8 +10,8 @@ num_warm_epochs: 10
 push_start: 10
 num_last_epochs: 10
 push_epochs: [10, 20, 30, 40]
-img_size: 1400
-num_cpu: 4
+img_size: 2000
+num_cpu: 6
 batch_size: 4
 lr: 1e-3
 fine_cost_weight: 0.001
