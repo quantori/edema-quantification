@@ -23,13 +23,13 @@ class ModelEvaluator:
         self,
         gt_path: str,
         pred_path: str,
-        exclude_features: List[str] = None,
+        exclude_features: List[str],
     ) -> Dict[str, Any]:
         # Read ground truth and predictions
         df_gt = pd.read_excel(gt_path)
         df_pred = pd.read_excel(pred_path)
         df_pred = df_pred[df_pred['Confidence'] >= self.confidence_thresh]
-        if exclude_features is not None:
+        if len(exclude_features) > 0:
             df_gt = df_gt[~df_gt['Feature'].isin(exclude_features)]
             df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
 
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     dets = evaluator.combine_data(
         gt_path='data/coco/test_demo/labels.xlsx',
         pred_path='data/coco/test_demo/predictions.xlsx',
-        exclude_features=None,
+        exclude_features=[],
     )
     tp, fp, fn = evaluator.evaluate(detections=dets)
     evaluator.visualize(detections=dets)
