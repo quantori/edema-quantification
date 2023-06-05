@@ -216,10 +216,26 @@ def main():
 
     # Set anchor box ratios
     # TODO: set ratios if their location is different from cfg.model.rpn_head.anchor_generator
+
     try:
+        # grid_rcnn libra_rcnn faster_rcnn
         cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
     except Exception as e:
-        raise ValueError(e)
+        try:
+            # tood gfl paa fsaf atss
+            cfg.model.bbox_head.anchor_generator['ratios'] = args.ratios
+        except Exception as e:
+            try:
+                # guided_anchoring sabl
+                cfg.model.rpn_head.approx_anchor_generator['ratios'] = args.ratios
+                cfg.model.rpn_head.square_anchor_generator['ratios'] = args.ratios
+            except Exception as e:
+                try:
+                    # cascade_rpn
+                    cfg.model.rpn_head.stages[0].anchor_generator['ratios'] = args.ratios
+                except Exception as e:
+                    # vfnet fcos - ?
+                    raise ValueError(e)
 
     # Set dataset metadata
     cfg.data_root = args.data_dir
