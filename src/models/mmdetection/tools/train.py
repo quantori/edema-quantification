@@ -70,9 +70,9 @@ def parse_args():
     )
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
-    parser.add_argument('--optimizer', type=str, default='Adam', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'],
+    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'],
                         help='optimizer')
-    parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
+    parser.add_argument('--lr', type=float, default=0.1, help='optimizer learning rate')
     parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0],
                         help='anchor box ratios')
     parser.add_argument(
@@ -285,12 +285,14 @@ def main():
         raise ValueError(f'Unknown optimizer: {args.optimizer}')
 
     # Set learning rate scheme
+    # https://github.com/open-mmlab/mmcv/blob/master/mmcv/runner/hooks/lr_updater.py
     cfg.lr_config = dict(
         policy='CosineAnnealing',
         warmup='linear',
-        warmup_iters=int(0.2 * args.epochs),
-        warmup_ratio=0.2,
-        min_lr_ratio=args.lr / 100,
+        warmup_iters=int(0.25 * args.epochs),
+        warmup_ratio=0.1,
+        min_lr=args.lr / 100,
+        warmup_by_epoch=True,
         by_epoch=True,
     )
 

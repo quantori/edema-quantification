@@ -85,17 +85,20 @@ class FeatureDetector:
         detections: List[List[np.ndarray]],
     ) -> pd.DataFrame:
         columns = [
-            'img_path',
-            'img_name',
-            'img_height',
-            'img_width',
+            'Image path',
+            'Image name',
+            'Image height',
+            'Image width',
             'x1',
             'y1',
             'x2',
             'y2',
-            'class_id',
-            'class',
-            'confidence',
+            'Box width',
+            'Box height',
+            'Box area',
+            'Feature ID',
+            'Feature',
+            'Confidence',
         ]
 
         # Iterate over images
@@ -111,40 +114,52 @@ class FeatureDetector:
 
                 # Iterate over boxes on a single image
                 df_ = pd.DataFrame(index=range(num_detections), columns=columns)
-                df_['img_path'] = img_path
-                df_['img_name'] = Path(img_path).name
-                df_['img_height'] = img_height
-                df_['img_width'] = img_width
+                df_['Image path'] = img_path
+                df_['Image name'] = Path(img_path).name
+                df_['Image height'] = img_height
+                df_['Image width'] = img_width
                 for idx, box in enumerate(detections_class):
                     # box -> array(x_min, y_min, x_max, y_max, confidence)
                     df_.at[idx, 'x1'] = int(box[0])
                     df_.at[idx, 'y1'] = int(box[1])
                     df_.at[idx, 'x2'] = int(box[2])
                     df_.at[idx, 'y2'] = int(box[3])
-                    df_.at[idx, 'class_id'] = class_idx
-                    df_.at[idx, 'class'] = self.classes[class_idx]
-                    df_.at[idx, 'confidence'] = box[4]
+                    df_.at[idx, 'Feature ID'] = class_idx + 1
+                    df_.at[idx, 'Feature'] = self.classes[class_idx]
+                    df_.at[idx, 'Confidence'] = box[4]
+
                 df = pd.concat([df, df_])
 
-        df.sort_values('img_path', inplace=True)
+        df['Box width'] = abs(df.x2 - df.x1 + 1)
+        df['Box height'] = abs(df.y2 - df.y1 + 1)
+        df['Box area'] = df['Box width'] * df['Box height']
+
+        df.dropna(subset=['x1', 'x2', 'y1', 'y2', 'Confidence'], inplace=True)
+        df.sort_values('Image path', inplace=True)
         df.reset_index(drop=True, inplace=True)
 
         return df
 
 
 if __name__ == '__main__':
-    img_paths = ['data/demo/input/10000032_50414267.png']
-    save_dir = 'data/demo/output/detection'
+    test_dir = 'data/coco/test_demo/'
+    img_paths = get_file_list(
+        src_dirs=os.path.join(test_dir, 'data'),
+        ext_list='.png',
+    )
+    # img_paths = img_paths[:20]
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN_014121_110323',
+        model_dir='models/feature_detection/FasterRCNN_0206_102457',
         conf_threshold=0.01,
         device='auto',
     )
     dets = model(img_paths)
-    res_det = model.process_detections(img_paths=img_paths, detections=dets)
-    os.makedirs(save_dir, exist_ok=True)
-    res_det.to_excel(
-        os.path.join(save_dir, f'{model.config_name}.xlsx'),
+    df_dets = model.process_detections(
+        img_paths=img_paths,
+        detections=dets,
+    )
+    df_dets.to_excel(
+        os.path.join(test_dir, 'predictions.xlsx'),
         sheet_name='Detections',
         index=True,
         index_label='ID',
