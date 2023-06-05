@@ -25,7 +25,7 @@ class ModelEvaluator:
         pred_path: str,
         exclude_features: List[str] = None,
     ) -> Dict[str, Any]:
-        # Read the ground truth and the predicted data
+        # Read ground truth and predictions
         df_gt = pd.read_excel(gt_path)
         df_pred = pd.read_excel(pred_path)
         df_pred = df_pred[df_pred['Confidence'] >= self.confidence_thresh]
@@ -106,7 +106,7 @@ class ModelEvaluator:
     def evaluate(
         self,
         detections: Dict[str, Any],
-        top_class_count: int = 7,
+        top_class_count: int = 10,
     ) -> Tuple[int, int, int]:
         # Create dataset
         dataset = fo.Dataset(
