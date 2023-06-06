@@ -129,8 +129,9 @@ class EdemaDataModule(LightningDataModule):
 
     def setup(self, stage):
         metadata_df = pd.read_excel(os.path.join(self.data_dir, 'metadata.xlsx'))
+        metadata_df_filtered = metadata_df[metadata_df['View'] == 'Frontal']
         edema_full = EdemaDataset(
-            metadata_df,
+            metadata_df_filtered,
             make_augmentation=self.make_augmentation,
             normalize_tensors=self.normalize_tensors,
             resize=self.resize,
