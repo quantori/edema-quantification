@@ -165,5 +165,6 @@ if __name__ == '__main__':
         exclude_features=[],
     )
     tp, fp, fn = evaluator.evaluate(detections=dets)
+    f1_score = tp / (tp + 0.5 * (fp + fn))
     evaluator.visualize(detections=dets)
     print('Complete')
