@@ -73,7 +73,7 @@ class ModelEvaluator:
                 ),
             )
 
-        dataset.update(dict(samples=samples))
+        dataset.update(dict(samples=samples))  # type: ignore
 
         return dataset
 

@@ -25,7 +25,7 @@ IMAGE_DTYPE = torch.float32
 MASK_DTYPE = np.float32
 TENSOR_DTYPE = torch.float32
 # all relevant edema findings for which masks will be prepared subsequently
-EDEMA_FINDINGS = [k for k in FEATURE_MAP if k != 'Heart' if k != 'Lungs']
+EDEMA_FINDINGS = [k for k in FEATURE_MAP if k not in ['Heart', 'Lungs']]
 
 
 def parse_coord_string(coord_string: str) -> np.ndarray:
@@ -100,10 +100,8 @@ def make_masks(
         finding_mask = Image.new(mode='1', size=(width, height), color=default_mask_value)
 
         if finding in annotations.keys():
-            drawn = False  # flag for including feature class into labels
             # for "No edema" class without findings we do nothing and proceed with the default mask
             if annotations[finding] is None:
-                drawn = True
                 pass
 
             # draw finding mask represented by polygons
@@ -112,23 +110,14 @@ def make_masks(
 
                 for point_array in annotations[finding]['polygons']:
                     # for line-like findings we draw lines with default width of 15px
-                    if (
-                        finding in ('Kerley', 'Cephalization')
-                        and np.amax(point_array, axis=0)[0] < width
-                        and np.amax(point_array, axis=0)[1] < height
-                    ):
+                    if finding in ('Kerley', 'Cephalization'):
                         draw.line(
                             point_array.flatten().tolist(),
                             fill=0,
                             width=linelike_finding_width,
                         )
-                        drawn = True
-                    elif (
-                        np.amax(point_array, axis=0)[0] < width
-                        and np.amax(point_array, axis=0)[1] < height
-                    ):
+                    else:
                         draw.polygon(point_array.flatten().tolist(), fill=0, outline=0)
-                        drawn = True
 
             # draw finding mask represented by bitmaps
             elif annotations[finding]['bitmaps']:
@@ -137,18 +126,13 @@ def make_masks(
                     bitmap_mask = Image.fromarray(bitmap_array).convert('1')
                     inverted_bitmap_mask = ImageOps.invert(bitmap_mask)
 
-                    if bitmap['x1'] < width and bitmap['y1'] < height:
-                        drawn = True
                     finding_mask.paste(inverted_bitmap_mask, box=(bitmap['x1'], bitmap['y1']))
 
             else:
                 raise RuntimeError('neither polygon nor mask data is present in the metadata')
 
             masks.append(np.array(finding_mask, dtype=MASK_DTYPE))
-            if drawn:
-                findings.append(1)
-            else:
-                findings.append(0)
+            findings.append(1)
 
         else:
             # Make masks == 1 for non 'No_findings' features
