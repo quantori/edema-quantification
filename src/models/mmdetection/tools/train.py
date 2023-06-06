@@ -5,6 +5,7 @@ import json
 import os.path as osp
 import time
 import warnings
+from pathlib import Path
 
 import mlflow
 import mmcv
@@ -215,11 +216,19 @@ def main():
         cfg.model.roi_head.bbox_head.num_classes = len(class_names)
 
     # Set anchor box ratios
-    # TODO: set ratios if their location is different from cfg.model.rpn_head.anchor_generator
-    try:
+    model_family = str(Path(args.config).parent.name)
+    if model_family in ['grid_rcnn', 'libra_rcnn', 'faster_rcnn']:
         cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
-    except Exception as e:
-        raise ValueError(e)
+    elif model_family in ['guided_anchoring']:
+        cfg.model.rpn_head.approx_anchor_generator['ratios'] = args.ratios
+    elif model_family in ['cascade_rpn']:
+        cfg.model.rpn_head.stages[0].anchor_generator['ratios'] = args.ratios
+    elif model_family in ['tood', 'gfl', 'paa', 'fsaf', 'atss']:
+        cfg.model.bbox_head.anchor_generator['ratios'] = args.ratios
+    elif model_family in ['sabl']:
+        cfg.model.bbox_head.approx_anchor_generator['ratios'] = args.ratios
+    else:
+        print(f'\n{cfg.model.type} will be using Default anchor_generator ratios\n')
 
     # Set dataset metadata
     cfg.data_root = args.data_dir
