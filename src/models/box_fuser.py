@@ -90,9 +90,6 @@ class BoxFuser:
 
             df_out = pd.concat([df_out, df_img_])
 
-        # TODO: check if output filtering is needed
-        # df_out = df_out[df_out['Confidence'] >= self.conf_threshold]
-
         return df_out
 
     @staticmethod
@@ -141,7 +138,7 @@ if __name__ == '__main__':
     # Create an instance of BoxFuser
     import os
 
-    test_dir = 'data/coco/test_demo'
+    test_dir = 'data/coco/test'
 
     box_fuser = BoxFuser(
         method='soft_nms',
