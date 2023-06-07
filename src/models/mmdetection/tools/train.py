@@ -52,87 +52,30 @@ def parse_args():
         ],
         help='path to a train config file',
     )
-    parser.add_argument(
-        '--data-dir',
-        type=str,
-        default='data/coco',
-        help='directory to the COCO dataset',
-    )
-    parser.add_argument(
-        '--dataset-type',
-        type=str,
-        default='CocoDataset',
-        help='type of the dataset',
-    )
-    parser.add_argument(
-        '--filter-empty-gt',
-        action='store_true',
-        help='whether to exclude the empty GT images',
-    )
+    parser.add_argument('--data-dir', type=str, default='data/coco', help='directory to the COCO dataset')
+    parser.add_argument('--dataset-type', type=str, default='CocoDataset', help='type of the dataset')
+    # ----------------------------------------------- CUSTOM ARGUMENTS -------------------------------------------------
+    parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
-    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'],
-                        help='optimizer')
+    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'], help='optimizer')
     parser.add_argument('--lr', type=float, default=0.1, help='optimizer learning rate')
-    parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0],
-                        help='anchor box ratios')
-    parser.add_argument(
-        '--num-workers',
-        type=int,
-        default=None,
-        help='workers to pre-fetch data for each single GPU',
-    )
+    parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
+    parser.add_argument('--use-augmentation', action='store_true', help='use augmentation for the train dataset')
     parser.add_argument('--epochs', default=20, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
-    parser.add_argument(
-        '--work-dir',
-        default='models/feature_detection',
-        help='the dir to save logs and models',
-    )
-    parser.add_argument(
-        '--resume-from',
-        help='the checkpoint file to resume from',
-    )
-    parser.add_argument(
-        '--auto-resume',
-        action='store_true',
-        help='resume from the latest checkpoint automatically',
-    )
-    parser.add_argument(
-        '--no-validate',
-        action='store_true',
-        help='whether not to evaluate the checkpoint during training',
-    )
+    parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
+    # ------------------------------------------------------------------------------------------------------------------
+    parser.add_argument('--work-dir', default='models/feature_detection', help='the dir to save logs and models')
+    parser.add_argument('--resume-from', help='the checkpoint file to resume from')
+    parser.add_argument('--auto-resume', action='store_true', help='resume from the latest checkpoint automatically')
+    parser.add_argument('--no-validate', action='store_true', help='whether not to evaluate the checkpoint during training')
     group_gpus = parser.add_mutually_exclusive_group()
-    group_gpus.add_argument(
-        '--gpus',
-        type=int,
-        help='(Deprecated, please use --gpu-id) number of gpus to use '
-             '(only applicable to non-distributed training)',
-    )
-    group_gpus.add_argument(
-        '--gpu-ids',
-        type=int,
-        nargs='+',
-        help='(Deprecated, please use --gpu-id) ids of gpus to use '
-             '(only applicable to non-distributed training)',
-    )
-    group_gpus.add_argument(
-        '--gpu-id',
-        type=int,
-        default=0,
-        help='id of gpu to use ' '(only applicable to non-distributed training)',
-    )
-    parser.add_argument(
-        '--diff-seed',
-        action='store_true',
-        help='Whether or not set different seeds for different ranks',
-    )
-    parser.add_argument(
-        '--deterministic',
-        action='store_true',
-        help='whether to set deterministic options for CUDNN backend.',
-    )
+    group_gpus.add_argument('--gpus', type=int, help='(Deprecated, please use --gpu-id) number of gpus to use')
+    group_gpus.add_argument('--gpu-ids', type=int, nargs='+', help='(Deprecated, please use --gpu-id) ids of gpus to use')
+    group_gpus.add_argument('--gpu-id', type=int, default=0, help='id of gpu to use')
+    parser.add_argument('--diff-seed', action='store_true', help='Whether or not set different seeds for different ranks')
+    parser.add_argument('--deterministic', action='store_true', help='whether to set deterministic options for CUDNN backend')
     parser.add_argument(
         '--options',
         nargs='+',
@@ -152,23 +95,9 @@ def parse_args():
              'Note that the quotation marks are necessary and that no white space '
              'is allowed.',
     )
-    parser.add_argument(
-        '--launcher',
-        choices=['none', 'pytorch', 'slurm', 'mpi'],
-        default='none',
-        help='job launcher',
-    )
+    parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm', 'mpi'], default='none', help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
-    parser.add_argument(
-        '--auto-scale-lr',
-        action='store_true',
-        help='enable automatically scaling LR.',
-    )
-    parser.add_argument(
-        '--use-augmentation',
-        action='store_true',
-        help='use augmentation for the train dataset',
-    )
+    parser.add_argument('--auto-scale-lr', action='store_true', help='enable automatically scaling LR')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
