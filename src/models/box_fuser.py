@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from ensemble_boxes import nms, soft_nms
 from tqdm import tqdm
@@ -14,21 +15,24 @@ class BoxFuser:
         self,
         method: str = 'soft_nms',
         iou_threshold: float = 0.5,
+        conf_threshold: float = 0.5,
     ):
         assert 0 <= iou_threshold <= 1, 'iou_threshold must lie within [0, 1]'
+        assert 0 <= conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
         assert method in ['nms', 'soft_nms', 'nmw', 'wbf'], f'Unknown fusion method: {method}'
         self.method = method
         self.iou_threshold = iou_threshold
+        self.conf_threshold = conf_threshold
 
     def fuse_detections(
         self,
-        detections: pd.DataFrame,
+        df: pd.DataFrame,
     ) -> pd.DataFrame:
-        detections.drop(columns=['ID'], inplace=True)
-        df_out = pd.DataFrame(columns=detections.columns)
+        df.drop(columns=['ID'], inplace=True)
+        df_out = pd.DataFrame(columns=df.columns)
 
         # Process predictions one image at a time
-        img_groups = detections.groupby('Image path')
+        img_groups = df.groupby('Image path')
         for img_id, (img_path, df_img) in tqdm(
             enumerate(img_groups),
             desc='Suppress detections',
@@ -68,51 +72,67 @@ class BoxFuser:
                     scores=score_list,
                     labels=label_list,
                     iou_thr=self.iou_threshold,
-                    sigma=0.1,  # TODO: check the effect of this variable
+                    method=2,
+                    sigma=0.1,
                 )
             else:
                 raise ValueError(f'Unknown method: {self.method}')
 
-            # TODO: move to another function
-            df_img_ = pd.DataFrame(index=range(len(boxes)), columns=detections.columns)
-            img_width = df_img['Image width'].unique()[0]
-            img_height = df_img['Image height'].unique()[0]
-            df_img_['Image path'] = img_path
-            df_img_['Image name'] = Path(img_path).name
-            df_img_['Image height'] = img_height
-            df_img_['Image width'] = img_width
-            df_img_['x1'] = (boxes[:, 0] * img_width).astype(int)
-            df_img_['y1'] = (boxes[:, 1] * img_width).astype(int)
-            df_img_['x2'] = (boxes[:, 2] * img_width).astype(int)
-            df_img_['y2'] = (boxes[:, 3] * img_width).astype(int)
-            df_img_['Box width'] = df_img_.apply(
-                func=lambda row: abs(row['x2'] - row['x1'] + 1),
-                axis=1,
+            # Convert box coordinates back and compute box metadata
+            df_img_ = self.convert_fused_detections(
+                df=df_img,
+                boxes=boxes,
+                scores=scores,
+                labels=labels,
             )
-            df_img_['Box height'] = df_img_.apply(
-                func=lambda row: abs(row['y2'] - row['y1'] + 1),
-                axis=1,
-            )
-            df_img_['Box area'] = df_img_.apply(
-                func=lambda row: row['Box width'] * row['Box height'],
-                axis=1,
-            )
-            df_img_['Feature ID'] = labels
-            df_img_['Feature'] = df_img_.apply(
-                func=lambda row: FEATURE_MAP_REVERSED[row['Feature ID']],
-                axis=1,
-            )
-            df_img_['Confidence'] = scores
+
+            df_out = pd.concat([df_out, df_img_])
+
+        # TODO: Think of the order: conf_threshold and nms, or vice versa
+        df_out = df_out[df_out['Confidence'] >= self.conf_threshold]
 
         return df_out
 
-    # def process_dataframe(
-    #         self,
-    #         df: pd.DataFrame,
-    # ) -> pd.DataFrame:
-    #
-    #     # Convert boxes back
-    #     return df_out
+    @staticmethod
+    def convert_fused_detections(
+        df: pd.DataFrame,
+        boxes: np.ndarray,
+        scores: np.ndarray,
+        labels: np.ndarray,
+    ) -> pd.DataFrame:
+        df_out = pd.DataFrame(index=range(len(boxes)), columns=df.columns)
+        img_width = df['Image width'].unique()[0]
+        img_height = df['Image height'].unique()[0]
+        img_path = df['Image path'].unique()[0]
+        img_name = Path(img_path).name
+        df_out['Image path'] = img_path
+        df_out['Image name'] = img_name
+        df_out['Image height'] = img_height
+        df_out['Image width'] = img_width
+        df_out['x1'] = (boxes[:, 0] * img_width).astype(int)
+        df_out['y1'] = (boxes[:, 1] * img_width).astype(int)
+        df_out['x2'] = (boxes[:, 2] * img_width).astype(int)
+        df_out['y2'] = (boxes[:, 3] * img_width).astype(int)
+        df_out['Box width'] = df_out.apply(
+            func=lambda row: abs(row['x2'] - row['x1'] + 1),
+            axis=1,
+        )
+        df_out['Box height'] = df_out.apply(
+            func=lambda row: abs(row['y2'] - row['y1'] + 1),
+            axis=1,
+        )
+        df_out['Box area'] = df_out.apply(
+            func=lambda row: row['Box width'] * row['Box height'],
+            axis=1,
+        )
+        df_out['Feature ID'] = labels
+        df_out['Feature'] = df_out.apply(
+            func=lambda row: FEATURE_MAP_REVERSED[row['Feature ID']],
+            axis=1,
+        )
+        df_out['Confidence'] = scores
+
+        return df_out
 
 
 if __name__ == '__main__':
@@ -120,9 +140,10 @@ if __name__ == '__main__':
     box_fuser = BoxFuser(
         method='soft_nms',
         iou_threshold=0.5,
+        conf_threshold=0.01,
     )
 
     # Suppress and/or fuse boxes
     dets = pd.read_excel('data/coco/test_demo/predictions.xlsx')
-    dets_fused = box_fuser.fuse_detections(detections=dets)
+    dets_fused = box_fuser.fuse_detections(df=dets)
     print('Complete')
