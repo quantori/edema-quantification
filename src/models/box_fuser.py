@@ -14,24 +14,27 @@ class BoxFuser:
     def __init__(
         self,
         method: str = 'soft_nms',
+        sigma: float = 0.1,
         iou_threshold: float = 0.5,
         conf_threshold: float = 0.5,
     ):
         assert 0 <= iou_threshold <= 1, 'iou_threshold must lie within [0, 1]'
         assert 0 <= conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
-        assert method in ['nms', 'soft_nms', 'nmw', 'wbf'], f'Unknown fusion method: {method}'
+        assert method in ['nms', 'soft_nms'], f'Unknown fusion method: {method}'
         self.method = method
         self.iou_threshold = iou_threshold
         self.conf_threshold = conf_threshold
+        self.sigma = sigma
 
     def fuse_detections(
         self,
         df: pd.DataFrame,
     ) -> pd.DataFrame:
         df.drop(columns=['ID'], inplace=True)
-        df_out = pd.DataFrame(columns=df.columns)
+        df = df[df['Confidence'] >= self.conf_threshold]
 
         # Process predictions one image at a time
+        df_out = pd.DataFrame(columns=df.columns)
         img_groups = df.groupby('Image path')
         for img_id, (img_path, df_img) in tqdm(
             enumerate(img_groups),
@@ -72,8 +75,7 @@ class BoxFuser:
                     scores=score_list,
                     labels=label_list,
                     iou_thr=self.iou_threshold,
-                    method=2,
-                    sigma=0.1,
+                    sigma=self.sigma,
                 )
             else:
                 raise ValueError(f'Unknown method: {self.method}')
@@ -88,8 +90,8 @@ class BoxFuser:
 
             df_out = pd.concat([df_out, df_img_])
 
-        # TODO: Think of the order: conf_threshold and nms, or vice versa
-        df_out = df_out[df_out['Confidence'] >= self.conf_threshold]
+        # TODO: check if output filtering is needed
+        # df_out = df_out[df_out['Confidence'] >= self.conf_threshold]
 
         return df_out
 
@@ -137,13 +139,24 @@ class BoxFuser:
 
 if __name__ == '__main__':
     # Create an instance of BoxFuser
+    import os
+
+    test_dir = 'data/coco/test_demo'
+
     box_fuser = BoxFuser(
         method='soft_nms',
+        sigma=0.1,
         iou_threshold=0.5,
-        conf_threshold=0.01,
+        conf_threshold=0.5,
     )
 
     # Suppress and/or fuse boxes
-    dets = pd.read_excel('data/coco/test_demo/predictions.xlsx')
-    dets_fused = box_fuser.fuse_detections(df=dets)
+    df_dets = pd.read_excel(os.path.join(test_dir, 'predictions.xlsx'))
+    df_dets_fused = box_fuser.fuse_detections(df=df_dets)
+    df_dets_fused.to_excel(
+        os.path.join(test_dir, 'predictions_nms.xlsx'),
+        sheet_name='Detections',
+        index=True,
+        index_label='ID',
+    )
     print('Complete')
