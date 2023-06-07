@@ -8,9 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 from cpuinfo import get_cpu_info
-from ensemble_boxes import nms, soft_nms
 from mmdet.apis import inference_detector, init_detector
-from tqdm import tqdm
 
 from src.data.utils import get_file_list
 
@@ -62,7 +60,7 @@ class FeatureDetector:
         except Exception:
             self.model.test_cfg.score_thr = conf_threshold
 
-        # TODO: logging no longer works after MacOS update
+        # FIXME: get_cpu_info freezes on MacOS
         # Log the device that is used for the prediction
         if device_ == 'cuda':
             logging.info(f'Device..............: {torch.cuda.get_device_name(0)}')
@@ -142,97 +140,29 @@ class FeatureDetector:
 
         return df
 
-    def suppress_detections(
-        self,
-        df: pd.DataFrame,
-        method: str = 'soft_nms',
-        iou_threshold: float = 0.5,
-    ) -> pd.DataFrame:
-        df_out = pd.DataFrame(columns=df.columns)
-
-        # Process predictions one image at a time
-        img_groups = df.groupby('Image path')
-        for img_id, (img_path, df_img) in tqdm(
-            enumerate(img_groups),
-            desc='Suppress detections',
-            unit=' images',
-            total=len(img_groups),
-        ):
-            # Get normalized list of box coordinates
-            box_list = []
-            for _, row in df_img.iterrows():
-                box_list.append(
-                    [
-                        [
-                            row['x1'] / row['Image width'],
-                            row['y1'] / row['Image height'],
-                            row['x2'] / row['Image width'],
-                            row['y2'] / row['Image height'],
-                        ],
-                    ],
-                )
-
-            # Get list of confidence scores
-            score_list = [df_img['Confidence'].values.tolist()]
-
-            # Get list of box labels
-            label_list = [df_img['Feature ID'].values.tolist()]
-
-            if method == 'nms':
-                boxes, scores, labels = nms(
-                    boxes=box_list,
-                    scores=score_list,
-                    labels=label_list,
-                    iou_thr=iou_threshold,
-                )
-            elif method == 'soft_nms':
-                boxes, scores, labels = soft_nms(
-                    boxes=box_list,
-                    scores=score_list,
-                    labels=label_list,
-                    iou_thr=iou_threshold,
-                    sigma=0.1,  # TODO: check the effect of this variable
-                )
-            else:
-                raise ValueError(f'Unknown method: {method}')
-
-        return df_out
-
 
 if __name__ == '__main__':
-    # import os
-    # test_dir = 'data/coco/test_demo/'
-    # img_paths = get_file_list(
-    #     src_dirs=os.path.join(test_dir, 'data'),
-    #     ext_list='.png',
-    # )
-    # # img_paths = img_paths[:20]
-    # model = FeatureDetector(
-    #     model_dir='models/feature_detection/FasterRCNN_0206_102457',
-    #     conf_threshold=0.01,
-    #     device='auto',
-    # )
-    # dets = model(img_paths)
-    # df_dets = model.process_detections(
-    #     img_paths=img_paths,
-    #     detections=dets,
-    # )
-    # df_dets.to_excel(
-    #     os.path.join(test_dir, 'predictions.xlsx'),
-    #     sheet_name='Detections',
-    #     index=True,
-    #     index_label='ID',
-    # )
+    import os
 
-    # Suppression
+    test_dir = 'data/coco/test_demo/'
+    img_paths = get_file_list(
+        src_dirs=os.path.join(test_dir, 'data'),
+        ext_list='.png',
+    )
+    # img_paths = img_paths[:20]
     model = FeatureDetector(
         model_dir='models/feature_detection/FasterRCNN_0206_102457',
         conf_threshold=0.01,
         device='auto',
     )
-    dets = pd.read_excel('data/coco/test_demo/predictions.xlsx')
-    model.suppress_detections(
-        df=dets,
-        method='soft_nms',
-        iou_threshold=0.5,
+    dets = model(img_paths)
+    df_dets = model.process_detections(
+        img_paths=img_paths,
+        detections=dets,
+    )
+    df_dets.to_excel(
+        os.path.join(test_dir, 'predictions.xlsx'),
+        sheet_name='Detections',
+        index=True,
+        index_label='ID',
     )
