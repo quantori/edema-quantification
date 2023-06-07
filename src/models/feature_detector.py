@@ -158,9 +158,8 @@ if __name__ == '__main__':
         src_dirs=os.path.join(test_dir, 'data'),
         ext_list='.png',
     )
-    # img_paths = img_paths[:20]
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN_0206_102457',
+        model_dir='models/feature_detection/FasterRCNN_0706_094343',
         batch_size=4,
         conf_threshold=0.01,
         device='auto',
