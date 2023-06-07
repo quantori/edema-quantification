@@ -75,7 +75,7 @@ class FeatureDetector:
         n: int = 1,
     ) -> List[List[np.ndarray]]:
         detections = []
-        for i in tqdm(range(0, len(img_paths), n), desc='Processing images', unit=' images'):
+        for i in tqdm(range(0, len(img_paths), n), desc='Processing images', unit=' image batches'):
             detections.extend(
                 inference_detector(
                     model=self.model,
