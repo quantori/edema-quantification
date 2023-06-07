@@ -10,6 +10,7 @@ import pandas as pd
 import torch
 from cpuinfo import get_cpu_info
 from mmdet.apis import inference_detector, init_detector
+from tqdm import tqdm
 
 from src.data.utils import get_file_list
 
@@ -71,11 +72,16 @@ class FeatureDetector:
     def __call__(
         self,
         img_paths: List[str],
+        n: int = 1,
     ) -> List[List[np.ndarray]]:
-        detections = inference_detector(
-            model=self.model,
-            imgs=img_paths,
-        )
+        detections = []
+        for i in tqdm(range(0, len(img_paths), n), desc='Processing images', unit=' images'):
+            detections.extend(
+                inference_detector(
+                    model=self.model,
+                    imgs=img_paths[i : i + n],
+                ),
+            )
 
         return detections
 
