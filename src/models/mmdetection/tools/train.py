@@ -227,7 +227,7 @@ def main():
     cfg.lr_config = dict(
         policy='CosineAnnealing',
         warmup='linear',
-        warmup_iters=int(0.25 * args.epochs),
+        warmup_iters=max(1, int(0.25 * args.epochs)),
         warmup_ratio=0.1,
         min_lr=args.lr / 100,
         warmup_by_epoch=True,
