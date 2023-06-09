@@ -258,6 +258,7 @@ def main():
         max_epochs=args.epochs,
     )
 
+    # Change the size of the image in all pipelines
     for pipeline in [
         cfg.data.train.pipeline,
         cfg.data.val.pipeline,
