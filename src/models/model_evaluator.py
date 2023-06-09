@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Tuple
 
 import fiftyone as fo
 import pandas as pd
-from tqdm import tqdm
 
 
 class ModelEvaluator:
@@ -49,7 +48,7 @@ class ModelEvaluator:
         # Process boxes one image at a time
         samples = []
         img_paths = df_pred['Image path'].unique()
-        for img_path in tqdm(img_paths, desc='Processing data', unit=' images'):
+        for img_path in img_paths:
             img_name = Path(img_path).name
             df_gt_sample = df_gt[df_gt['Image name'] == img_name]
             df_pred_sample = df_pred[df_pred['Image name'] == img_name]
