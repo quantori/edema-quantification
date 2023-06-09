@@ -141,6 +141,9 @@ class ModelEvaluator:
     ) -> pd.DataFrame:
         metrics = results.metrics(classes=None)
         df = pd.DataFrame([metrics])
+        df['TP'] = results._samples.sum('eval_tp')
+        df['FP'] = results._samples.sum('eval_fp')
+        df['FN'] = results._samples.sum('eval_fn')
         df['IoU'] = self.iou_threshold
         df['Confidence'] = self.conf_threshold
         df.rename(
@@ -153,6 +156,7 @@ class ModelEvaluator:
             },
             inplace=True,
         )
+
         return df
 
     def _calculate_metrics_class_wise(
