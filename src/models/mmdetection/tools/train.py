@@ -258,6 +258,17 @@ def main():
         max_epochs=args.epochs,
     )
 
+    for pipeline in [
+        cfg.data.train.pipeline,
+        cfg.data.val.pipeline,
+        cfg.data.test.pipeline,
+        cfg.train_pipeline,
+        cfg.test_pipeline,
+    ]:
+        for step in pipeline:
+            if 'img_scale' in step:
+                step['img_scale'] = tuple(args.img_size)
+
     # Augmentation settings
     # Docs: https://mmdetection.readthedocs.io/en/v2.15.1/api.html
     if args.use_augmentation:
@@ -333,17 +344,6 @@ def main():
                 keys=['img', 'gt_bboxes', 'gt_labels'],
             ),
         ]
-
-    for pipeline in [
-        cfg.data.train.pipeline,
-        cfg.data.val.pipeline,
-        cfg.data.test.pipeline,
-        cfg.train_pipeline,
-        cfg.test_pipeline,
-    ]:
-        for step in pipeline:
-            if 'img_scale' in step:
-                step['img_scale'] = tuple(args.img_size)
 
     # Final config used for training and testing
     print(f'Config:\n{cfg.pretty_text}')
