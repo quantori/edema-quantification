@@ -30,7 +30,7 @@ def main(cfg: DictConfig):
         f' f1_tresholf: {cfg.model.f1_treshold},'
         f' img_size: {cfg.model.img_size},'
         f' batch_size: {cfg.model.batch_size},'
-        f' num_prototypes: {cfg.model.num_prototypes}',
+        f' num_prototypes: {cfg.model.prototype_shape[0]}',
     )
 
     # Clean the gpu cache and seed the the random generator.
@@ -38,16 +38,15 @@ def main(cfg: DictConfig):
     seed_everything(42, workers=True)
 
     # Create blocks and model
-    encoder = ENCODERS['squezee_net']()
+    encoder = ENCODERS['resnet50']()
     transient_layers = TransientLayers(encoder, cfg.model.prototype_shape)
     prototype_layer = PrototypeLayer(
         cfg.model.prototype_shape,
         cfg.model.num_classes,
-        cfg.model.num_prototypes,
         prototype_layer_stride=cfg.model.prototype_layer_stride,
         epsilon=cfg.model.epsilon,
     )
-    last_layers = LastLayers(cfg.model.num_prototypes, cfg.model.num_classes, bias=False)
+    last_layers = LastLayers(cfg.model.prototype_shape[0], cfg.model.num_classes, bias=False)
     prototype_logger = PrototypeLoggerCompNumpy(logger_config=cfg.logger)
     edema_net_st = EdemaPrototypeNet(
         encoder,
@@ -64,7 +63,7 @@ def main(cfg: DictConfig):
         data_dir='data/interim',
         batch_size=cfg.model.batch_size,
         resize=(cfg.model.img_size, cfg.model.img_size),
-        normalize_tensors=False,
+        normalize_tensors=True,
     )
     datamaodlule.setup('fit')
     train_dataloader = datamaodlule.train_dataloader(num_workers=cfg.model.num_cpu)

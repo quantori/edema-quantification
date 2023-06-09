@@ -47,12 +47,11 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
         self,
         prototype_shape: Sequence[int],
         num_classes: int,
-        num_prototypes: int,
         prototype_layer_stride: int = 1,
         epsilon: float = 1e-4,
     ):
         self._num_classes = num_classes
-        self._num_prototypes = num_prototypes
+        self._num_prototypes = prototype_shape[0]
         self._shape = prototype_shape
         self._layer_stride = prototype_layer_stride
         self._epsilon = epsilon
@@ -96,7 +95,7 @@ class PrototypeLayer(nn.Parameter, IPrototypeLayer):
 
     @property
     def prototype_class_identity(self) -> torch.Tensor:
-        # onehot indication matrix for prototypes (num_prototypes, num_classes)
+        # Onehot indication matrix for prototypes (num_prototypes, num_classes).
         prototype_class_identity = torch.zeros(
             self.num_prototypes,
             self.num_classes,
