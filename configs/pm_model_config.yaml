@@ -1,4 +1,4 @@
-encoder: squezeenet
+encoder: resnet50
 num_classes: 9
 prototype_shape: [27, 512, 1, 1]
 prototype_layer_stride: 1
@@ -9,7 +9,7 @@ num_warm_epochs: 10
 push_start: 10
 num_last_epochs: 10
 push_epochs: [10, 20, 30, 40]
-img_size: 224
+img_size: 2000
 num_cpu: 6
 batch_size: 4
 lr: 1e-3

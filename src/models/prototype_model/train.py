@@ -38,7 +38,7 @@ def main(cfg: DictConfig):
     seed_everything(42, workers=True)
 
     # Create blocks and model
-    encoder = ENCODERS['squezee_net']()
+    encoder = ENCODERS['resnet50']()
     transient_layers = TransientLayers(encoder, cfg.model.prototype_shape)
     prototype_layer = PrototypeLayer(
         cfg.model.prototype_shape,
@@ -63,7 +63,7 @@ def main(cfg: DictConfig):
         data_dir='data/interim',
         batch_size=cfg.model.batch_size,
         resize=(cfg.model.img_size, cfg.model.img_size),
-        normalize_tensors=False,
+        normalize_tensors=True,
     )
     datamaodlule.setup('fit')
     train_dataloader = datamaodlule.train_dataloader(num_workers=cfg.model.num_cpu)
