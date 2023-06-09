@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
     parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'], help='optimizer')
-    parser.add_argument('--lr', type=float, default=0.1, help='optimizer learning rate')
+    parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
     parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
     parser.add_argument('--use-augmentation', action='store_true', help='use augmentation for the train dataset')
     parser.add_argument('--epochs', default=20, type=int, help='number of training epochs')
