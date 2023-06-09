@@ -106,8 +106,7 @@ class ModelEvaluator:
     def evaluate(
         self,
         detections: Dict[str, Any],
-        top_class_count: int = 10,
-    ) -> Tuple[int, int, int]:
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # Create dataset
         dataset = fo.Dataset(
             name=None,
@@ -123,18 +122,61 @@ class ModelEvaluator:
             iou=self.iou_threshold,
         )
 
-        counts = dataset.count_values('ground_truth.detections.label')
-        classes = sorted(counts, key=counts.get, reverse=True)[:top_class_count]
-        results.print_report(classes=classes)
+        dataset.count_values('ground_truth.detections.label')
 
-        tp = dataset.sum('eval_tp')
-        fp = dataset.sum('eval_fp')
-        fn = dataset.sum('eval_fn')
-        print(f'TP: {tp}')
-        print(f'FP: {fp}')
-        print(f'FN: {fn}')
+        # Confusion matrix (use for optimal threshold values)
+        # cm = results.confusion_matrix(classes=classes)
+        # plot = results.plot_confusion_matrix()
+        # plot.show()
 
-        return tp, fp, fn
+        # Сalculate metrics
+        df_metrics = self._calculate_metrics(results)
+        df_metrics_cw = self._calculate_metrics_class_wise(results)
+
+        return df_metrics, df_metrics_cw
+
+    def _calculate_metrics(
+        self,
+        results: fo.DetectionResults,
+    ) -> pd.DataFrame:
+        metrics = results.metrics(classes=None)
+        df = pd.DataFrame([metrics])
+        df['IoU'] = self.iou_threshold
+        df['Confidence'] = self.conf_threshold
+        df.rename(
+            columns={
+                'accuracy': 'Accuracy',
+                'precision': 'Precision',
+                'recall': 'Recall',
+                'fscore': 'F1',
+                'support': 'Support',
+            },
+            inplace=True,
+        )
+        return df
+
+    def _calculate_metrics_class_wise(
+        self,
+        results: fo.DetectionResults,
+    ) -> pd.DataFrame:
+        metrics = results.report(classes=None)
+        df = pd.DataFrame.from_dict(metrics, orient='index')
+        df = df.drop(['micro avg', 'macro avg', 'weighted avg'])
+        df['IoU'] = self.iou_threshold
+        df['Confidence'] = self.conf_threshold
+        df.reset_index(inplace=True)
+        df.rename(
+            columns={
+                'index': 'Feature',
+                'precision': 'Precision',
+                'recall': 'Recall',
+                'f1-score': 'F1',
+                'support': 'Support',
+            },
+            inplace=True,
+        )
+
+        return df
 
     def visualize(
         self,
@@ -160,10 +202,10 @@ if __name__ == '__main__':
         conf_threshold=0.5,
     )
     dets = evaluator.combine_data(
-        gt_path='data/coco/test_demo/labels.xlsx',
-        pred_path='data/coco/test_demo/predictions.xlsx',
+        gt_path='data/coco/test/labels.xlsx',
+        pred_path='data/coco/test/predictions.xlsx',
         exclude_features=[],
     )
-    tp, fp, fn = evaluator.evaluate(detections=dets)
+    df_metrics, df_metrics_cw = evaluator.evaluate(detections=dets)
     evaluator.visualize(detections=dets)
     print('Complete')
