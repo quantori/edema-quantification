@@ -20,8 +20,8 @@ def main(cfg: DictConfig) -> None:
 
     # Initialize evaluator instance
     evaluator = ModelEvaluator(
-        iou_thresh=cfg.iou_thresh,
-        confidence_thresh=cfg.confidence_thresh,
+        iou_threshold=cfg.iou_threshold,
+        conf_threshold=cfg.conf_threshold,
     )
 
     # Combine ground truth and predictions

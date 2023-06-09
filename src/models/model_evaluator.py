@@ -11,13 +11,13 @@ class ModelEvaluator:
 
     def __init__(
         self,
-        iou_thresh: float = 0.5,
-        confidence_thresh: float = 0.01,
+        iou_threshold: float = 0.5,
+        conf_threshold: float = 0.01,
     ) -> None:
-        assert 0 <= iou_thresh <= 1, 'iou_thresh must lie within [0, 1]'
-        assert 0 <= confidence_thresh <= 1, 'confidence_thresh must lie within [0, 1]'
-        self.confidence_thresh = confidence_thresh
-        self.iou_thresh = iou_thresh
+        assert 0 <= iou_threshold <= 1, 'iou_threshold must lie within [0, 1]'
+        assert 0 <= conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
+        self.conf_threshold = conf_threshold
+        self.iou_threshold = iou_threshold
 
     def combine_data(
         self,
@@ -28,7 +28,7 @@ class ModelEvaluator:
         # Read ground truth and predictions
         df_gt = pd.read_excel(gt_path)
         df_pred = pd.read_excel(pred_path)
-        df_pred = df_pred[df_pred['Confidence'] >= self.confidence_thresh]
+        df_pred = df_pred[df_pred['Confidence'] >= self.conf_threshold]
         if len(exclude_features) > 0:
             df_gt = df_gt[~df_gt['Feature'].isin(exclude_features)]
             df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
@@ -120,7 +120,7 @@ class ModelEvaluator:
             pred_field='predictions',
             gt_field='ground_truth',
             eval_key='eval',
-            iou=self.iou_thresh,
+            iou=self.iou_threshold,
         )
 
         counts = dataset.count_values('ground_truth.detections.label')
@@ -156,8 +156,8 @@ class ModelEvaluator:
 
 if __name__ == '__main__':
     evaluator = ModelEvaluator(
-        iou_thresh=0.5,
-        confidence_thresh=0.5,
+        iou_threshold=0.5,
+        conf_threshold=0.5,
     )
     dets = evaluator.combine_data(
         gt_path='data/coco/test_demo/labels.xlsx',

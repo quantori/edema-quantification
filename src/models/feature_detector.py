@@ -10,6 +10,7 @@ import pandas as pd
 import torch
 from cpuinfo import get_cpu_info
 from mmdet.apis import inference_detector, init_detector
+from tqdm import tqdm
 
 from src.data.utils import get_file_list
 
@@ -20,6 +21,7 @@ class FeatureDetector:
     def __init__(
         self,
         model_dir: str,
+        batch_size: int = 1,
         conf_threshold: float = 0.01,
         device: str = 'auto',
     ):
@@ -56,10 +58,13 @@ class FeatureDetector:
             device=device_,
         )
         self.classes = self.model.CLASSES
+
         try:
             self.model.test_cfg.rcnn.score_thr = conf_threshold
         except Exception:
             self.model.test_cfg.score_thr = conf_threshold
+
+        self.batch_size = batch_size
 
         # Log the device that is used for the prediction
         if device_ == 'cuda':
@@ -72,10 +77,15 @@ class FeatureDetector:
         self,
         img_paths: List[str],
     ) -> List[List[np.ndarray]]:
-        detections = inference_detector(
-            model=self.model,
-            imgs=img_paths,
-        )
+        detections = []
+        for i in tqdm(
+            range(0, len(img_paths), self.batch_size),
+            desc='Prediction',
+            unit='batch',
+        ):
+            imgs = img_paths[i : i + self.batch_size]
+            detections_ = inference_detector(model=self.model, imgs=imgs)
+            detections.extend(detections_)
 
         return detections
 
@@ -142,7 +152,7 @@ class FeatureDetector:
 
 
 if __name__ == '__main__':
-    test_dir = 'data/coco/test_demo/'
+    test_dir = 'data/coco/test/'
     img_paths = get_file_list(
         src_dirs=os.path.join(test_dir, 'data'),
         ext_list='.png',
@@ -150,6 +160,7 @@ if __name__ == '__main__':
     # img_paths = img_paths[:20]
     model = FeatureDetector(
         model_dir='models/feature_detection/FasterRCNN_0206_102457',
+        batch_size=4,
         conf_threshold=0.01,
         device='auto',
     )
