@@ -4,9 +4,9 @@ defaults:
 
 gt_path: data/coco/test/labels.xlsx
 pred_path: data/coco/test/predictions.xlsx
-iou_range: [0.4, 0.45]
+iou_range: [0.5, 0.5]
 iou_step: 0.01
-conf_range: [0.6, 0.6]
+conf_range: [0.0, 1.0]
 conf_step: 0.01
 # List of features: Cephalization, Artery, Heart, Kerley, Bronchus, Effusion, Bat, Infiltrate, Cuffing
 exclude_features: []
