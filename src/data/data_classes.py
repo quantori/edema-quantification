@@ -66,23 +66,24 @@ class EdemaDataset(Dataset):
         )
 
         if self.make_augmentation:
-            augmentation_functions = [
+            [
                 A.RandomBrightnessContrast(p=0.5),
                 A.RandomGamma(p=0.5),
                 A.GaussianBlur(p=0.2),
             ]
         else:
-            augmentation_functions = [A.NoOp(p=1.0)]
+            [A.NoOp(p=1.0)]
 
         if self.normalize_tensors:
             # these are mean/std values for RGB channels in a set of 110 annotated images (DS1, DS2 folders)
-            normalization = A.Normalize(mean=[0.4675, 0.4675, 0.4675], std=[0.3039, 0.3039, 0.3039])
+            # normalization = A.Normalize(mean=[0.4675, 0.4675, 0.4675], std=[0.3039, 0.3039, 0.3039])
+            normalization = A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         else:
             normalization = A.NoOp(p=1.0)
 
         transform = A.Compose(
             [
-                *augmentation_functions,
+                # *augmentation_functions,
                 normalization,
                 ToTensorV2(),
             ],
