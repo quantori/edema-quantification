@@ -63,7 +63,7 @@ def main(cfg: DictConfig):
         data_dir='data/interim',
         batch_size=cfg.model.batch_size,
         resize=(cfg.model.img_size, cfg.model.img_size),
-        normalize_tensors=True,
+        normalize_tensors=False,  # normalization leads to the malfanctioning of saving_graphics
     )
     datamaodlule.setup('fit')
     train_dataloader = datamaodlule.train_dataloader(num_workers=cfg.model.num_cpu)
