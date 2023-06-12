@@ -176,25 +176,162 @@ class ResNet50(IEncoderEdema[torch.Tensor]):
     def conv_info(self) -> Dict[str, List[int]]:
         """Reterns info about the convolutional layers of the encoder."""
         features: Dict[str, List[int]] = {}
-        features['kernel_sizes'] = []
-        features['strides'] = []
-        features['paddings'] = []
-        for module in self.modules():
-            if isinstance(module, (nn.Conv2d, nn.MaxPool2d)):
-                if isinstance(module.kernel_size, tuple):
-                    features['kernel_sizes'].append(module.kernel_size[0])
-                else:
-                    features['kernel_sizes'].append(module.kernel_size)
-
-                if isinstance(module.stride, tuple):
-                    features['strides'].append(module.stride[0])
-                else:
-                    features['strides'].append(module.stride)
-
-                if isinstance(module.padding, tuple):
-                    features['paddings'].append(module.padding[0])
-                else:
-                    features['paddings'].append(module.padding)
+        features['kernel_sizes'] = [
+            7,
+            3,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+            1,
+            3,
+            1,
+        ]
+        features['strides'] = [
+            2,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+        ]
+        features['paddings'] = [
+            3,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+        ]
         return features
 
     def warm(self) -> None:
@@ -300,5 +437,6 @@ ENCODERS.update({'vgg16': VGG16})
 
 
 if __name__ == '__main__':
-    net = VGG16()
+    net = ResNet50()
     print(net.conv_info())
+    # print(net)

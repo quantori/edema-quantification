@@ -5,11 +5,11 @@ prototype_layer_stride: 1
 top_k: 1
 epsilon: 1e-4
 num_real_epochs: 40
-num_warm_epochs: 10
-push_start: 10
-num_last_epochs: 10
-push_epochs: [10, 20, 30, 40]
-img_size: 2000
+num_warm_epochs: 5
+push_start: 5
+num_last_epochs: 4
+push_epochs: [5, 15, 30, 40]
+img_size: 224
 num_cpu: 6
 batch_size: 4
 lr: 1e-3

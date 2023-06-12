@@ -76,8 +76,9 @@ class EdemaDataset(Dataset):
 
         if self.normalize_tensors:
             # these are mean/std values for RGB channels in a set of 110 annotated images (DS1, DS2 folders)
-            # normalization = A.Normalize(mean=[0.4675, 0.4675, 0.4675], std=[0.3039, 0.3039, 0.3039])
-            normalization = A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            normalization = A.Normalize(mean=[0.4675, 0.4675, 0.4675], std=[0.3039, 0.3039, 0.3039])
+            # This normalization is based on the MNIST dataset as recommended by PyTorch
+            # normalization = A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         else:
             normalization = A.NoOp(p=1.0)
 
