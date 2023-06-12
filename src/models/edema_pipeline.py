@@ -2,17 +2,20 @@ import gc
 import logging
 import os
 import shutil
+from glob import glob
 from pathlib import Path
 from typing import List
 
 import cv2
+import numpy as np
 import torch
 
 from src.data.utils import get_file_list
 from src.models.lung_segmenter import LungSegmenter
+from src.models.map_fuser import MapFuser
 
 
-class EdemaPipeline:
+class EdemaNet:
     """A pipeline dedicated to processing X-ray images and predicting the stage of edema."""
 
     def __init__(
@@ -35,12 +38,16 @@ class EdemaPipeline:
         os.makedirs(img_dir, exist_ok=True)
         shutil.copy(img_path, img_dir)
 
-        # TODO: Segmentation
-        self.segment_lungs(
-            img_path=img_path,
-            save_dir=img_dir,
-        )
+        # Lung segmentation
+        # self.segment_lungs(
+        #     img_path=img_path,
+        #     save_dir=img_dir,
+        # )
+
         # TODO: Mask fusion
+        self.fuse_maps(
+            img_dir=img_dir,
+        )
 
         # TODO: Crop
 
@@ -54,7 +61,7 @@ class EdemaPipeline:
         self,
         img_path: str,
         save_dir: str,
-    ):
+    ) -> None:
         img = cv2.imread(img_path)
         img_height, img_width = img.shape[:2]
 
@@ -84,11 +91,26 @@ class EdemaPipeline:
             gc.collect()
             torch.cuda.empty_cache()
 
+    def fuse_maps(
+        self,
+        img_dir,
+    ):
+        # Retrieve paths to probability maps
+        prefix = 'prob_map'
+        search_pattern = os.path.join(img_dir, f'{prefix}*.png')
+        img_paths = glob(search_pattern)
+
+        fuser = MapFuser()
+        for img_path in img_paths:
+            fuser.add_prob_map(img_path)
+        fused_map = fuser.conditional_probability_fusion()
+        fused_map = (fused_map * 255.0).astype(np.uint8)
+
 
 if __name__ == '__main__':
     data_dir = 'data/coco/test'
 
-    edema_pipeline = EdemaPipeline(
+    edema_net = EdemaNet(
         seg_model_dirs=[
             'models/lung_segmentation/MAnet',
             'models/lung_segmentation/DeepLabV3',
@@ -111,6 +133,6 @@ if __name__ == '__main__':
     logging.info(f'Number of images..........: {len(img_paths)}')
 
     for img_path in img_paths:
-        result = edema_pipeline(img_path)
+        result = edema_net(img_path)
 
     print('Complete')
