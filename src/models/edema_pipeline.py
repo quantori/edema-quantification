@@ -1,6 +1,7 @@
 import gc
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import List
 
@@ -28,13 +29,17 @@ class EdemaPipeline:
         self,
         img_path: str,
     ):
-        # Create a directory for a given image
-        img_name = Path(img_path).name
-        self.img_dir = os.path.join(self.save_dir, img_name)
-        os.makedirs(self.img_dir)
+        # Create a directory and copy an image into it
+        img_name = Path(img_path).stem
+        img_dir = os.path.join(self.save_dir, img_name)
+        os.makedirs(img_dir, exist_ok=True)
+        shutil.copy(img_path, img_dir)
 
         # TODO: Segmentation
-
+        self.segment_lungs(
+            img_path=img_path,
+            save_dir=img_dir,
+        )
         # TODO: Mask fusion
 
         # TODO: Crop
@@ -48,27 +53,31 @@ class EdemaPipeline:
     def segment_lungs(
         self,
         img_path: str,
+        save_dir: str,
     ):
-        img_name = Path(img_path).name
         img = cv2.imread(img_path)
         img_height, img_width = img.shape[:2]
 
         for model_dir in self.seg_model_dirs:
             # Initialize segmentation model
-            Path(model_dir).name
+            model_name = Path(model_dir).name
             model = LungSegmenter(
                 model_dir=model_dir,
                 device='auto',
             )
 
             # Retrieve and save a probability segmentation map
-            map_ = model(
+            prob_map_ = model(
                 img=img,
                 scale_output=True,
             )
-            map = cv2.resize(map_, (img_width, img_height), interpolation=cv2.INTER_LANCZOS4)
-            map_path = os.path.join(img_dir, img_name)
-            cv2.imwrite(map_path, map)
+            prob_map = cv2.resize(
+                prob_map_,
+                (img_width, img_height),
+                interpolation=cv2.INTER_LANCZOS4,
+            )
+            map_path = os.path.join(save_dir, f'prob_map_{model_name}.png')
+            cv2.imwrite(map_path, prob_map)
 
             # Run the garbage collector and release all unused cached memory
             del model
@@ -77,16 +86,21 @@ class EdemaPipeline:
 
 
 if __name__ == '__main__':
-    img_dir = 'data/coco/test'
+    data_dir = 'data/coco/test'
 
     edema_pipeline = EdemaPipeline(
-        seg_model_dirs=['models/lung_segmentation/MAnet'],
-        det_model_dirs=['models/feature_detection/FasterRCNN'],
+        seg_model_dirs=[
+            'models/lung_segmentation/MAnet',
+            'models/lung_segmentation/DeepLabV3',
+        ],
+        det_model_dirs=[
+            'models/feature_detection/FasterRCNN',
+        ],
         save_dir='eval_results',
     )
 
     img_paths = get_file_list(
-        src_dirs=img_dir,
+        src_dirs=data_dir,
         ext_list=[
             '.png',
             '.jpg',
