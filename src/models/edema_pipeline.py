@@ -39,12 +39,12 @@ class EdemaNet:
         shutil.copy(img_path, img_dir)
 
         # Lung segmentation
-        # self.segment_lungs(
-        #     img_path=img_path,
-        #     save_dir=img_dir,
-        # )
+        self.segment_lungs(
+            img_path=img_path,
+            save_dir=img_dir,
+        )
 
-        # TODO: Mask fusion
+        # Mask fusion
         self.fuse_maps(
             img_dir=img_dir,
         )
@@ -100,25 +100,31 @@ class EdemaNet:
         search_pattern = os.path.join(img_dir, f'{prefix}*.png')
         img_paths = glob(search_pattern)
 
+        # Read probability maps and then merge them into one
         fuser = MapFuser()
         for img_path in img_paths:
             fuser.add_prob_map(img_path)
         fused_map = fuser.conditional_probability_fusion()
         fused_map = (fused_map * 255.0).astype(np.uint8)
 
+        # Save fused probability map
+        fused_map_path = os.path.join(img_dir, 'prob_map_fused.png')
+        cv2.imwrite(fused_map_path, fused_map)
+
 
 if __name__ == '__main__':
-    data_dir = 'data/coco/test'
-
+    data_dir = 'data/interim'
+    results_dir = f'{data_dir}_predict'
     edema_net = EdemaNet(
         seg_model_dirs=[
-            'models/lung_segmentation/MAnet',
             'models/lung_segmentation/DeepLabV3',
+            'models/lung_segmentation/FPN',
+            'models/lung_segmentation/MAnet',
         ],
         det_model_dirs=[
             'models/feature_detection/FasterRCNN',
         ],
-        save_dir='eval_results',
+        save_dir=results_dir,
     )
 
     img_paths = get_file_list(
@@ -133,6 +139,7 @@ if __name__ == '__main__':
     logging.info(f'Number of images..........: {len(img_paths)}')
 
     for img_path in img_paths:
+        print(f'Image: {Path(img_path).stem}')
         result = edema_net(img_path)
 
     print('Complete')
