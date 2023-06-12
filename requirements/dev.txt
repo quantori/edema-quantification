@@ -2,6 +2,7 @@ albumentations==1.3.0
 dvc==2.58.2
 dvc-s3==2.22.0
 efficientnet-pytorch==0.7.1
+ensemble-boxes==1.0.9
 fiftyone~=0.19.1
 hydra-core==1.3.2
 imageio~=2.22.1

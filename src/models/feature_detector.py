@@ -1,5 +1,4 @@
 import logging
-import os
 import os.path as osp
 from pathlib import Path
 from typing import List
@@ -152,14 +151,15 @@ class FeatureDetector:
 
 
 if __name__ == '__main__':
+    import os
+
     test_dir = 'data/coco/test/'
     img_paths = get_file_list(
         src_dirs=os.path.join(test_dir, 'data'),
         ext_list='.png',
     )
-    # img_paths = img_paths[:20]
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN_0206_102457',
+        model_dir='models/feature_detection/FasterRCNN_0706_094343',
         batch_size=4,
         conf_threshold=0.01,
         device='auto',
