@@ -13,6 +13,7 @@ import torch
 from src.data.utils import get_file_list
 from src.models.lung_segmenter import LungSegmenter
 from src.models.map_fuser import MapFuser
+from src.models.mask_processor import MaskProcessor
 
 
 class EdemaNet:
@@ -46,6 +47,11 @@ class EdemaNet:
 
         # Mask fusion
         self.fuse_maps(
+            img_dir=img_dir,
+        )
+
+        # Process fused map
+        self.process_fused_map(
             img_dir=img_dir,
         )
 
@@ -98,18 +104,35 @@ class EdemaNet:
         # Retrieve paths to probability maps
         prefix = 'prob_map'
         search_pattern = os.path.join(img_dir, f'{prefix}*.png')
-        img_paths = glob(search_pattern)
+        map_paths = glob(search_pattern)
 
         # Read probability maps and then merge them into one
         fuser = MapFuser()
-        for img_path in img_paths:
-            fuser.add_prob_map(img_path)
+        for map_path in map_paths:
+            fuser.add_prob_map(map_path)
         fused_map = fuser.conditional_probability_fusion()
         fused_map = (fused_map * 255.0).astype(np.uint8)
 
         # Save fused probability map
         fused_map_path = os.path.join(img_dir, 'prob_map_fused.png')
         cv2.imwrite(fused_map_path, fused_map)
+
+    def process_fused_map(
+        self,
+        img_dir: str,
+    ):
+        # Retrieve path to the fused map
+        fused_map_path = os.path.join(img_dir, 'prob_map_fused.png')
+        fused_map = cv2.imread(fused_map_path, cv2.IMREAD_GRAYSCALE)
+
+        processor = MaskProcessor()
+        mask_bin = processor.binarize_image(image=fused_map)
+        mask_smooth = processor.smooth_mask(mask=mask_bin)
+        mask_clean = processor.remove_artifacts(mask=mask_smooth)
+
+        # Store lung segmentation mask
+        mask_path = os.path.join(img_dir, 'mask.png')
+        cv2.imwrite(mask_path, mask_clean)
 
 
 if __name__ == '__main__':
