@@ -30,7 +30,6 @@ class BoxFuser:
         self,
         df: pd.DataFrame,
     ) -> pd.DataFrame:
-        df.drop(columns=['ID'], inplace=True)
         df = df[df['Confidence'] >= self.conf_threshold]
 
         # Process predictions one image at a time
@@ -150,6 +149,7 @@ if __name__ == '__main__':
     # Suppress and/or fuse boxes
     df_dets = pd.read_excel(os.path.join(test_dir, 'predictions.xlsx'))
     df_dets_fused = box_fuser.fuse_detections(df=df_dets)
+    df_dets_fused.drop(columns=['ID'], inplace=True)
     df_dets_fused.to_excel(
         os.path.join(test_dir, 'predictions_nms.xlsx'),
         sheet_name='Detections',
