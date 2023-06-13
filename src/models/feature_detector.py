@@ -1,5 +1,4 @@
 import logging
-import os.path as osp
 from pathlib import Path
 from typing import List
 
@@ -30,7 +29,6 @@ class FeatureDetector:
         )
         assert len(config_list) == 1, 'Keep only one config file in the model directory'
         config_path = config_list[0]
-        self.config_name, _ = osp.splitext(osp.basename(config_path))
 
         # Get checkpoint path
         checkpoint_list = get_file_list(
@@ -77,8 +75,8 @@ class FeatureDetector:
     ) -> List[List[np.ndarray]]:
         detections = []
         for i in range(0, len(img_paths), self.batch_size):
-            imgs = img_paths[i : i + self.batch_size]
-            detections_ = inference_detector(model=self.model, imgs=imgs)
+            img_paths_ = img_paths[i : i + self.batch_size]
+            detections_ = inference_detector(model=self.model, imgs=img_paths_)
             detections.extend(detections_)
 
         return detections
@@ -155,7 +153,7 @@ if __name__ == '__main__':
     )
     model = FeatureDetector(
         model_dir='models/feature_detection/FasterRCNN',
-        batch_size=4,
+        batch_size=1,
         conf_threshold=0.01,
         device='auto',
     )
