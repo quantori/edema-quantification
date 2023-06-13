@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 from src.data.utils import get_file_list
 from src.data.utils_sly import FEATURE_MAP, get_box_sizes
+from src.models.box_fuser import BoxFuser
 from src.models.feature_detector import FeatureDetector
 from src.models.lung_segmenter import LungSegmenter
 from src.models.map_fuser import MapFuser
@@ -24,7 +25,7 @@ from src.models.mask_processor import MaskProcessor
 class EdemaNet:
     """A network dedicated to processing X-ray images and predicting the stage of edema."""
 
-    artifact_names = {
+    object_names = {
         'img': 'img.png',
         'mask': 'mask.png',
         'img_crop': 'img_crop.png',
@@ -38,12 +39,19 @@ class EdemaNet:
         self,
         seg_model_dirs: List[str],
         det_model_dirs: List[str],
+        nms_method: str = 'soft',
+        iou_threshold: float = 0.5,
+        conf_threshold: float = 0.7,
         output_size: Tuple[int, int] = (1536, 1536),
         lung_extension: Tuple[int, int, int, int] = (50, 50, 50, 150),
         save_dir: str = 'data/interim_predict',
     ) -> None:
         self.seg_model_dirs = seg_model_dirs
         self.det_model_dirs = det_model_dirs
+        assert nms_method in ['standard', 'soft'], f'Unknown fusion method: {nms_method}'
+        self.nms_method = nms_method
+        self.iou_threshold = iou_threshold
+        self.conf_threshold = conf_threshold
         self.output_size = output_size
         self.lung_extension = lung_extension  # Tuple[left (x1), top (y1), right (x2), bottom (y2)]
         self.save_dir = save_dir
@@ -58,7 +66,7 @@ class EdemaNet:
         img_name = Path(img_path).stem
         img_dir = os.path.join(self.save_dir, img_name)
         os.makedirs(img_dir, exist_ok=True)
-        dst_path = os.path.join(img_dir, self.artifact_names['img'])
+        dst_path = os.path.join(img_dir, self.object_names['img'])
         shutil.copy(img_path, dst_path)
 
         # Segment lungs and output the probability segmentation maps
@@ -107,13 +115,23 @@ class EdemaNet:
 
         # Recognize features and return them as a dataframe
         # TODO: move model loading to __init__
-        df = self.detect_features(
+        df_dets = self.detect_features(
             img_dir=img_dir,
         )
 
+        # Perform Soft Non-Maximum Suppression
+        # TODO: Filter dataframes by class conference independently
+        box_fuser = BoxFuser(
+            method=self.nms_method,
+            sigma=0.1,
+            iou_threshold=self.iou_threshold,
+            conf_threshold=self.conf_threshold,
+        )
+        df_nms = box_fuser.fuse_detections(df=df_dets)
+
         # TODO: Process detected features and assign stage of edema
-        self.classify_edema(
-            df=df,
+        self.classify_edema_stage(
+            df=df_nms,
             img_dir=img_dir,
         )
 
@@ -145,7 +163,7 @@ class EdemaNet:
             )
             map_path = os.path.join(
                 save_dir,
-                f'{self.artifact_names["map_prefix"]}_{model_name}.png',
+                f'{self.object_names["map_prefix"]}_{model_name}.png',
             )
             cv2.imwrite(map_path, prob_map)
 
@@ -159,7 +177,7 @@ class EdemaNet:
         img_dir,
     ):
         # Retrieve paths to probability maps
-        search_pattern = os.path.join(img_dir, f'{self.artifact_names["map_prefix"]}*.png')
+        search_pattern = os.path.join(img_dir, f'{self.object_names["map_prefix"]}*.png')
         map_paths = glob(search_pattern)
 
         # Read probability maps and then merge them into one
@@ -170,7 +188,7 @@ class EdemaNet:
         fused_map = (fused_map * 255.0).astype(np.uint8)
 
         # Save fused probability map
-        fused_map_path = os.path.join(img_dir, self.artifact_names['map'])
+        fused_map_path = os.path.join(img_dir, self.object_names['map'])
         cv2.imwrite(fused_map_path, fused_map)
 
     def process_fused_map(
@@ -178,7 +196,7 @@ class EdemaNet:
         img_dir: str,
     ):
         # Retrieve path to the fused map
-        fused_map_path = os.path.join(img_dir, self.artifact_names['map'])
+        fused_map_path = os.path.join(img_dir, self.object_names['map'])
         fused_map = cv2.imread(fused_map_path, cv2.IMREAD_GRAYSCALE)
 
         processor = MaskProcessor()
@@ -187,7 +205,7 @@ class EdemaNet:
         mask_clean = processor.remove_artifacts(mask=mask_smooth)
 
         # Store lung segmentation mask
-        mask_path = os.path.join(img_dir, self.artifact_names['mask'])
+        mask_path = os.path.join(img_dir, self.object_names['mask'])
         cv2.imwrite(mask_path, mask_clean)
 
     def compute_lungs_metadata(
@@ -231,8 +249,8 @@ class EdemaNet:
         y2: int,
         output_size: Tuple[int, int],
     ):
-        img_path = os.path.join(img_dir, self.artifact_names['img'])
-        mask_path = os.path.join(img_dir, self.artifact_names['mask'])
+        img_path = os.path.join(img_dir, self.object_names['img'])
+        mask_path = os.path.join(img_dir, self.object_names['mask'])
         img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
@@ -264,8 +282,8 @@ class EdemaNet:
         transformed = transform(image=img, mask=mask)
         img_out = transformed['image']
         mask_out = transformed['mask']
-        save_img_path = os.path.join(img_dir, self.artifact_names['img_crop'])
-        save_mask_path = os.path.join(img_dir, self.artifact_names['mask_crop'])
+        save_img_path = os.path.join(img_dir, self.object_names['img_crop'])
+        save_mask_path = os.path.join(img_dir, self.object_names['mask_crop'])
         cv2.imwrite(save_img_path, img_out)
         cv2.imwrite(save_mask_path, mask_out)
 
@@ -314,7 +332,7 @@ class EdemaNet:
         img_dir: str,
     ) -> pd.DataFrame:
         # FIXME: currently only one models is supported
-        img_path = os.path.join(img_dir, self.artifact_names['img_crop'])
+        img_path = os.path.join(img_dir, self.object_names['img_crop'])
         for model_dir in self.det_model_dirs:
             model = FeatureDetector(
                 model_dir=model_dir,
@@ -330,12 +348,12 @@ class EdemaNet:
 
         return df_dets
 
-    def classify_edema(
+    def classify_edema_stage(
         self,
         df: pd.DataFrame,
         img_dir: str,
     ) -> None:
-        save_path = os.path.join(img_dir, self.artifact_names['metadata'])
+        save_path = os.path.join(img_dir, self.object_names['metadata'])
         df.index += 1
         df.to_excel(
             save_path,
@@ -357,6 +375,9 @@ if __name__ == '__main__':
         det_model_dirs=[
             'models/feature_detection/FasterRCNN',
         ],
+        nms_method='soft_nms',
+        iou_threshold=0.5,
+        conf_threshold=0.7,
         output_size=(1536, 1536),
         lung_extension=(50, 50, 50, 150),
         save_dir=results_dir,
