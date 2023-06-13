@@ -9,7 +9,6 @@ import pandas as pd
 import torch
 from cpuinfo import get_cpu_info
 from mmdet.apis import inference_detector, init_detector
-from tqdm import tqdm
 
 from src.data.utils import get_file_list
 
@@ -77,11 +76,7 @@ class FeatureDetector:
         img_paths: List[str],
     ) -> List[List[np.ndarray]]:
         detections = []
-        for i in tqdm(
-            range(0, len(img_paths), self.batch_size),
-            desc='Prediction',
-            unit='batch',
-        ):
+        for i in range(0, len(img_paths), self.batch_size):
             imgs = img_paths[i : i + self.batch_size]
             detections_ = inference_detector(model=self.model, imgs=imgs)
             detections.extend(detections_)
@@ -159,7 +154,7 @@ if __name__ == '__main__':
         ext_list='.png',
     )
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN_0706_094343',
+        model_dir='models/feature_detection/FasterRCNN',
         batch_size=4,
         conf_threshold=0.01,
         device='auto',
