@@ -32,7 +32,7 @@ class EdemaNet:
         self.seg_model_dirs = seg_model_dirs
         self.det_model_dirs = det_model_dirs
         self.output_size = output_size
-        self.lung_extension = lung_extension  # Order: left (x1), top (y1), right (x2), bottom (y2)
+        self.lung_extension = lung_extension  # Tuple[left (x1), top (y1), right (x2), bottom (y2)]
         self.save_dir = save_dir
 
     def __call__(
@@ -47,23 +47,23 @@ class EdemaNet:
         os.makedirs(img_dir, exist_ok=True)
         shutil.copy(img_path, img_dir)
 
-        # Lung segmentation
+        # Segment lungs and output the probability segmentation maps
         self.segment_lungs(
             img_path=img_path,
             save_dir=img_dir,
         )
 
-        # Mask fusion
+        # Merge probability segmentation maps into a single map
         self.fuse_maps(
             img_dir=img_dir,
         )
 
-        # Process fused map
+        # Process the fused map and get the final segmentation mask
         self.process_fused_map(
             img_dir=img_dir,
         )
 
-        # Extract lungs metadata
+        # Extract the coordinates of the lungs and expand them if necessary
         lungs_metadata = self.compute_lungs_metadata(
             img_dir=img_dir,
         )
