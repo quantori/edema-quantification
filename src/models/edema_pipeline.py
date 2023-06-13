@@ -9,17 +9,30 @@ from typing import List, Tuple
 import albumentations as A
 import cv2
 import numpy as np
+import pandas as pd
 import torch
+from tqdm import tqdm
 
 from src.data.utils import get_file_list
 from src.data.utils_sly import FEATURE_MAP, get_box_sizes
+from src.models.feature_detector import FeatureDetector
 from src.models.lung_segmenter import LungSegmenter
 from src.models.map_fuser import MapFuser
 from src.models.mask_processor import MaskProcessor
 
 
 class EdemaNet:
-    """A pipeline dedicated to processing X-ray images and predicting the stage of edema."""
+    """A network dedicated to processing X-ray images and predicting the stage of edema."""
+
+    artifact_names = {
+        'img': 'img.png',
+        'mask': 'mask.png',
+        'img_crop': 'img_crop.png',
+        'mask_crop': 'mask_crop.png',
+        'map': 'map.png',
+        'map_prefix': 'map',
+        'metadata': 'metadata.xlsx',
+    }
 
     def __init__(
         self,
@@ -45,9 +58,11 @@ class EdemaNet:
         img_name = Path(img_path).stem
         img_dir = os.path.join(self.save_dir, img_name)
         os.makedirs(img_dir, exist_ok=True)
-        shutil.copy(img_path, img_dir)
+        dst_path = os.path.join(img_dir, self.artifact_names['img'])
+        shutil.copy(img_path, dst_path)
 
         # Segment lungs and output the probability segmentation maps
+        # TODO: move model loading to __init__
         self.segment_lungs(
             img_path=img_path,
             save_dir=img_dir,
@@ -74,15 +89,15 @@ class EdemaNet:
             lungs_metadata['y2'],
         )
         lungs_coords = self._modify_lung_box(
-            image_height=img_height,
-            image_width=img_width,
+            img_height=img_height,
+            img_width=img_width,
             lung_coords=lung_coords_,
             lung_extension=self.lung_extension,
         )
 
         # Process image that is used by an object detector
         self.process_image(
-            img=img,
+            img_dir=img_dir,
             x1=lungs_coords[0],
             y1=lungs_coords[1],
             x2=lungs_coords[2],
@@ -90,9 +105,17 @@ class EdemaNet:
             output_size=self.output_size,
         )
 
-        # TODO: Detection
+        # Recognize features and return them as a dataframe
+        # TODO: move model loading to __init__
+        df = self.detect_features(
+            img_dir=img_dir,
+        )
 
-        # TODO: Classification
+        # TODO: Process detected features and assign stage of edema
+        self.classify_edema(
+            df=df,
+            img_dir=img_dir,
+        )
 
     def segment_lungs(
         self,
@@ -120,7 +143,10 @@ class EdemaNet:
                 (img_width, img_height),
                 interpolation=cv2.INTER_LANCZOS4,
             )
-            map_path = os.path.join(save_dir, f'prob_map_{model_name}.png')
+            map_path = os.path.join(
+                save_dir,
+                f'{self.artifact_names["map_prefix"]}_{model_name}.png',
+            )
             cv2.imwrite(map_path, prob_map)
 
             # Run the garbage collector and release all unused cached memory
@@ -133,8 +159,7 @@ class EdemaNet:
         img_dir,
     ):
         # Retrieve paths to probability maps
-        prefix = 'prob_map'
-        search_pattern = os.path.join(img_dir, f'{prefix}*.png')
+        search_pattern = os.path.join(img_dir, f'{self.artifact_names["map_prefix"]}*.png')
         map_paths = glob(search_pattern)
 
         # Read probability maps and then merge them into one
@@ -145,7 +170,7 @@ class EdemaNet:
         fused_map = (fused_map * 255.0).astype(np.uint8)
 
         # Save fused probability map
-        fused_map_path = os.path.join(img_dir, 'prob_map_fused.png')
+        fused_map_path = os.path.join(img_dir, self.artifact_names['map'])
         cv2.imwrite(fused_map_path, fused_map)
 
     def process_fused_map(
@@ -153,7 +178,7 @@ class EdemaNet:
         img_dir: str,
     ):
         # Retrieve path to the fused map
-        fused_map_path = os.path.join(img_dir, 'prob_map_fused.png')
+        fused_map_path = os.path.join(img_dir, self.artifact_names['map'])
         fused_map = cv2.imread(fused_map_path, cv2.IMREAD_GRAYSCALE)
 
         processor = MaskProcessor()
@@ -162,7 +187,7 @@ class EdemaNet:
         mask_clean = processor.remove_artifacts(mask=mask_smooth)
 
         # Store lung segmentation mask
-        mask_path = os.path.join(img_dir, 'mask.png')
+        mask_path = os.path.join(img_dir, self.artifact_names['mask'])
         cv2.imwrite(mask_path, mask_clean)
 
     def compute_lungs_metadata(
@@ -199,13 +224,18 @@ class EdemaNet:
 
     def process_image(
         self,
-        img: np.ndarray,
+        img_dir: str,
         x1: int,
         y1: int,
         x2: int,
         y2: int,
         output_size: Tuple[int, int],
-    ) -> np.ndarray:
+    ):
+        img_path = os.path.join(img_dir, self.artifact_names['img'])
+        mask_path = os.path.join(img_dir, self.artifact_names['mask'])
+        img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+
         transform = A.Compose(
             [
                 A.Crop(
@@ -231,15 +261,18 @@ class EdemaNet:
             ],
         )
 
-        transformed = transform(image=img)
+        transformed = transform(image=img, mask=mask)
         img_out = transformed['image']
-
-        return img_out
+        mask_out = transformed['mask']
+        save_img_path = os.path.join(img_dir, self.artifact_names['img_crop'])
+        save_mask_path = os.path.join(img_dir, self.artifact_names['mask_crop'])
+        cv2.imwrite(save_img_path, img_out)
+        cv2.imwrite(save_mask_path, mask_out)
 
     @staticmethod
     def _modify_lung_box(
-        image_height: int,
-        image_width: int,
+        img_height: int,
+        img_width: int,
         lung_coords: Tuple[int, int, int, int],
         lung_extension: Tuple[int, int, int, int],
     ) -> Tuple[int, int, int, int]:
@@ -253,10 +286,10 @@ class EdemaNet:
             logging.warning(f'x1 = {x1} exceeds the left edge of the image = {0}')
         if y1 < 0:
             logging.warning(f'y1 = {y1} exceeds the top edge of the image = {0}')
-        if x2 > image_width:
-            logging.warning(f'x2 = {x2} exceeds the right edge of the image = {image_width}')
-        if y2 > image_height:
-            logging.warning(f'y2 = {y2} exceeds the bottom edge of the image = {image_height}')
+        if x2 > img_width:
+            logging.warning(f'x2 = {x2} exceeds the right edge of the image = {img_width}')
+        if y2 > img_height:
+            logging.warning(f'y2 = {y2} exceeds the bottom edge of the image = {img_height}')
 
         # Check if x2 is greater than x1 and y2 is greater than y1
         if x2 <= x1:
@@ -271,10 +304,45 @@ class EdemaNet:
         # Clip coordinates to image dimensions if necessary
         x1 = max(0, x1)
         y1 = max(0, y1)
-        x2 = min(image_width, x2)
-        y2 = min(image_height, y2)
+        x2 = min(img_width, x2)
+        y2 = min(img_height, y2)
 
         return x1, y1, x2, y2
+
+    def detect_features(
+        self,
+        img_dir: str,
+    ) -> pd.DataFrame:
+        # FIXME: currently only one models is supported
+        img_path = os.path.join(img_dir, self.artifact_names['img_crop'])
+        for model_dir in self.det_model_dirs:
+            model = FeatureDetector(
+                model_dir=model_dir,
+                batch_size=1,
+                conf_threshold=0.01,
+                device='auto',
+            )
+            dets = model([img_path])
+            df_dets = model.process_detections(
+                img_paths=[img_path],
+                detections=dets,
+            )
+
+        return df_dets
+
+    def classify_edema(
+        self,
+        df: pd.DataFrame,
+        img_dir: str,
+    ) -> None:
+        save_path = os.path.join(img_dir, self.artifact_names['metadata'])
+        df.index += 1
+        df.to_excel(
+            save_path,
+            sheet_name='Metadata',
+            index=True,
+            index_label='ID',
+        )
 
 
 if __name__ == '__main__':
@@ -305,8 +373,8 @@ if __name__ == '__main__':
     )
     logging.info(f'Number of images..........: {len(img_paths)}')
 
-    for img_path in img_paths:
-        print(f'Image: {Path(img_path).stem}')
+    for img_path in tqdm(img_paths, desc='Prediction', unit=' images'):
+        print(f'\nImage: {Path(img_path).stem}')
         edema_net(img_path)
 
     print('Complete')
