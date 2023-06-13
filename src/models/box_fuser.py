@@ -20,7 +20,7 @@ class BoxFuser:
     ):
         assert 0 <= iou_threshold <= 1, 'iou_threshold must lie within [0, 1]'
         assert 0 <= conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
-        assert method in ['nms', 'soft_nms'], f'Unknown fusion method: {method}'
+        assert method in ['standard', 'soft'], f'Unknown fusion method: {method}'
         self.method = method
         self.iou_threshold = iou_threshold
         self.conf_threshold = conf_threshold
@@ -61,14 +61,14 @@ class BoxFuser:
             # Get list of box labels
             label_list = [df_img['Feature ID'].values.tolist()]
 
-            if self.method == 'nms':
+            if self.method == 'standard':
                 boxes, scores, labels = nms(
                     boxes=box_list,
                     scores=score_list,
                     labels=label_list,
                     iou_thr=self.iou_threshold,
                 )
-            elif self.method == 'soft_nms':
+            elif self.method == 'soft':
                 boxes, scores, labels = soft_nms(
                     boxes=box_list,
                     scores=score_list,
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     test_dir = 'data/coco/test'
 
     box_fuser = BoxFuser(
-        method='soft_nms',
+        method='soft',
         sigma=0.1,
         iou_threshold=0.5,
         conf_threshold=0.5,
