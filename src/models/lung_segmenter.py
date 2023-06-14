@@ -160,7 +160,7 @@ class LungSegmenter:
     def predict(
         self,
         img: np.ndarray,
-        scale_output: bool = False,
+        scale_output: bool = True,
     ) -> np.ndarray:
         img_tensor = torch.unsqueeze(self.preprocess_image(img), dim=0).to(self.device)
         prob_map = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
