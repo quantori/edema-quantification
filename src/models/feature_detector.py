@@ -18,7 +18,6 @@ class FeatureDetector:
     def __init__(
         self,
         model_dir: str,
-        batch_size: int = 1,
         conf_threshold: float = 0.01,
         device: str = 'auto',
     ):
@@ -59,8 +58,6 @@ class FeatureDetector:
             self.model.test_cfg.rcnn.score_thr = conf_threshold
         except Exception:
             self.model.test_cfg.score_thr = conf_threshold
-
-        self.batch_size = batch_size
 
         # Log the device that is used for the prediction
         if device_ == 'cuda':
@@ -147,7 +144,6 @@ if __name__ == '__main__':
     )
     model = FeatureDetector(
         model_dir='models/feature_detection/FasterRCNN',
-        batch_size=1,
         conf_threshold=0.01,
         device='auto',
     )
