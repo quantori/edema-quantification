@@ -1,0 +1,8 @@
+defaults:
+- main
+- _self_
+
+data_dir: data/interim
+seg_model_dirs: ['models/lung_segmentation/DeepLabV3', 'models/lung_segmentation/FPN', 'models/lung_segmentation/MAnet']
+det_model_dirs: ['models/feature_detection/FasterRCNN']
+save_dir: data/interim_predict
