@@ -69,22 +69,18 @@ class FeatureDetector:
             info = get_cpu_info()
             logging.info(f'Device..............: {info["brand_raw"]}')
 
-    def __call__(
+    def predict(
         self,
-        img_paths: List[str],
-    ) -> List[List[np.ndarray]]:
-        detections = []
-        for i in range(0, len(img_paths), self.batch_size):
-            img_paths_ = img_paths[i : i + self.batch_size]
-            detections_ = inference_detector(model=self.model, imgs=img_paths_)
-            detections.extend(detections_)
+        img: np.ndarray,
+    ) -> List[np.ndarray]:
+        detections = inference_detector(model=self.model, imgs=img)
 
         return detections
 
     def process_detections(
         self,
-        img_paths: List[str],
-        detections: List[List[np.ndarray]],
+        img_path: str,
+        detections: List[np.ndarray],
     ) -> pd.DataFrame:
         columns = [
             'Image path',
@@ -103,41 +99,39 @@ class FeatureDetector:
             'Confidence',
         ]
 
-        # Iterate over images
+        # Iterate over class detections
         df = pd.DataFrame(columns=columns)
-        for image_idx, (img_path, detections_image) in enumerate(zip(img_paths, detections)):
-            # Iterate over class detections
-            img_height, img_width = cv2.imread(img_path).shape[:2]
-            for class_idx, detections_class in enumerate(detections_image):
-                if detections_class.size == 0:
-                    num_detections = 1
-                else:
-                    num_detections = detections_class.shape[0]
+        img_height, img_width = cv2.imread(img_path).shape[:2]
+        for class_idx, detections_class in enumerate(detections):
+            if detections_class.size == 0:
+                num_detections = 1
+            else:
+                num_detections = detections_class.shape[0]
 
-                # Iterate over boxes on a single image
-                df_ = pd.DataFrame(index=range(num_detections), columns=columns)
-                df_['Image path'] = img_path
-                df_['Image name'] = Path(img_path).name
-                df_['Image height'] = img_height
-                df_['Image width'] = img_width
-                for idx, box in enumerate(detections_class):
-                    # box -> array(x_min, y_min, x_max, y_max, confidence)
-                    df_.at[idx, 'x1'] = int(box[0])
-                    df_.at[idx, 'y1'] = int(box[1])
-                    df_.at[idx, 'x2'] = int(box[2])
-                    df_.at[idx, 'y2'] = int(box[3])
-                    df_.at[idx, 'Feature ID'] = class_idx + 1
-                    df_.at[idx, 'Feature'] = self.classes[class_idx]
-                    df_.at[idx, 'Confidence'] = box[4]
+            # Iterate over boxes on a single image
+            df_ = pd.DataFrame(index=range(num_detections), columns=columns)
+            df_['Image path'] = img_path
+            df_['Image name'] = Path(img_path).name
+            df_['Image height'] = img_height
+            df_['Image width'] = img_width
+            for idx, box in enumerate(detections_class):
+                # box -> array(x_min, y_min, x_max, y_max, confidence)
+                df_.at[idx, 'x1'] = int(box[0])
+                df_.at[idx, 'y1'] = int(box[1])
+                df_.at[idx, 'x2'] = int(box[2])
+                df_.at[idx, 'y2'] = int(box[3])
+                df_.at[idx, 'Feature ID'] = class_idx + 1
+                df_.at[idx, 'Feature'] = self.classes[class_idx]
+                df_.at[idx, 'Confidence'] = box[4]
 
-                df = pd.concat([df, df_])
+            df = pd.concat([df, df_])
 
         df['Box width'] = abs(df.x2 - df.x1 + 1)
         df['Box height'] = abs(df.y2 - df.y1 + 1)
         df['Box area'] = df['Box width'] * df['Box height']
 
         df.dropna(subset=['x1', 'x2', 'y1', 'y2', 'Confidence'], inplace=True)
-        df.sort_values('Image path', inplace=True)
+        df.sort_values('Feature ID', inplace=True)
         df.reset_index(drop=True, inplace=True)
 
         return df
@@ -157,13 +151,18 @@ if __name__ == '__main__':
         conf_threshold=0.01,
         device='auto',
     )
-    dets = model(img_paths)
-    df_dets = model.process_detections(
-        img_paths=img_paths,
-        detections=dets,
-    )
+    df_dets = pd.DataFrame()
+    for img_path in img_paths:
+        img = cv2.imread(img_path)
+        dets = model.predict(img)
+        df_dets_ = model.process_detections(
+            img_path=img_path,
+            detections=dets,
+        )
+        df_dets = pd.concat([df_dets, df_dets_])
+    df_dets.index += 1
     df_dets.to_excel(
-        os.path.join(test_dir, 'predictions.xlsx'),
+        os.path.join(test_dir, 'predictions2.xlsx'),
         sheet_name='Detections',
         index=True,
         index_label='ID',
