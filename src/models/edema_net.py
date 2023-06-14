@@ -37,8 +37,8 @@ class EdemaNet:
 
     def __init__(
         self,
-        seg_model_dirs: List[str],
-        det_model_dirs: List[str],
+        lung_segmenters: List[LungSegmenter],
+        feature_detectors: List[FeatureDetector],
         nms_method: str = 'soft',
         iou_threshold: float = 0.5,
         conf_threshold: float = 0.7,
@@ -46,8 +46,8 @@ class EdemaNet:
         lung_extension: Tuple[int, int, int, int] = (50, 50, 50, 150),
         save_dir: str = 'data/interim_predict',
     ) -> None:
-        self.seg_model_dirs = seg_model_dirs
-        self.det_model_dirs = det_model_dirs
+        self.lung_segmenters = lung_segmenters
+        self.feature_detectors = feature_detectors
         assert nms_method in ['standard', 'soft'], f'Unknown fusion method: {nms_method}'
         self.nms_method = nms_method
         self.iou_threshold = iou_threshold
@@ -56,7 +56,7 @@ class EdemaNet:
         self.lung_extension = lung_extension  # Tuple[left (x1), top (y1), right (x2), bottom (y2)]
         self.save_dir = save_dir
 
-    def __call__(
+    def predict(
         self,
         img_path: str,
     ) -> None:
@@ -70,11 +70,21 @@ class EdemaNet:
         shutil.copy(img_path, dst_path)
 
         # Segment lungs and output the probability segmentation maps
-        # TODO: move model loading to __init__
-        self.segment_lungs(
-            img_path=img_path,
-            save_dir=img_dir,
-        )
+        for lung_segmenter in self.lung_segmenters:
+            prob_map_ = lung_segmenter.predict(
+                img=img,
+                scale_output=True,
+            )
+            prob_map = cv2.resize(
+                prob_map_,
+                (img_width, img_height),
+                interpolation=cv2.INTER_LANCZOS4,
+            )
+            map_path = os.path.join(
+                self.save_dir,
+                f'{self.object_names["map_prefix"]}_{model_name}.png',
+            )
+            cv2.imwrite(map_path, prob_map)
 
         # Merge probability segmentation maps into a single map
         self.fuse_maps(
@@ -152,7 +162,7 @@ class EdemaNet:
             )
 
             # Retrieve and save a probability segmentation map
-            prob_map_ = model(
+            prob_map_ = model.predict(
                 img=img,
                 scale_output=True,
             )
@@ -365,22 +375,46 @@ class EdemaNet:
 
 if __name__ == '__main__':
     data_dir = 'data/interim'
-    results_dir = f'{data_dir}_predict'
+    result_dir = f'{data_dir}_predict'
+
+    # Initialize lung segmentation models
+    seg_model_dirs = [
+        'models/lung_segmentation/DeepLabV3',
+        'models/lung_segmentation/FPN',
+        'models/lung_segmentation/MAnet',
+    ]
+    lung_segmenters = []
+    for seg_model_dir in seg_model_dirs:
+        lung_segmenters.append(
+            LungSegmenter(
+                model_dir=seg_model_dir,
+                device='auto',
+            ),
+        )
+
+    # Initialize feature detection models
+    det_model_dirs = [
+        'models/feature_detection/FasterRCNN',
+    ]
+    feature_detectors = []
+    for det_model_dir in det_model_dirs:
+        feature_detectors.append(
+            FeatureDetector(
+                model_dir=det_model_dir,
+                batch_size=1,
+                conf_threshold=0.01,
+                device='auto',
+            ),
+        )
+
     edema_net = EdemaNet(
-        seg_model_dirs=[
-            'models/lung_segmentation/DeepLabV3',
-            'models/lung_segmentation/FPN',
-            'models/lung_segmentation/MAnet',
-        ],
-        det_model_dirs=[
-            'models/feature_detection/FasterRCNN',
-        ],
-        nms_method='soft_nms',
+        lung_segmenters=lung_segmenters,
+        feature_detectors=feature_detectors,
+        nms_method='soft',
         iou_threshold=0.5,
         conf_threshold=0.7,
         output_size=(1536, 1536),
         lung_extension=(50, 50, 50, 150),
-        save_dir=results_dir,
     )
 
     img_paths = get_file_list(
@@ -396,6 +430,6 @@ if __name__ == '__main__':
 
     for img_path in tqdm(img_paths, desc='Prediction', unit=' images'):
         print(f'\nImage: {Path(img_path).stem}')
-        edema_net(img_path)
+        edema_net.predict(img_path)
 
     print('Complete')
