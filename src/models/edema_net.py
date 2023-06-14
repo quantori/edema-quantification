@@ -39,6 +39,8 @@ class EdemaNet:
         self,
         lung_segmenters: List[LungSegmenter],
         feature_detectors: List[FeatureDetector],
+        map_fuser: MapFuser,
+        mask_processor: MaskProcessor,
         nms_method: str = 'soft',
         iou_threshold: float = 0.5,
         conf_threshold: float = 0.7,
@@ -48,6 +50,8 @@ class EdemaNet:
     ) -> None:
         self.lung_segmenters = lung_segmenters
         self.feature_detectors = feature_detectors
+        self.map_fuser = map_fuser
+        self.mask_processor = mask_processor
         assert nms_method in ['standard', 'soft'], f'Unknown fusion method: {nms_method}'
         self.nms_method = nms_method
         self.iou_threshold = iou_threshold
@@ -75,18 +79,24 @@ class EdemaNet:
                 img=img,
                 scale_output=True,
             )
-            prob_map = cv2.resize(
+            cv2.resize(
                 prob_map_,
                 (img_width, img_height),
                 interpolation=cv2.INTER_LANCZOS4,
             )
-            map_path = os.path.join(
-                self.save_dir,
-                f'{self.object_names["map_prefix"]}_{model_name}.png',
-            )
-            cv2.imwrite(map_path, prob_map)
+            # map_path = os.path.join(
+            #     self.save_dir,
+            #     f'{self.object_names["map_prefix"]}_{model_name}.png',
+            # )
+            # cv2.imwrite(map_path, prob_map)
 
         # Merge probability segmentation maps into a single map
+        # TODO: add maps to map_fuser
+        # for map_path in map_paths:
+        #     self.map_fuser.add_prob_map(map_path)
+        fused_map = self.map_fuser.conditional_probability_fusion(scale_output=True)
+
+        # TODO: Remove
         self.fuse_maps(
             img_dir=img_dir,
         )
@@ -95,6 +105,9 @@ class EdemaNet:
         self.process_fused_map(
             img_dir=img_dir,
         )
+        mask_bin = self.mask_processor.binarize_image(image=fused_map)
+        mask_smooth = self.mask_processor.smooth_mask(mask=mask_bin)
+        self.mask_processor.remove_artifacts(mask=mask_smooth)
 
         # Extract the coordinates of the lungs and expand them if necessary
         lungs_metadata = self.compute_lungs_metadata(
