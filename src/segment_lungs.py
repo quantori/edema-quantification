@@ -53,7 +53,7 @@ def main(cfg: DictConfig) -> None:
             img_height, img_width = img.shape[:2]
 
             # Retrieve and save a probability segmentation map
-            map_ = model(
+            map_ = model.predict(
                 img=img,
                 scale_output=True,
             )
