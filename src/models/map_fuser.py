@@ -33,7 +33,10 @@ class MapFuser:
 
         self.prob_maps.append(prob_map)
 
-    def conditional_probability_fusion(self):
+    def conditional_probability_fusion(
+        self,
+        scale_output: bool = True,
+    ):
         # Ensure at least one map has been added
         assert len(self.prob_maps) > 0, 'No prob_maps have been added'
 
@@ -59,6 +62,9 @@ class MapFuser:
 
                 # Assign the fused probability to the foreground class
                 fused_map[y, x] = prob_foreground
+
+        if scale_output:
+            fused_map = (fused_map * 255.0).astype(np.uint8)
 
         return fused_map
 
