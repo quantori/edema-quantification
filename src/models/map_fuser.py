@@ -14,13 +14,8 @@ class MapFuser:
 
     def add_prob_map(
         self,
-        map_path: str,
+        prob_map: np.ndarray,
     ):
-        # Read the mask using OpenCV
-        prob_map = cv2.imread(map_path, cv2.IMREAD_GRAYSCALE)
-        if prob_map is None:
-            raise ValueError(f'Failed to read the mask: {map_path}')
-
         # Ensure the input mask has the same shape as existing masks
         if self.prob_maps:
             assert (
@@ -74,14 +69,15 @@ if __name__ == '__main__':
     fuser = MapFuser()
 
     # Add prob_map paths
-    map1_path = 'data/interim_lungs/MAnet/10013643_58785837.png'
-    map2_path = 'data/interim_lungs/DeepLabV3/10013643_58785837.png'
-    map3_path = 'data/interim_lungs/Unet++/10013643_58785837.png'
-    fuser.add_prob_map(map1_path)
-    fuser.add_prob_map(map2_path)
-    fuser.add_prob_map(map3_path)
-    fused_map = fuser.conditional_probability_fusion()
-    fused_map = (fused_map * 255.0).astype(np.uint8)
+    map_paths = [
+        'data/interim_lungs/MAnet/10013643_58785837.png',
+        'data/interim_lungs/DeepLabV3/10013643_58785837.png',
+        'data/interim_lungs/Unet++/10013643_58785837.png',
+    ]
+    for map_path in map_paths:
+        prob_map = cv2.imread(map_path, cv2.IMREAD_GRAYSCALE)
+        fuser.add_prob_map(prob_map)
+    fused_map = fuser.conditional_probability_fusion(scale_output=True)
 
     # Process probability map
     from src.models.mask_processor import MaskProcessor
