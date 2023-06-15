@@ -3,6 +3,15 @@ defaults:
 - _self_
 
 data_dir: data/interim
-seg_model_dirs: ['models/lung_segmentation/DeepLabV3', 'models/lung_segmentation/FPN', 'models/lung_segmentation/MAnet']
-det_model_dirs: ['models/feature_detection/FasterRCNN']
 save_dir: data/interim_predict
+
+# Segmentation settings
+seg_model_dirs: ['models/lung_segmentation/DeepLabV3', 'models/lung_segmentation/FPN', 'models/lung_segmentation/MAnet']
+
+# Detection settings
+det_model_dirs: ['models/feature_detection/FasterRCNN']
+
+# Non-Maximum Suppression settings
+nms_method: soft      # soft or standard
+iou_threshold: 0.5
+conf_threshold: 0.5
