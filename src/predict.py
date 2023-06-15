@@ -82,8 +82,8 @@ def main(cfg: DictConfig) -> None:
         map_fuser=map_fuser,
         mask_processor=mask_processor,
         non_max_suppressor=non_max_suppressor,
-        output_size=(1536, 1536),
-        lung_extension=(50, 50, 50, 150),
+        img_size=cfg.img_size,
+        lung_extension=cfg.lung_extension,
     )
 
     for img_path in tqdm(img_paths, desc='Prediction', unit=' images'):

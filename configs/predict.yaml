@@ -10,6 +10,8 @@ seg_model_dirs: ['models/lung_segmentation/DeepLabV3', 'models/lung_segmentation
 
 # Detection settings
 det_model_dirs: ['models/feature_detection/FasterRCNN']
+img_size: [1536, 1536]
+lung_extension: [50, 50, 50, 150]
 
 # Non-Maximum Suppression settings
 nms_method: soft      # soft or standard
