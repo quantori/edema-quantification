@@ -13,24 +13,28 @@ class NonMaxSuppressor:
 
     def __init__(
         self,
+        conf_thresholds: dict,
         method: str = 'soft',
         sigma: float = 0.1,
         iou_threshold: float = 0.5,
-        conf_threshold: float = 0.5,
     ):
         assert 0 <= iou_threshold <= 1, 'iou_threshold must lie within [0, 1]'
-        assert 0 <= conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
+        for conf_threshold in conf_thresholds.values():
+            assert 0 <= conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
         assert method in ['standard', 'soft'], f'Unknown fusion method: {method}'
         self.method = method
         self.iou_threshold = iou_threshold
-        self.conf_threshold = conf_threshold
+        self.conf_thresholds = conf_thresholds
         self.sigma = sigma
 
     def suppress_detections(
         self,
         df: pd.DataFrame,
     ) -> pd.DataFrame:
-        df = df[df['Confidence'] >= self.conf_threshold]
+        conf_filter = pd.Series(False, index=range(len(df)))
+        for feature, conf_threshold in self.conf_thresholds.items():
+            conf_filter |= (df['Feature'] == feature) & (df['Confidence'] >= conf_threshold)
+        df = df[conf_filter]
 
         # Process predictions one image at a time
         df_out = pd.DataFrame(columns=df.columns)
@@ -139,11 +143,24 @@ if __name__ == '__main__':
 
     test_dir = 'data/coco/test'
 
+    feature_conf_threshold = dict(
+        Cephalization=0.2,
+        Artery=0.2,
+        Heart=0.2,
+        Kerley=0.2,
+        Bronchus=0.2,
+        Effusion=0.2,
+        Bat=0.2,
+        Infiltrate=0.2,
+        Cuffing=0.2,
+        Lungs=0.2,
+    )
+
     box_fuser = NonMaxSuppressor(
         method='soft',
         sigma=0.1,
         iou_threshold=0.5,
-        conf_threshold=0.5,
+        conf_thresholds=feature_conf_threshold,
     )
 
     # Suppress and/or fuse boxes
