@@ -26,7 +26,7 @@ class NonMaxSuppressor:
         self.conf_threshold = conf_threshold
         self.sigma = sigma
 
-    def fuse_detections(
+    def suppress_detections(
         self,
         df: pd.DataFrame,
     ) -> pd.DataFrame:
@@ -148,7 +148,7 @@ if __name__ == '__main__':
 
     # Suppress and/or fuse boxes
     df_dets = pd.read_excel(os.path.join(test_dir, 'predictions.xlsx'))
-    df_dets_fused = box_fuser.fuse_detections(df=df_dets)
+    df_dets_fused = box_fuser.suppress_detections(df=df_dets)
     df_dets_fused.drop(columns=['ID'], inplace=True)
     df_dets_fused.to_excel(
         os.path.join(test_dir, 'predictions_nms.xlsx'),
