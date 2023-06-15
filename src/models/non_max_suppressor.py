@@ -8,8 +8,8 @@ from tqdm import tqdm
 from src.data.utils_sly import FEATURE_MAP_REVERSED
 
 
-class BoxFuser:
-    """BoxFuser is a class for fusing multiple boxes."""
+class NonMaxSuppressor:
+    """NonMaxSuppressor is a class for fusing multiple boxes."""
 
     def __init__(
         self,
@@ -134,12 +134,12 @@ class BoxFuser:
 
 
 if __name__ == '__main__':
-    # Create an instance of BoxFuser
+    # Create an instance of NonMaxSuppressor
     import os
 
     test_dir = 'data/coco/test'
 
-    box_fuser = BoxFuser(
+    box_fuser = NonMaxSuppressor(
         method='soft',
         sigma=0.1,
         iou_threshold=0.5,
