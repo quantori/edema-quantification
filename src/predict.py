@@ -88,7 +88,10 @@ def main(cfg: DictConfig) -> None:
 
     for img_path in tqdm(img_paths, desc='Prediction', unit=' images'):
         log.info(f'Processing: {Path(img_path).stem}')
-        edema_net.predict(img_path)
+        edema_net.predict(
+            img_path=img_path,
+            save_dir=cfg.save_dir,
+        )
 
     log.info('Complete')
 
