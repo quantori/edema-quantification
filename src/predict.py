@@ -12,6 +12,7 @@ from src.models.feature_detector import FeatureDetector
 from src.models.lung_segmenter import LungSegmenter
 from src.models.map_fuser import MapFuser
 from src.models.mask_processor import MaskProcessor
+from src.models.non_max_suppressor import NonMaxSuppressor
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -24,6 +25,18 @@ log.setLevel(logging.INFO)
 )
 def main(cfg: DictConfig) -> None:
     log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
+
+    # Get list of images to predict
+    img_paths = get_file_list(
+        src_dirs=cfg.data_dir,
+        ext_list=[
+            '.png',
+            '.jpg',
+            '.jpeg',
+            '.bmp',
+        ],
+    )
+    log.info(f'Number of images..........: {len(img_paths)}')
 
     # Initialize lung segmentation models
     lung_segmenters = []
@@ -55,29 +68,24 @@ def main(cfg: DictConfig) -> None:
         kernel_size=(7, 7),
     )
 
+    # Initialize non-maximum suppressor
+    non_max_suppressor = NonMaxSuppressor(
+        method=cfg.nms_method,
+        sigma=0.1,
+        iou_threshold=cfg.iou_threshold,
+        conf_threshold=cfg.conf_threshold,
+    )
+
     edema_net = EdemaNet(
         lung_segmenters=lung_segmenters,
         feature_detectors=feature_detectors,
         map_fuser=map_fuser,
         mask_processor=mask_processor,
-        nms_method='soft',
-        iou_threshold=0.5,
-        conf_threshold=0.7,
+        non_max_suppressor=non_max_suppressor,
         output_size=(1536, 1536),
         lung_extension=(50, 50, 50, 150),
     )
 
-    # Get list of images to predict
-    img_paths = get_file_list(
-        src_dirs=cfg.data_dir,
-        ext_list=[
-            '.png',
-            '.jpg',
-            '.jpeg',
-            '.bmp',
-        ],
-    )
-    log.info(f'Number of images..........: {len(img_paths)}')
     for img_path in tqdm(img_paths, desc='Prediction', unit=' images'):
         log.info(f'Processing: {Path(img_path).stem}')
         edema_net.predict(img_path)
