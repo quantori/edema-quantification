@@ -7,6 +7,7 @@ from typing import List, Tuple
 import albumentations as A
 import cv2
 import numpy as np
+import pandas as pd
 
 from src.data.utils_sly import FEATURE_MAP, get_box_sizes
 from src.models.feature_detector import FeatureDetector
@@ -19,15 +20,13 @@ from src.models.non_max_suppressor import NonMaxSuppressor
 class EdemaNet:
     """A network dedicated to processing X-ray images and predicting the stage of edema."""
 
-    names = {
-        'img': 'img.png',
-        'mask': 'mask.png',
-        'img_crop': 'img_crop.png',
-        'mask_crop': 'mask_crop.png',
-        'map': 'map.png',
-        'map_prefix': 'map',
-        'metadata': 'metadata.xlsx',
-    }
+    IMG_NAME = 'img.png'
+    IMG_CROP_NAME = 'img_crop.png'
+    MASK_NAME = 'mask.png'
+    MASK_CROP_NAME = 'mask_crop.png'
+    MAP_NAME = 'map.png'
+    MAP_PREFIX = 'map'
+    METADATA_NAME = 'metadata.xlsx'
 
     def __init__(
         self,
@@ -38,7 +37,7 @@ class EdemaNet:
         non_max_suppressor: NonMaxSuppressor,
         # box_fuser: BoxFuser,                          # TODO: implement BoxFuser for several feature detectors
         # edema_classifier: EdemaClassifier,            # TODO: add a classifier
-        output_size: Tuple[int, int] = (1536, 1536),
+        img_size: Tuple[int, int] = (1536, 1536),
         lung_extension: Tuple[int, int, int, int] = (50, 50, 50, 150),
     ) -> None:
         self.lung_segmenters = lung_segmenters
@@ -48,7 +47,7 @@ class EdemaNet:
         self.non_max_suppressor = non_max_suppressor
         # self.box_fuser = box_fuser                    # TODO: implement BoxFuser for several feature detectors
         # self.edema_classifier = edema_classifier      # TODO: add a classifier
-        self.output_size = output_size
+        self.img_size = img_size
         self.lung_extension = lung_extension  # Tuple[left (x1), top (y1), right (x2), bottom (y2)]
 
     def predict(
@@ -57,13 +56,14 @@ class EdemaNet:
         save_dir: str,
     ) -> None:
         # Create a directory and copy an image into it
-        img = cv2.imread(img_path)
-        img_height, img_width = img.shape[:2]
         img_name = Path(img_path).stem
         img_dir = os.path.join(save_dir, img_name)
         os.makedirs(img_dir, exist_ok=True)
-        dst_path = os.path.join(img_dir, self.names['img'])
+        dst_path = os.path.join(img_dir, self.IMG_NAME)
         shutil.copy(img_path, dst_path)
+        img_path = dst_path
+        img = cv2.imread(img_path)
+        img_height, img_width = img.shape[:2]
 
         # Segment lungs and output the probability segmentation maps
         for lung_segmenter in self.lung_segmenters:
@@ -79,20 +79,20 @@ class EdemaNet:
             self.map_fuser.add_prob_map(prob_map)
             map_path = os.path.join(
                 img_dir,
-                f'{self.names["map_prefix"]}_{lung_segmenter.model_name}.png',
+                f'{self.MAP_PREFIX}_{lung_segmenter.model_name}.png',
             )
             cv2.imwrite(map_path, prob_map)
 
         # Merge probability segmentation maps into a single map
         fused_map = self.map_fuser.conditional_probability_fusion(scale_output=True)
-        fused_map_path = os.path.join(img_dir, self.names['map'])
+        fused_map_path = os.path.join(img_dir, self.MAP_NAME)
         cv2.imwrite(fused_map_path, fused_map)
 
         # Process the fused map and get the final segmentation mask
         mask_bin = self.mask_processor.binarize_image(image=fused_map)
         mask_smooth = self.mask_processor.smooth_mask(mask=mask_bin)
         mask_clean = self.mask_processor.remove_artifacts(mask=mask_smooth)
-        mask_path = os.path.join(img_dir, self.names['mask'])
+        mask_path = os.path.join(img_dir, self.MASK_NAME)
         cv2.imwrite(mask_path, mask_clean)
 
         # Extract the coordinates of the lungs and expand them if necessary
@@ -117,9 +117,9 @@ class EdemaNet:
             y1=lungs_coords[1],
             x2=lungs_coords[2],
             y2=lungs_coords[3],
-            output_size=self.output_size,
+            output_size=self.img_size,
         )
-        img_crop_path = os.path.join(img_dir, self.names['img_crop'])
+        img_crop_path = os.path.join(img_dir, self.IMG_CROP_NAME)
         cv2.imwrite(img_crop_path, img_crop)
         mask_crop = process_image(
             img=mask_clean,
@@ -127,27 +127,25 @@ class EdemaNet:
             y1=lungs_coords[1],
             x2=lungs_coords[2],
             y2=lungs_coords[3],
-            output_size=self.output_size,
+            output_size=self.img_size,
         )
-        mask_crop_path = os.path.join(img_dir, self.names['mask_crop'])
+        mask_crop_path = os.path.join(img_dir, self.MASK_CROP_NAME)
         cv2.imwrite(mask_crop_path, mask_crop)
 
         # Recognize features and return them as a dataframe
-        # TODO: move model loading to __init__
-        df_dets = self.detect_features(
-            img_dir=img_dir,
-        )
+        # TODO: add aggregation from different models
+        df_dets = pd.DataFrame()
+        for feature_detector in self.feature_detectors:
+            dets = feature_detector.predict(img=img_crop)
+            df_dets_ = feature_detector.process_detections(
+                img_path=img_crop_path,
+                detections=dets,
+            )
+            df_dets = pd.concat([df_dets, df_dets_])
 
-        # Perform Soft Non-Maximum Suppression
-        # TODO: Filter dataframes by class conference independently
-        box_fuser = NonMaxSuppressor(
-            method=self.nms_method,
-            sigma=0.1,
-            iou_threshold=self.iou_threshold,
-            conf_threshold=self.conf_threshold,
-        )
-        df_nms = box_fuser.fuse_detections(df=df_dets)
-        print(df_nms)
+        # Perform soft Non-Maximum Suppression
+        df_nms = self.non_max_suppressor.suppress_detections(df=df_dets)
+        print(len(df_nms))
 
         # TODO: Process detected features and assign stage of edema
         print('Classification')
