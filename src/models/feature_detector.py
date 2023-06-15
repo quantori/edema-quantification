@@ -159,7 +159,7 @@ if __name__ == '__main__':
         ext_list='.png',
     )
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN_0706_094343',
+        model_dir='models/feature_detection/FasterRCNN',
         batch_size=4,
         conf_threshold=0.01,
         device='auto',
