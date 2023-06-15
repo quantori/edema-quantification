@@ -13,7 +13,7 @@ class NonMaxSuppressor:
 
     def __init__(
         self,
-        method: str = 'soft_nms',
+        method: str = 'soft',
         sigma: float = 0.1,
         iou_threshold: float = 0.5,
         conf_threshold: float = 0.5,
