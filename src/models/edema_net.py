@@ -11,15 +11,13 @@ import cv2
 import numpy as np
 import pandas as pd
 import torch
-from tqdm import tqdm
 
-from src.data.utils import get_file_list
 from src.data.utils_sly import FEATURE_MAP, get_box_sizes
-from src.models.box_fuser import BoxFuser
 from src.models.feature_detector import FeatureDetector
 from src.models.lung_segmenter import LungSegmenter
 from src.models.map_fuser import MapFuser
 from src.models.mask_processor import MaskProcessor
+from src.models.non_max_suppressor import NonMaxSuppressor
 
 
 class EdemaNet:
@@ -41,6 +39,7 @@ class EdemaNet:
         feature_detectors: List[FeatureDetector],
         map_fuser: MapFuser,
         mask_processor: MaskProcessor,
+        non_max_suppressor: NonMaxSuppressor,
         nms_method: str = 'soft',
         iou_threshold: float = 0.5,
         conf_threshold: float = 0.7,
@@ -52,6 +51,7 @@ class EdemaNet:
         self.feature_detectors = feature_detectors
         self.map_fuser = map_fuser
         self.mask_processor = mask_processor
+        self.non_max_suppressor = non_max_suppressor
         assert nms_method in ['standard', 'soft'], f'Unknown fusion method: {nms_method}'
         self.nms_method = nms_method
         self.iou_threshold = iou_threshold
@@ -144,7 +144,7 @@ class EdemaNet:
 
         # Perform Soft Non-Maximum Suppression
         # TODO: Filter dataframes by class conference independently
-        box_fuser = BoxFuser(
+        box_fuser = NonMaxSuppressor(
             method=self.nms_method,
             sigma=0.1,
             iou_threshold=self.iou_threshold,
@@ -384,65 +384,3 @@ class EdemaNet:
             index=True,
             index_label='ID',
         )
-
-
-if __name__ == '__main__':
-    data_dir = 'data/interim'
-    result_dir = f'{data_dir}_predict'
-
-    # Initialize lung segmentation models
-    seg_model_dirs = [
-        'models/lung_segmentation/DeepLabV3',
-        'models/lung_segmentation/FPN',
-        'models/lung_segmentation/MAnet',
-    ]
-    lung_segmenters = []
-    for seg_model_dir in seg_model_dirs:
-        lung_segmenters.append(
-            LungSegmenter(
-                model_dir=seg_model_dir,
-                device='auto',
-            ),
-        )
-
-    # Initialize feature detection models
-    det_model_dirs = [
-        'models/feature_detection/FasterRCNN',
-    ]
-    feature_detectors = []
-    for det_model_dir in det_model_dirs:
-        feature_detectors.append(
-            FeatureDetector(
-                model_dir=det_model_dir,
-                batch_size=1,
-                conf_threshold=0.01,
-                device='auto',
-            ),
-        )
-
-    edema_net = EdemaNet(
-        lung_segmenters=lung_segmenters,
-        feature_detectors=feature_detectors,
-        nms_method='soft',
-        iou_threshold=0.5,
-        conf_threshold=0.7,
-        output_size=(1536, 1536),
-        lung_extension=(50, 50, 50, 150),
-    )
-
-    img_paths = get_file_list(
-        src_dirs=data_dir,
-        ext_list=[
-            '.png',
-            '.jpg',
-            '.jpeg',
-            '.bmp',
-        ],
-    )
-    logging.info(f'Number of images..........: {len(img_paths)}')
-
-    for img_path in tqdm(img_paths, desc='Prediction', unit=' images'):
-        print(f'\nImage: {Path(img_path).stem}')
-        edema_net.predict(img_path)
-
-    print('Complete')
