@@ -59,12 +59,16 @@ class FeatureDetector:
         except Exception:
             self.model.test_cfg.score_thr = conf_threshold
 
-        # Log the device that is used for the prediction
+        # Log model parameters
+        logging.info('')
+        logging.info(f'Model.....................: {self.model.cfg.model["type"]}')
+        logging.info(f'Model dir.................: {model_dir}')
+        logging.info(f'Confidence threshold......: {conf_threshold}')
         if device_ == 'cuda':
-            logging.info(f'Device..............: {torch.cuda.get_device_name(0)}')
+            logging.info(f'Device....................: {torch.cuda.get_device_name(0)}')
         else:
             info = get_cpu_info()
-            logging.info(f'Device..............: {info["brand_raw"]}')
+            logging.info(f'Device....................: {info["brand_raw"]}')
 
     def predict(
         self,
