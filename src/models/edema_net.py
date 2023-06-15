@@ -66,7 +66,7 @@ class EdemaNet:
         img_height, img_width = img.shape[:2]
 
         # Segment lungs and output the probability segmentation maps
-        for lung_segmenter in self.lung_segmenters:
+        for idx, lung_segmenter in enumerate(self.lung_segmenters):
             prob_map_ = lung_segmenter.predict(
                 img=img,
                 scale_output=True,
@@ -132,20 +132,21 @@ class EdemaNet:
         mask_crop_path = os.path.join(img_dir, self.MASK_CROP_NAME)
         cv2.imwrite(mask_crop_path, mask_crop)
 
-        # Recognize features and return them as a dataframe
-        # TODO: add aggregation from different models
+        # Recognize features and perform NMS
         df_dets = pd.DataFrame()
-        for feature_detector in self.feature_detectors:
+        for idx, feature_detector in enumerate(self.feature_detectors):
             dets = feature_detector.predict(img=img_crop)
             df_dets_ = feature_detector.process_detections(
                 img_path=img_crop_path,
                 detections=dets,
             )
-            df_dets = pd.concat([df_dets, df_dets_])
+            df_nms = self.non_max_suppressor.suppress_detections(df=df_dets_)
+            df_nms['Model ID'] = idx + 1
+            df_dets = pd.concat([df_dets, df_nms])
 
-        # Perform soft Non-Maximum Suppression
-        df_nms = self.non_max_suppressor.suppress_detections(df=df_dets)
-        print(len(df_nms))
+        # TODO: Perform box fusion
+        # df_out = self.box_fuser.fuse_detections(df=df_dets)
+        # print(len(df_nms))
 
         # TODO: Process detected features and assign stage of edema
         print('Classification')
