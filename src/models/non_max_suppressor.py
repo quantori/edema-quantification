@@ -31,6 +31,10 @@ class NonMaxSuppressor:
         self,
         df: pd.DataFrame,
     ) -> pd.DataFrame:
+        # If there are no detections, return an initial 1-row dataframe
+        if len(df) == 1 and pd.isna(df.loc[0, 'Feature']):
+            return df
+
         # Filter dataframe by feature confidence
         df_filtered = pd.DataFrame()
         for key, threshold in self.conf_thresholds.items():
