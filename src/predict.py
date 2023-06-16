@@ -3,16 +3,20 @@ import os
 from pathlib import Path
 
 import hydra
+import pandas as pd
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
 from src.data.utils import get_file_list
+from src.models.edema_classifier import EdemaClassifier
 from src.models.edema_net import EdemaNet
 from src.models.feature_detector import FeatureDetector
 from src.models.lung_segmenter import LungSegmenter
 from src.models.map_fuser import MapFuser
 from src.models.mask_processor import MaskProcessor
 from src.models.non_max_suppressor import NonMaxSuppressor
+
+# TODO: Initialize box fuser
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -76,22 +80,41 @@ def main(cfg: DictConfig) -> None:
         conf_thresholds=cfg.conf_thresholds,
     )
 
+    # TODO: Initialize box fuser
+
+    # Initialize edema classifier
+    edema_classifier = EdemaClassifier()
+
     edema_net = EdemaNet(
         lung_segmenters=lung_segmenters,
         feature_detectors=feature_detectors,
         map_fuser=map_fuser,
         mask_processor=mask_processor,
         non_max_suppressor=non_max_suppressor,
+        # box_fuser=box_fuser,    # TODO: Initialize box fuser
+        edema_classifier=edema_classifier,
         img_size=cfg.img_size,
         lung_extension=cfg.lung_extension,
     )
 
+    df = pd.DataFrame()
     for img_path in tqdm(img_paths, desc='Prediction', unit=' images'):
         log.info(f'Processing: {Path(img_path).stem}')
-        edema_net.predict(
+        df_img = edema_net.predict(
             img_path=img_path,
             save_dir=cfg.save_dir,
         )
+        df = pd.concat([df, df_img])
+
+    # Save metadata
+    metadata_path = os.path.join(cfg.save_dir, 'metadata.xlsx')
+    df.index += 1
+    df.to_excel(
+        metadata_path,
+        sheet_name='Metadata',
+        index=True,
+        index_label='ID',
+    )
 
     log.info('Complete')
 
