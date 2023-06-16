@@ -15,7 +15,7 @@ stages:
 
   segment_lungs:
     cmd:
-    - rm -rf data/interim_lung_seg || true
+    - rm -rf data/interim_lungs || true
     - python src/segment_lungs.py
     deps:
     - src/segment_lungs.py
@@ -26,7 +26,7 @@ stages:
     - models/lung_segmentation/FPN
     - models/lung_segmentation/MAnet
     outs:
-    - data/interim_lung_seg
+    - data/interim_lungs
 
   fuse_maps:
     cmd:
@@ -38,7 +38,7 @@ stages:
     - src/models/mask_processor.py
     - src/data/utils_sly.py
     - configs/fuse_maps.yaml
-    - data/interim_lung_seg
+    - data/interim_lungs
     outs:
     - data/interim_fused/map
     - data/interim_fused/mask
