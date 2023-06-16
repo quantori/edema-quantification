@@ -6,27 +6,26 @@ from src.data.utils_sly import CLASS_MAP
 
 
 class EdemaClassifier:
-    """Hard-coded edema classifier."""
+    """A classifier that assigns an edema class to an X-ray image."""
 
     def __init__(self) -> None:
         self._output: List = []
 
     def classify(
         self,
-        df_in: pd.DataFrame,
+        df: pd.DataFrame,
     ) -> pd.DataFrame:
         """The main classification function.
 
         Args:
-            df: initial dataframe containing images' IDs and features.
-
+            df: initial dataframe containing image and feature metadata
         Returns:
-            DataFrame with identified edema severity class.
+            df_out: a dataframe with identified edema severity class
         """
-        if df_in.empty:
+        if df.empty:
             raise Exception('DataFrame is empty!')
 
-        img_groups = df_in.groupby('Image name')
+        img_groups = df.groupby('Image name')
         for _, df_img in img_groups:
             edema_severity = EdemaClassifier._get_edema_severity(df_img)
             df_img['Class ID'] = CLASS_MAP[edema_severity]
