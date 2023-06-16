@@ -8,34 +8,38 @@ from tqdm import tqdm
 from src.data.utils_sly import FEATURE_MAP_REVERSED
 
 
-class BoxFuser:
-    """BoxFuser is a class for fusing multiple boxes."""
+class NonMaxSuppressor:
+    """NonMaxSuppressor is a class for fusing multiple boxes."""
 
     def __init__(
         self,
-        method: str = 'soft_nms',
+        conf_thresholds: dict,
+        method: str = 'soft',
         sigma: float = 0.1,
         iou_threshold: float = 0.5,
-        conf_threshold: float = 0.5,
     ):
         assert 0 <= iou_threshold <= 1, 'iou_threshold must lie within [0, 1]'
-        assert 0 <= conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
-        assert method in ['nms', 'soft_nms'], f'Unknown fusion method: {method}'
+        for conf_threshold in conf_thresholds.values():
+            assert 0 <= conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
+        assert method in ['standard', 'soft'], f'Unknown fusion method: {method}'
         self.method = method
         self.iou_threshold = iou_threshold
-        self.conf_threshold = conf_threshold
+        self.conf_thresholds = conf_thresholds
         self.sigma = sigma
 
-    def fuse_detections(
+    def suppress_detections(
         self,
         df: pd.DataFrame,
     ) -> pd.DataFrame:
-        df.drop(columns=['ID'], inplace=True)
-        df = df[df['Confidence'] >= self.conf_threshold]
+        # Filter dataframe by feature confidence
+        df_filtered = pd.DataFrame()
+        for key, threshold in self.conf_thresholds.items():
+            mask = (df['Feature'] == key) & (df['Confidence'] >= threshold)
+            df_filtered = df_filtered.append(df[mask])
 
         # Process predictions one image at a time
-        df_out = pd.DataFrame(columns=df.columns)
-        img_groups = df.groupby('Image path')
+        df_out = pd.DataFrame(columns=df_filtered.columns)
+        img_groups = df_filtered.groupby('Image path')
         for img_id, (img_path, df_img) in tqdm(
             enumerate(img_groups),
             desc='Suppress detections',
@@ -62,14 +66,14 @@ class BoxFuser:
             # Get list of box labels
             label_list = [df_img['Feature ID'].values.tolist()]
 
-            if self.method == 'nms':
+            if self.method == 'standard':
                 boxes, scores, labels = nms(
                     boxes=box_list,
                     scores=score_list,
                     labels=label_list,
                     iou_thr=self.iou_threshold,
                 )
-            elif self.method == 'soft_nms':
+            elif self.method == 'soft':
                 boxes, scores, labels = soft_nms(
                     boxes=box_list,
                     scores=score_list,
@@ -135,21 +139,36 @@ class BoxFuser:
 
 
 if __name__ == '__main__':
-    # Create an instance of BoxFuser
+    # Create an instance of NonMaxSuppressor
     import os
 
     test_dir = 'data/coco/test'
 
-    box_fuser = BoxFuser(
-        method='soft_nms',
+    conf_thresholds = dict(
+        Cephalization=0.2,
+        Artery=0.2,
+        Heart=0.2,
+        Kerley=0.2,
+        Bronchus=0.2,
+        Effusion=0.2,
+        Bat=0.2,
+        Infiltrate=0.2,
+        Cuffing=0.2,
+        Lungs=0.2,
+    )
+
+    box_fuser = NonMaxSuppressor(
+        method='soft',
         sigma=0.1,
         iou_threshold=0.5,
-        conf_threshold=0.5,
+        conf_thresholds=conf_thresholds,
     )
 
     # Suppress and/or fuse boxes
     df_dets = pd.read_excel(os.path.join(test_dir, 'predictions.xlsx'))
-    df_dets_fused = box_fuser.fuse_detections(df=df_dets)
+    df_dets_fused = box_fuser.suppress_detections(df=df_dets)
+    df_dets_fused.drop(columns=['ID'], inplace=True)
+    df_dets_fused.index += 1
     df_dets_fused.to_excel(
         os.path.join(test_dir, 'predictions_nms.xlsx'),
         sheet_name='Detections',

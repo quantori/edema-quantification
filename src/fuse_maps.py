@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 
-def compute_lungs_info(
+def extract_lungs_metadata(
     mask: np.ndarray,
 ) -> dict:
     contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -70,9 +70,9 @@ def process_prob_maps(
     # Fuse segmentation probability maps
     fuser = MapFuser()
     for img_path in img_paths:
-        fuser.add_prob_map(img_path)
-    fused_map = fuser.conditional_probability_fusion()
-    fused_map = (fused_map * 255.0).astype(np.uint8)
+        prob_map = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        fuser.add_prob_map(prob_map)
+    fused_map = fuser.conditional_probability_fusion(scale_output=True)
 
     # Process obtained fused map
     processor = MaskProcessor()
@@ -105,7 +105,7 @@ def process_prob_maps(
         'Image ratio': map_ratio,
         'View': 'Frontal',
     }
-    lung_coords = compute_lungs_info(mask=mask_clean)
+    lung_coords = extract_lungs_metadata(mask=mask_clean)
     lungs_info.update(lung_coords)
 
     return lungs_info
@@ -164,7 +164,7 @@ def main(cfg: DictConfig) -> None:
     img_path_sets = reorder_image_paths(img_path_sets)
 
     # Process segmentation probability maps
-    lung_info = Parallel(n_jobs=-1)(
+    lung_info = Parallel(n_jobs=1)(
         delayed(process_prob_maps)(img_path_set, cfg.save_dir)
         for img_path_set in tqdm(img_path_sets, desc='Processing')
     )

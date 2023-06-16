@@ -1,0 +1,29 @@
+defaults:
+- main
+- _self_
+
+data_dir: data/interim
+save_dir: data/interim_predict
+
+# Segmentation settings
+seg_model_dirs: ['models/lung_segmentation/DeepLabV3', 'models/lung_segmentation/FPN', 'models/lung_segmentation/MAnet']
+
+# Detection settings
+det_model_dirs: ['models/feature_detection/FasterRCNN']
+img_size: [1536, 1536]
+lung_extension: [50, 50, 50, 150]
+
+# Non-Maximum Suppression settings
+nms_method: soft      # soft or standard
+iou_threshold: 0.5
+conf_thresholds:
+  Cephalization: 0.2
+  Artery: 0.2
+  Heart: 0.7
+  Kerley: 0.2
+  Bronchus: 0.2
+  Effusion: 0.2
+  Bat: 0.2
+  Infiltrate: 0.2
+  Cuffing: 0.2
+  Lungs: 0.7

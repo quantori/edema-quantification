@@ -3,7 +3,7 @@ defaults:
 - _self_
 
 dataset_dir: data/final
-exclude_features: [Lungs]
+exclude_features: [Lungs, Heart, Artery, Bronchus]
 train_size: 0.80
 seed: 11
 save_dir: data/coco

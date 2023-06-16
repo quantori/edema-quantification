@@ -168,7 +168,7 @@ if __name__ == '__main__':
         df_dets = pd.concat([df_dets, df_dets_])
     df_dets.index += 1
     df_dets.to_excel(
-        os.path.join(test_dir, 'predictions.xlsx'),
+        os.path.join(test_dir, 'predictions2.xlsx'),
         sheet_name='Detections',
         index=True,
         index_label='ID',
