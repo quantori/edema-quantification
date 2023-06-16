@@ -1,6 +1,5 @@
-from typing import List, Tuple
+from typing import List
 
-import numpy as np
 import pandas as pd
 
 from src.data.utils_sly import CLASS_MAP
@@ -24,72 +23,38 @@ class EdemaClassifier:
         Returns:
             DataFrame with identified edema severity class.
         """
-        # TODO: ensure that EdemaClassifier can process empty dataframes
+        if df_in.empty:
+            raise Exception('DataFrame is empty!')
+
         img_groups = df_in.groupby('Image name')
-        for image_name, df_img in img_groups:
-            # FIXME: Extraction of feature and its confidence is not necessary
-            # FIXME: I think it is enough if you add two columns (Class ID and Class)
-            edema_severity, feature, confidence = EdemaClassifier._get_edema_severity(df_img)
-            new_row = {
-                'Image path': df_img['Image path'].iloc[0],
-                'Image name': image_name,
-                'Image height': df_img['Image height'].iloc[0],
-                'Image width': df_img['Image width'].iloc[0],
-                'Feature': feature,
-                'Confidence': confidence,
-                'Class ID': CLASS_MAP[edema_severity],
-                'Class': edema_severity,
-            }
-            self._output.append(new_row)
-
-        # FIXME: df_in and df_out should have the same length
-        df_out = pd.DataFrame(self._output)
-
+        for _, df_img in img_groups:
+            edema_severity = EdemaClassifier._get_edema_severity(df_img)
+            df_img['Class ID'] = CLASS_MAP[edema_severity]
+            df_img['Class'] = edema_severity
+            self._output.append(df_img)
+        df_out = pd.concat(self._output)
         return df_out
 
     @staticmethod
-    def _get_edema_severity(df: pd.DataFrame) -> Tuple[str, float, float]:
+    def _get_edema_severity(df: pd.DataFrame) -> str:
         features = list(df['Feature'].unique())
         if 'Bat' in features or 'Infiltrate' in features:
-            edema_severity, feature, confidence = EdemaClassifier._get_alveolar_edema(df)
-            return edema_severity, feature, confidence
+            return 'Alveolar edema'
 
         elif 'Effusion' in features or 'Kerley' in features or 'Cuffing' in features:
-            edema_severity, feature, confidence = EdemaClassifier._get_interstitial_edema(df)
-            return edema_severity, feature, confidence
+            return 'Interstitial edema'
 
         elif 'Cephalization' in features:
-            edema_severity, feature, confidence = EdemaClassifier._get_vascular_congestion(df)
-            return edema_severity, feature, confidence
+            return 'Vascular congestion'
 
         else:
-            return 'No edema', np.nan, np.nan
-
-    @staticmethod
-    def _get_vascular_congestion(df: pd.DataFrame) -> Tuple[str, float, float]:
-        df_edema = df[df['Feature'] == 'Cephalization']
-        max_row = df_edema.nlargest(1, ['Confidence'])
-        return 'Vascular congestion', max_row['Feature'].values[0], max_row['Confidence'].values[0]
-
-    @staticmethod
-    def _get_interstitial_edema(df: pd.DataFrame) -> Tuple[str, float, float]:
-        df_edema = df[
-            (df['Feature'] == 'Effusion')
-            | (df['Feature'] == 'Kerley')
-            | (df['Feature'] == 'Cuffing')
-        ]
-        max_row = df_edema.nlargest(1, ['Confidence'])
-        return 'Interstitial edema', max_row['Feature'].values[0], max_row['Confidence'].values[0]
-
-    @staticmethod
-    def _get_alveolar_edema(df: pd.DataFrame) -> Tuple[str, float, float]:
-        df_edema = df[(df['Feature'] == 'Bat') | (df['Feature'] == 'Infiltrate')]
-        max_row = df_edema.nlargest(1, ['Confidence'])
-        return 'Alveolar edema', max_row['Feature'].values[0], max_row['Confidence'].values[0]
+            return 'No edema'
 
 
 if __name__ == '__main__':
     df = pd.read_excel('./data/coco/test/predictions.xlsx')
+    # df = pd.DataFrame(columns=METADATA_COLUMNS)
+    print(df)
     classifier = EdemaClassifier()
     df_o = classifier.classify(df)
     print(df_o)
