@@ -16,4 +16,14 @@ lung_extension: [50, 50, 50, 150]
 # Non-Maximum Suppression settings
 nms_method: soft      # soft or standard
 iou_threshold: 0.5
-conf_threshold: 0.5
+conf_thresholds:
+  Cephalization: 0.2
+  Artery: 0.2
+  Heart: 0.7
+  Kerley: 0.2
+  Bronchus: 0.2
+  Effusion: 0.2
+  Bat: 0.2
+  Infiltrate: 0.2
+  Cuffing: 0.2
+  Lungs: 0.7

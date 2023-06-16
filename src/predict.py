@@ -73,7 +73,7 @@ def main(cfg: DictConfig) -> None:
         method=cfg.nms_method,
         sigma=0.1,
         iou_threshold=cfg.iou_threshold,
-        conf_threshold=cfg.conf_threshold,
+        conf_thresholds=cfg.conf_thresholds,
     )
 
     edema_net = EdemaNet(
