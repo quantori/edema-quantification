@@ -6,14 +6,13 @@ import cv2
 import numpy as np
 import pandas as pd
 import torch
-from cpuinfo import get_cpu_info
 from mmdet.apis import inference_detector, init_detector
 
 from src.data.utils import get_file_list
 
 
 class FeatureDetector:
-    """A class used for the detection of radiological signs."""
+    """A class used for the detection of radiological features."""
 
     def __init__(
         self,
@@ -64,11 +63,6 @@ class FeatureDetector:
         logging.info(f'Model.....................: {self.model.cfg.model["type"]}')
         logging.info(f'Model dir.................: {model_dir}')
         logging.info(f'Confidence threshold......: {conf_threshold}')
-        if device_ == 'cuda':
-            logging.info(f'Device....................: {torch.cuda.get_device_name(0)}')
-        else:
-            info = get_cpu_info()
-            logging.info(f'Device....................: {info["brand_raw"]}')
 
     def predict(
         self,
@@ -100,9 +94,21 @@ class FeatureDetector:
             'Confidence',
         ]
 
-        # Iterate over class detections
         df = pd.DataFrame(columns=columns)
         img_height, img_width = cv2.imread(img_path).shape[:2]
+
+        # Return a 1-row dataframe if there are no detections
+        if all(len(arr) == 0 for arr in detections):
+            row_data = {
+                'Image path': [img_path],
+                'Image name': [Path(img_path).name],
+                'Image height': [img_height],
+                'Image width': [img_width],
+            }
+            df = pd.DataFrame(data=row_data, columns=columns)
+            return df
+
+        # Iterate over class detections
         for class_idx, detections_class in enumerate(detections):
             if detections_class.size == 0:
                 num_detections = 1
