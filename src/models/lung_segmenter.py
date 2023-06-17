@@ -73,7 +73,8 @@ class LungSegmenter:
         self.model.eval()
 
         # Log model parameters
-        logging.info('Model.....................:')
+        logging.info('')
+        logging.info(f'Model.....................: {model_params["model_name"]}')
         logging.info(f'Model dir.................: {model_dir}')
         logging.info(f'Model name................: {self.model_name}')
         logging.info(f'Input size................: {self.input_size}')
@@ -157,10 +158,10 @@ class LungSegmenter:
 
         return model
 
-    def __call__(
+    def predict(
         self,
         img: np.ndarray,
-        scale_output: bool = False,
+        scale_output: bool = True,
     ) -> np.ndarray:
         img_tensor = torch.unsqueeze(self.preprocess_image(img), dim=0).to(self.device)
         prob_map = self.model(img_tensor)[0, 0, :, :].cpu().detach().numpy()
@@ -178,6 +179,6 @@ if __name__ == '__main__':
         model_dir=f'models/lung_segmentation/{model_name}',
         device='auto',
     )
-    prob_map_ = model(img=img, scale_output=True)
+    prob_map_ = model.predict(img=img, scale_output=True)
     prob_map = cv2.resize(prob_map_, (width, height))
     cv2.imwrite(f'{model_name}.png', prob_map)

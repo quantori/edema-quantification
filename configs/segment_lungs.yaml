@@ -7,4 +7,4 @@ img_dir: data/interim
 # Linknet and PSPNet work on torch == 1.8.1 and earlier
 model_names: [DeepLabV3, FPN, MAnet]
 model_dirs: models/lung_segmentation
-save_dir: data/interim_lung_seg
+save_dir: data/interim_lungs
