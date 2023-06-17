@@ -24,16 +24,16 @@ stages:
       size: 4423453676
       nfiles: 1000
     - path: data/interim/metadata.xlsx
-      md5: 0e3a44e870dfbd5ac88e7b999d29314e
-      size: 1327964
+      md5: 0b85817b8d43c6cdf99b4d0bafadda43
+      size: 1327965
   segment_lungs:
     cmd:
-    - rm -rf data/interim_lung_seg || true
+    - rm -rf data/interim_lungs || true
     - python src/segment_lungs.py
     deps:
     - path: configs/segment_lungs.yaml
-      md5: cf0c0f7996247f5d5b485f65327e428c
-      size: 266
+      md5: e42acc7fdb8eb385aa391aa3d6aa43bc
+      size: 263
     - path: data/interim/img
       md5: bbfe62305cf388907a4e2bc6e49497ac.dir
       size: 4423453676
@@ -51,13 +51,13 @@ stages:
       size: 54276574
       nfiles: 2
     - path: src/models/lung_segmenter.py
-      md5: 85474d2973187bb20a5851aad6a158cb
-      size: 6506
+      md5: 5efdd930846fd426202dfb6b69b45561
+      size: 6567
     - path: src/segment_lungs.py
-      md5: 5ac91fb480b10319ab351beb12e64a07
-      size: 1957
+      md5: 66d5265e06c7646dbfe6b0499d9681a2
+      size: 1965
     outs:
-    - path: data/interim_lung_seg
+    - path: data/interim_lungs
       md5: e07176b49f0507192502a5ce8c8d3913.dir
       size: 475301558
       nfiles: 3000
@@ -67,9 +67,9 @@ stages:
     - python src/fuse_maps.py
     deps:
     - path: configs/fuse_maps.yaml
-      md5: 3a1d49c4e169ac78a870d017bf843903
-      size: 235
-    - path: data/interim_lung_seg
+      md5: 4880c77bab4ef8afa221540522a29945
+      size: 232
+    - path: data/interim_lungs
       md5: e07176b49f0507192502a5ce8c8d3913.dir
       size: 475301558
       nfiles: 3000
@@ -77,14 +77,14 @@ stages:
       md5: 56d50266933832f27463c69753bfad84
       size: 7665
     - path: src/fuse_maps.py
-      md5: 70b389f5d9e8aa7f5a910450087439e6
-      size: 5652
+      md5: 68cf3768ddf79a99b33ff586441c325c
+      size: 5685
     - path: src/models/map_fuser.py
-      md5: 3ad810fed13938efcedfdfb9cdef9592
-      size: 2948
+      md5: ba910187e7c8c24062e2267427afeae9
+      size: 2861
     - path: src/models/mask_processor.py
-      md5: 6e4aa0e6413ffba3c790ca9b8bcf39ba
-      size: 1799
+      md5: 9d6d74e919350da1f1ea5fc02ccd4309
+      size: 1894
     outs:
     - path: data/interim_fused/map
       md5: dee33c33a210e010a7f5d3c565eb88a6.dir
@@ -95,7 +95,7 @@ stages:
       size: 16801204
       nfiles: 1000
     - path: data/interim_fused/metadata.xlsx
-      md5: 28b1e9550bedd4b5b20e774e9c391e17
+      md5: 61a77a9c929a5ad6ebb82e55d17c9e45
       size: 5657114
   convert_int_to_final:
     cmd:
@@ -110,10 +110,10 @@ stages:
       size: 4423453676
       nfiles: 1000
     - path: data/interim/metadata.xlsx
-      md5: 0e3a44e870dfbd5ac88e7b999d29314e
-      size: 1327964
+      md5: 0b85817b8d43c6cdf99b4d0bafadda43
+      size: 1327965
     - path: data/interim_fused/metadata.xlsx
-      md5: 28b1e9550bedd4b5b20e774e9c391e17
+      md5: 61a77a9c929a5ad6ebb82e55d17c9e45
       size: 5657114
     - path: src/data/convert_int_to_final.py
       md5: b7023dacce92b71a33579c91560b2372
@@ -127,23 +127,23 @@ stages:
       size: 2585867050
       nfiles: 1000
     - path: data/final/metadata.xlsx
-      md5: d84605004258f0ca4b387466462d2013
-      size: 897853
+      md5: 015f796c1584ea4df1cb6535eae2c418
+      size: 897854
   convert_final_to_coco:
     cmd:
     - rm -rf data/coco || true
     - python src/data/convert_final_to_coco.py
     deps:
     - path: configs/convert_final_to_coco.yaml
-      md5: b253a8ffddf1ce7d526dc976d4f812fc
-      size: 123
+      md5: 8886a7915a5ece10d3a01b2b5b6df238
+      size: 148
     - path: data/final/img
       md5: e845d33586856ede0fc96cea87a8ac03.dir
       size: 2585867050
       nfiles: 1000
     - path: data/final/metadata.xlsx
-      md5: d84605004258f0ca4b387466462d2013
-      size: 897853
+      md5: 015f796c1584ea4df1cb6535eae2c418
+      size: 897854
     - path: src/data/convert_final_to_coco.py
       md5: f62e735c1063ce5b966d1f0e6aa1be39
       size: 8279
@@ -155,13 +155,13 @@ stages:
       size: 7665
     outs:
     - path: data/coco/metadata.xlsx
-      md5: f805e857c65a89b55c1dd63a8bc35eb1
-      size: 783397
+      md5: e5122776baf4d8da7cec62a52e92fe32
+      size: 623488
     - path: data/coco/test
-      md5: 0d7c7bf6b05ab57f9b25704ecb953f4d.dir
-      size: 513307497
+      md5: 49182380f9a492f3483bfa0a20107245.dir
+      size: 511923343
       nfiles: 202
     - path: data/coco/train
-      md5: 786ca7a6a70a7cebe1679b1defe76c00.dir
-      size: 2073580679
-      nfiles: 802
+      md5: 0da7245f9cd5eb6fcebad5f2c965c3a6.dir
+      size: 2020055201
+      nfiles: 783
