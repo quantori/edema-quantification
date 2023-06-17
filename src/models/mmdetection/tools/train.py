@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
     parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
     parser.add_argument('--use-augmentation', action='store_true', help='use augmentation for the train dataset')
-    parser.add_argument('--epochs', default=20, type=int, help='number of training epochs')
+    parser.add_argument('--epochs', default=50, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
     # ------------------------------------------------------------------------------------------------------------------
