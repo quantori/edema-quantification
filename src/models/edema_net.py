@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from src.data.utils_sly import FEATURE_MAP, get_box_sizes
+from src.models.box_fuser import BoxFuser
 from src.models.edema_classifier import EdemaClassifier
 from src.models.feature_detector import FeatureDetector
 from src.models.lung_segmenter import LungSegmenter
@@ -36,7 +37,7 @@ class EdemaNet:
         map_fuser: MapFuser,
         mask_processor: MaskProcessor,
         non_max_suppressor: NonMaxSuppressor,
-        # box_fuser: BoxFuser,                          # TODO: implement BoxFuser for several feature detectors
+        box_fuser: BoxFuser,
         edema_classifier: EdemaClassifier,
         img_size: Tuple[int, int] = (1536, 1536),
         lung_extension: Tuple[int, int, int, int] = (50, 50, 50, 150),
@@ -46,10 +47,10 @@ class EdemaNet:
         self.map_fuser = map_fuser
         self.mask_processor = mask_processor
         self.non_max_suppressor = non_max_suppressor
-        # self.box_fuser = box_fuser                    # TODO: implement BoxFuser for several feature detectors
+        self.box_fuser = box_fuser
         self.edema_classifier = edema_classifier
         self.img_size = img_size
-        self.lung_extension = lung_extension  # Tuple[left (x1), top (y1), right (x2), bottom (y2)]
+        self.lung_extension = lung_extension  # Tuple[left, top, right, bottom]
 
     def predict(
         self,
@@ -134,23 +135,21 @@ class EdemaNet:
         cv2.imwrite(mask_crop_path, mask_crop)
 
         # Recognize features and perform NMS
-        df_dets = pd.DataFrame()
+        df_dets_list = []
         for idx, feature_detector in enumerate(self.feature_detectors):
             dets = feature_detector.predict(img=img_crop)
-            df_dets_ = feature_detector.process_detections(
+            df_dets = feature_detector.process_detections(
                 img_path=img_crop_path,
                 detections=dets,
             )
-            df_nms = self.non_max_suppressor.suppress_detections(df=df_dets_)
-            # df_nms['Model ID'] = idx + 1        # FIXME (Anton): I think it is better to create a list of data frames
-            df_dets = pd.concat([df_dets, df_nms])
+            df_nms = self.non_max_suppressor.suppress_detections(df=df_dets)
+            df_dets_list.append(df_nms)
 
-        # TODO: Perform box fusion
-        # df_out = self.box_fuser.fuse_detections(df=df_dets)
-        # print(len(df_nms))
+        # Perform box fusion
+        df_fused = self.box_fuser.fuse_detections(df_list=df_dets_list)
 
         # Assign an edema class to an image
-        df_out = self.edema_classifier.classify(df=df_dets)
+        df_out = self.edema_classifier.classify(df=df_fused)
 
         return df_out
 
