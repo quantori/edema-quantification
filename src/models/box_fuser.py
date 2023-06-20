@@ -1,4 +1,4 @@
-from typing import Iterable, List, Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -26,21 +26,25 @@ class BoxFuser:
 
     def fuse_detections(
         self,
-        dfs: Iterable[pd.DataFrame],
+        df_list: List[pd.DataFrame],
     ) -> pd.DataFrame:
         """The main fusing function.
 
         Args:
-            dfs: a container with DataFrames, where bounding boxes have to be fused.
+            df_list: a container with DataFrames, where bounding boxes have to be fused.
 
         Returns:
             df_out: a DataFrame with fused bounding boxes.
         """
+        # No box fusion is required for one model
+        if len(df_list) == 1:
+            return df_list[0]
+
         box_list: List[Union[List[float], List[List[float]]]] = []
         score_list: List[Union[float, List[float]]] = []
         label_list: List[Union[int, List[int]]] = []
 
-        for df in dfs:
+        for df in df_list:
             box_list.append(BoxFuser._get_normalized_boxes(df))
             score_list.append(BoxFuser._get_scores(df))
             label_list.append(BoxFuser._get_labels(df))
