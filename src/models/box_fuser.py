@@ -13,7 +13,7 @@ class BoxFuser:
     def __init__(
         self,
         weights: Optional[List[int]] = None,
-        iou_threshold: float = 0.55,
+        iou_threshold: float = 0.5,
         skip_box_threshold: float = 0.0,
         conf_type: str = 'avg',
         allows_overflow: bool = False,
@@ -34,7 +34,7 @@ class BoxFuser:
             dfs: a container with DataFrames, where bounding boxes have to be fused.
 
         Returns:
-            a DataFrame with fused bounding boxes.
+            df_out: a DataFrame with fused bounding boxes.
         """
         box_list: List[Union[List[float], List[List[float]]]] = []
         score_list: List[Union[float, List[float]]] = []
@@ -69,9 +69,9 @@ class BoxFuser:
 
     @staticmethod
     def _get_normalized_boxes(df: pd.DataFrame) -> List[List[float]]:
-        current_b_boxes: List[List[float]] = []
+        bboxes: List[List[float]] = []
         for _, row in df.iterrows():
-            current_b_boxes.append(
+            bboxes.append(
                 [
                     row['x1'] / row['Image width'],
                     row['y1'] / row['Image height'],
@@ -79,7 +79,7 @@ class BoxFuser:
                     row['y2'] / row['Image height'],
                 ],
             )
-        return current_b_boxes
+        return bboxes
 
     @staticmethod
     def _get_scores(df: pd.DataFrame) -> List[float]:
@@ -101,7 +101,6 @@ class BoxFuser:
         img_height = df['Image height'].unique()[0]
         img_path = df['Image path'].unique()[0]
         img_name = df['Image name'].unique()[0]
-        df_out['ID'] = df_out.index + 1
         df_out['Image path'] = img_path
         df_out['Image name'] = img_name
         df_out['Image height'] = img_height
