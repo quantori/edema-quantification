@@ -9,6 +9,7 @@ import torch
 from mmdet.apis import inference_detector, init_detector
 
 from src.data.utils import get_file_list
+from src.data.utils_sly import FEATURE_MAP
 
 
 class FeatureDetector:
@@ -51,7 +52,7 @@ class FeatureDetector:
             checkpoint=checkpoint_path,
             device=device_,
         )
-        self.classes = self.model.CLASSES
+        self.features = self.model.CLASSES
 
         try:
             self.model.test_cfg.rcnn.score_thr = conf_threshold
@@ -109,11 +110,11 @@ class FeatureDetector:
             return df
 
         # Iterate over class detections
-        for class_idx, detections_class in enumerate(detections):
-            if detections_class.size == 0:
+        for feature_idx, feature_detections in enumerate(detections):
+            if feature_detections.size == 0:
                 num_detections = 1
             else:
-                num_detections = detections_class.shape[0]
+                num_detections = feature_detections.shape[0]
 
             # Iterate over boxes on a single image
             df_ = pd.DataFrame(index=range(num_detections), columns=columns)
@@ -121,15 +122,15 @@ class FeatureDetector:
             df_['Image name'] = Path(img_path).name
             df_['Image height'] = img_height
             df_['Image width'] = img_width
-            for idx, box in enumerate(detections_class):
+            for box_idx, box in enumerate(feature_detections):
                 # box -> array(x_min, y_min, x_max, y_max, confidence)
-                df_.at[idx, 'x1'] = int(box[0])
-                df_.at[idx, 'y1'] = int(box[1])
-                df_.at[idx, 'x2'] = int(box[2])
-                df_.at[idx, 'y2'] = int(box[3])
-                df_.at[idx, 'Feature ID'] = class_idx + 1
-                df_.at[idx, 'Feature'] = self.classes[class_idx]
-                df_.at[idx, 'Confidence'] = box[4]
+                df_.at[box_idx, 'x1'] = int(box[0])
+                df_.at[box_idx, 'y1'] = int(box[1])
+                df_.at[box_idx, 'x2'] = int(box[2])
+                df_.at[box_idx, 'y2'] = int(box[3])
+                df_.at[box_idx, 'Feature'] = self.features[feature_idx]
+                df_.at[box_idx, 'Feature ID'] = FEATURE_MAP[self.features[feature_idx]]
+                df_.at[box_idx, 'Confidence'] = box[4]
 
             df = pd.concat([df, df_])
 
