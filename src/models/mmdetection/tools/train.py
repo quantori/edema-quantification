@@ -57,7 +57,7 @@ def parse_args():
     # ----------------------------------------------- CUSTOM ARGUMENTS -------------------------------------------------
     parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
-    parser.add_argument('--img-size', type=int, nargs='+', default=[1536, 1536], help='input image size')
+    parser.add_argument('--img-size', type=int, nargs='+', default=None, help='input image size')
     parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'], help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
     parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
@@ -259,16 +259,17 @@ def main():
     )
 
     # Change the size of the image in all pipelines
-    for pipeline in [
-        cfg.data.train.pipeline,
-        cfg.data.val.pipeline,
-        cfg.data.test.pipeline,
-        cfg.train_pipeline,
-        cfg.test_pipeline,
-    ]:
-        for step in pipeline:
-            if 'img_scale' in step:
-                step['img_scale'] = tuple(args.img_size)
+    if isinstance(args.img_size, list):
+        for pipeline in [
+            cfg.data.train.pipeline,
+            cfg.data.val.pipeline,
+            cfg.data.test.pipeline,
+            cfg.train_pipeline,
+            cfg.test_pipeline,
+        ]:
+            for step in pipeline:
+                if 'img_scale' in step:
+                    step['img_scale'] = tuple(args.img_size)
 
     # Augmentation settings
     # Docs: https://mmdetection.readthedocs.io/en/v2.15.1/api.html
