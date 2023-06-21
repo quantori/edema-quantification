@@ -9,9 +9,9 @@ stages:
       md5: 370c899ba0c5fcea7f28b46d00a38298
       size: 106
     - path: data/sly
-      md5: efc4e9f270c20b57119a72863dc94e7f.dir
-      size: 8210582398
-      nfiles: 2001
+      md5: 53d7bc63d5b39b145e88a607cf954f0b.dir
+      size: 8210589127
+      nfiles: 2003
     - path: src/data/convert_sly_to_int.py
       md5: 9f4a197961983bbbfd8ee971214b7a26
       size: 5771
@@ -24,8 +24,8 @@ stages:
       size: 4423453676
       nfiles: 1000
     - path: data/interim/metadata.xlsx
-      md5: 0b85817b8d43c6cdf99b4d0bafadda43
-      size: 1327965
+      md5: 4b74e77d7638ae3d1d4b226f373b0cfd
+      size: 1327332
   segment_lungs:
     cmd:
     - rm -rf data/interim_lungs || true
@@ -110,8 +110,8 @@ stages:
       size: 4423453676
       nfiles: 1000
     - path: data/interim/metadata.xlsx
-      md5: 0b85817b8d43c6cdf99b4d0bafadda43
-      size: 1327965
+      md5: 4b74e77d7638ae3d1d4b226f373b0cfd
+      size: 1327332
     - path: data/interim_fused/metadata.xlsx
       md5: 61a77a9c929a5ad6ebb82e55d17c9e45
       size: 5657114
@@ -127,8 +127,8 @@ stages:
       size: 2585867050
       nfiles: 1000
     - path: data/final/metadata.xlsx
-      md5: 015f796c1584ea4df1cb6535eae2c418
-      size: 897854
+      md5: 28ef2b77f17a123875082f6f991cbad6
+      size: 897809
   convert_final_to_coco:
     cmd:
     - rm -rf data/coco || true
@@ -142,8 +142,8 @@ stages:
       size: 2585867050
       nfiles: 1000
     - path: data/final/metadata.xlsx
-      md5: 015f796c1584ea4df1cb6535eae2c418
-      size: 897854
+      md5: 28ef2b77f17a123875082f6f991cbad6
+      size: 897809
     - path: src/data/convert_final_to_coco.py
       md5: f62e735c1063ce5b966d1f0e6aa1be39
       size: 8279
@@ -155,13 +155,13 @@ stages:
       size: 7665
     outs:
     - path: data/coco/metadata.xlsx
-      md5: e5122776baf4d8da7cec62a52e92fe32
-      size: 623488
+      md5: 8a203bdeacb18b5b494361cb83e679de
+      size: 623238
     - path: data/coco/test
-      md5: 49182380f9a492f3483bfa0a20107245.dir
-      size: 511923343
+      md5: 0b3ada55cd3f32ec3f93b7fba82d0f16.dir
+      size: 512196727
       nfiles: 202
     - path: data/coco/train
-      md5: 0da7245f9cd5eb6fcebad5f2c965c3a6.dir
-      size: 2020055201
-      nfiles: 783
+      md5: ee2cb4a3c593740facc6baed6c523050.dir
+      size: 2013694182
+      nfiles: 781
