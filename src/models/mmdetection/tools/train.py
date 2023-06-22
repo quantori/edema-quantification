@@ -28,7 +28,7 @@ from mmdet.utils import (
     update_data_root,
 )
 
-# python src/models/mmdetection/tools/train.py --config src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py --deterministic --num-workers 8 --use-augmentation --batch-size 16 --ratios 0.25 0.5 0.75 1.0 1.25 1.50 1.75 2.0 --optimizer Adam --lr 0.0001
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
     parser.add_argument(
@@ -500,7 +500,7 @@ def main():
     if ml_flow_logger_item:
         ml_flow_logger = ml_flow_logger_item[0]
         mlflow.set_experiment('Edema')
-        run_name = f'{cfg.model.type}_{timestamp}'
+        run_name = f'{model_family}_{timestamp}'
         mlflow.set_tag('mlflow.runName', run_name)
         ml_flow_logger['params'] = dict(
             train_images=len(os.listdir(cfg.data.train.img_prefix)),
