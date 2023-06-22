@@ -28,7 +28,7 @@ from mmdet.utils import (
     update_data_root,
 )
 
-
+# python src/models/mmdetection/tools/train.py --config src/models/mmdetection/configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py --deterministic --num-workers 8 --use-augmentation --batch-size 16 --ratios 0.25 0.5 0.75 1.0 1.25 1.50 1.75 2.0 --optimizer Adam --lr 0.0001
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
     parser.add_argument(
@@ -58,7 +58,7 @@ def parse_args():
     parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=None, help='input image size')
-    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'], help='optimizer')
+    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'AdamW', 'RAdam'], help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
     parser.add_argument('--use-annealing', action='store_true', help='use cosine annealing during model training')
     parser.add_argument('--ratios', type=float, nargs='+', default=None, help='list of anchor box ratios')
@@ -208,6 +208,14 @@ def main():
     elif args.optimizer == 'Adam':
         cfg.optimizer = dict(
             type='Adam',
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0.0001,
+        )
+    elif args.optimizer == 'AdamW':
+        cfg.optimizer = dict(
+            type='AdamW',
             lr=args.lr,
             betas=(0.9, 0.999),
             eps=1e-08,
