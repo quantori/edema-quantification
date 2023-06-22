@@ -60,9 +60,10 @@ def parse_args():
     parser.add_argument('--img-size', type=int, nargs='+', default=None, help='input image size')
     parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'], help='optimizer')
     parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
-    parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
-    parser.add_argument('--use-augmentation', action='store_true', help='use augmentation for the train dataset')
-    parser.add_argument('--epochs', default=50, type=int, help='number of training epochs')
+    parser.add_argument('--use-annealing', action='store_true', help='use cosine annealing during model training')
+    parser.add_argument('--ratios', type=float, nargs='+', default=None, help='list of anchor box ratios')
+    parser.add_argument('--use-augmentation', action='store_true', help='use augmentation during model training')
+    parser.add_argument('--epochs', default=30, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
     # ------------------------------------------------------------------------------------------------------------------
@@ -146,18 +147,19 @@ def main():
 
     # Set anchor box ratios
     model_family = str(Path(args.config).parent.name)
-    if model_family in ['grid_rcnn', 'libra_rcnn', 'faster_rcnn']:
-        cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
-    elif model_family in ['guided_anchoring']:
-        cfg.model.rpn_head.approx_anchor_generator['ratios'] = args.ratios
-    elif model_family in ['cascade_rpn']:
-        cfg.model.rpn_head.stages[0].anchor_generator['ratios'] = args.ratios
-    elif model_family in ['tood', 'gfl', 'paa', 'fsaf', 'atss']:
-        cfg.model.bbox_head.anchor_generator['ratios'] = args.ratios
-    elif model_family in ['sabl']:
-        cfg.model.bbox_head.approx_anchor_generator['ratios'] = args.ratios
-    else:
-        print(f'\n{cfg.model.type} will be using Default anchor_generator ratios\n')
+    if args.ratios is not None and isinstance(args.ratios, list):
+        if model_family in ['grid_rcnn', 'libra_rcnn', 'faster_rcnn']:
+            cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
+        elif model_family in ['guided_anchoring']:
+            cfg.model.rpn_head.approx_anchor_generator['ratios'] = args.ratios
+        elif model_family in ['cascade_rpn']:
+            cfg.model.rpn_head.stages[0].anchor_generator['ratios'] = args.ratios
+        elif model_family in ['tood', 'gfl', 'paa', 'fsaf', 'atss']:
+            cfg.model.bbox_head.anchor_generator['ratios'] = args.ratios
+        elif model_family in ['sabl']:
+            cfg.model.bbox_head.approx_anchor_generator['ratios'] = args.ratios
+        else:
+            print(f'\n{cfg.model.type} will be using default anchor_generator ratios\n')
 
     # Set dataset metadata
     cfg.data_root = args.data_dir
@@ -224,15 +226,16 @@ def main():
 
     # Set learning rate scheme
     # https://github.com/open-mmlab/mmcv/blob/master/mmcv/runner/hooks/lr_updater.py
-    cfg.lr_config = dict(
-        policy='CosineAnnealing',
-        warmup='linear',
-        warmup_iters=max(1, int(0.2 * args.epochs)),
-        warmup_ratio=0.1,
-        min_lr=args.lr / 100,
-        warmup_by_epoch=True,
-        by_epoch=True,
-    )
+    if args.use_annealing:
+        cfg.lr_config = dict(
+            policy='CosineAnnealing',
+            warmup='linear',
+            warmup_iters=max(1, int(0.2 * args.epochs)),
+            warmup_ratio=0.1,
+            min_lr=args.lr / 100,
+            warmup_by_epoch=True,
+            by_epoch=True,
+        )
 
     # Set the evaluation metric
     cfg.evaluation.metric = 'bbox'
@@ -378,7 +381,7 @@ def main():
     timestamp = time.strftime('%d%m_%H%M%S', time.localtime())
     if args.work_dir is not None:
         # update configs according to CLI args if args.work_dir is not None
-        cfg.work_dir = osp.join(args.work_dir, f'{cfg.model.type}_{timestamp}')
+        cfg.work_dir = osp.join(args.work_dir, f'{model_family}_{timestamp}')
     elif cfg.get('work_dir', None) is None:
         # use config filename as default work_dir if cfg.work_dir is None
         cfg.work_dir = osp.join(
@@ -502,9 +505,11 @@ def main():
             batch_size=cfg.data.samples_per_gpu,
             optimizer=cfg.optimizer.type,
             lr=cfg.optimizer.lr,
+            use_annealing=args.use_annealing,
             epochs=args.epochs,
             seed=cfg.seed,
             use_augmentation=args.use_augmentation,
+            ratios=args.ratios,
             device=cfg.device,
             cfg=cfg.filename,
         )
