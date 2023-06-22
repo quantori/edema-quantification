@@ -63,6 +63,7 @@ def parse_args():
     parser.add_argument('--scheduler', type=str, default=None, choices=['cosine', 'default'], help='LR scheduler')
     parser.add_argument('--ratios', type=float, nargs='+', default=None, help='list of anchor box ratios')
     parser.add_argument('--use-augmentation', action='store_true', help='use augmentation during model training')
+    parser.add_argument('--iou-threshold', type=float, default=None, help='IoU threshold')
     parser.add_argument('--epochs', default=30, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
@@ -362,6 +363,15 @@ def main():
             ),
         ]
 
+    # Set the iou_threshold in train_cfg and test_cfg
+    if args.iou_threshold is not None:
+        try:
+            cfg.model['train_cfg']['rpn_proposal']['nms']['iou_threshold'] = args.iou_threshold
+            cfg.model['test_cfg']['rpn']['nms']['iou_threshold'] = args.iou_threshold
+            cfg.model['test_cfg']['rcnn']['nms']['iou_threshold'] = args.iou_threshold
+        except Exception as e:
+            pass
+
     # Final config used for training and testing
     print(f'Config:\n{cfg.pretty_text}')
     # ------------------------------------------------------------------------------------------------------------------
@@ -518,6 +528,7 @@ def main():
             optimizer=cfg.optimizer.type,
             lr=cfg.optimizer.lr,
             scheduler=args.scheduler,
+            iou_threshold=args.iou_threshold,
             epochs=args.epochs,
             seed=cfg.seed,
             use_augmentation=args.use_augmentation,
