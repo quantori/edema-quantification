@@ -154,7 +154,7 @@ if __name__ == '__main__':
         ext_list='.png',
     )
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN',
+        model_dir='models/feature_detection/FasterRCNN_ResNeXt101',
         conf_threshold=0.01,
         device='auto',
     )
@@ -169,7 +169,7 @@ if __name__ == '__main__':
         df_dets = pd.concat([df_dets, df_dets_])
     df_dets.index += 1
     df_dets.to_excel(
-        os.path.join(test_dir, 'predictions2.xlsx'),
+        os.path.join(test_dir, 'predictions.xlsx'),
         sheet_name='Detections',
         index=True,
         index_label='ID',
