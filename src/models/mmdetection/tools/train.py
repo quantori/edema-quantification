@@ -58,9 +58,9 @@ def parse_args():
     parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
     parser.add_argument('--batch-size', type=int, default=None, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=None, help='input image size')
-    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'AdamW', 'RAdam'], help='optimizer')
-    parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
-    parser.add_argument('--use-annealing', action='store_true', help='use cosine annealing during model training')
+    parser.add_argument('--optimizer', type=str, default='Adam', choices=['SGD', 'RMSprop', 'Adam', 'AdamW', 'RAdam'], help='optimizer')
+    parser.add_argument('--lr', type=float, default=0.0001, help='optimizer learning rate')
+    parser.add_argument('--scheduler', type=str, default=None, choices=['cosine', 'default'], help='LR scheduler')
     parser.add_argument('--ratios', type=float, nargs='+', default=None, help='list of anchor box ratios')
     parser.add_argument('--use-augmentation', action='store_true', help='use augmentation during model training')
     parser.add_argument('--epochs', default=30, type=int, help='number of training epochs')
@@ -234,7 +234,7 @@ def main():
 
     # Set learning rate scheme
     # https://github.com/open-mmlab/mmcv/blob/master/mmcv/runner/hooks/lr_updater.py
-    if args.use_annealing:
+    if args.scheduler == 'cosine':
         cfg.lr_config = dict(
             policy='CosineAnnealing',
             warmup='linear',
@@ -244,6 +244,10 @@ def main():
             warmup_by_epoch=True,
             by_epoch=True,
         )
+    elif args.scheduler == 'default':
+        pass
+    else:
+        cfg.lr_config = None
 
     # Set the evaluation metric
     cfg.evaluation.metric = 'bbox'
@@ -513,7 +517,7 @@ def main():
             batch_size=cfg.data.samples_per_gpu,
             optimizer=cfg.optimizer.type,
             lr=cfg.optimizer.lr,
-            use_annealing=args.use_annealing,
+            scheduler=args.scheduler,
             epochs=args.epochs,
             seed=cfg.seed,
             use_augmentation=args.use_augmentation,
