@@ -63,7 +63,8 @@ def parse_args():
     parser.add_argument('--scheduler', type=str, default=None, choices=['cosine', 'default'], help='LR scheduler')
     parser.add_argument('--ratios', type=float, nargs='+', default=None, help='list of anchor box ratios')
     parser.add_argument('--use-augmentation', action='store_true', help='use augmentation during model training')
-    parser.add_argument('--iou-threshold', type=float, default=None, help='IoU threshold')
+    parser.add_argument('--iou-threshold', type=float, default=0.5, help='IoU threshold for NMS')
+    parser.add_argument('--score-threshold', type=float, default=0.01, help='score threshold for NMS')
     parser.add_argument('--epochs', default=30, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
@@ -290,6 +291,14 @@ def main():
     # Augmentation settings
     # Docs: https://mmdetection.readthedocs.io/en/v2.15.1/api.html
     if args.use_augmentation:
+
+        # Get the minimum dimension
+        if isinstance(cfg.data.train.pipeline[2].img_scale, tuple):
+            min_dim = min(cfg.data.train.pipeline[2].img_scale)
+        else:
+            min_dim = min(min(sublist) for sublist in cfg.data.train.pipeline[2].img_scale)
+        translate_offset = int(0.1 * min_dim)
+
         cfg.train_pipeline = [
             dict(
                 type='LoadImageFromFile',
@@ -327,7 +336,7 @@ def main():
             dict(
                 type='Translate',
                 level=1,
-                max_translate_offset=int(0.1 * min(cfg.data.train.pipeline[2].img_scale)),
+                max_translate_offset=translate_offset,
                 prob=0.2,
             ),
             dict(
@@ -363,14 +372,27 @@ def main():
             ),
         ]
 
-    # Set the iou_threshold in train_cfg and test_cfg
+    # Set iou_threshold and score_threshold for NMS
     if args.iou_threshold is not None:
-        try:
-            cfg.model['train_cfg']['rpn_proposal']['nms']['iou_threshold'] = args.iou_threshold
+        if 'nms' in cfg.model['test_cfg']:
+            cfg.model['test_cfg']['nms']['iou_threshold'] = args.iou_threshold
+        elif (
+                'rpn' in cfg.model['test_cfg']
+                and 'rcnn' in cfg.model['test_cfg']
+        ):
             cfg.model['test_cfg']['rpn']['nms']['iou_threshold'] = args.iou_threshold
             cfg.model['test_cfg']['rcnn']['nms']['iou_threshold'] = args.iou_threshold
-        except Exception as e:
-            pass
+        else:
+            raise ValueError('Unknown case for the assignment of iou_threshold')
+
+    if args.score_threshold is not None:
+        if 'score_thr' in cfg.model['test_cfg']:
+            cfg.model['test_cfg']['score_thr'] = args.score_threshold
+        elif 'rcnn' in cfg.model['test_cfg']:
+            cfg.model['test_cfg']['rcnn']['score_thr'] = args.score_threshold
+        else:
+            raise ValueError('Unknown case for the assignment of score_threshold')
+
 
     # Final config used for training and testing
     print(f'Config:\n{cfg.pretty_text}')
@@ -529,6 +551,7 @@ def main():
             lr=cfg.optimizer.lr,
             scheduler=args.scheduler,
             iou_threshold=args.iou_threshold,
+            score_threshold=args.score_threshold,
             epochs=args.epochs,
             seed=cfg.seed,
             use_augmentation=args.use_augmentation,
