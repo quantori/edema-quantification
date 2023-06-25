@@ -56,7 +56,7 @@ def parse_args():
     parser.add_argument('--dataset-type', type=str, default='CocoDataset', help='type of the dataset')
     # ----------------------------------------------- CUSTOM ARGUMENTS -------------------------------------------------
     parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
-    parser.add_argument('--batch-size', type=int, default=None, help='batch size')
+    parser.add_argument('--batch-size', type=int, default=4, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=None, help='input image size')
     parser.add_argument('--optimizer', type=str, default='Adam', choices=['SGD', 'RMSprop', 'Adam', 'AdamW', 'RAdam'], help='optimizer')
     parser.add_argument('--lr', type=float, default=0.0001, help='optimizer learning rate')
