@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument('--use-augmentation', action='store_true', help='use augmentation during model training')
     parser.add_argument('--iou-threshold', type=float, default=0.5, help='IoU threshold for NMS')
     parser.add_argument('--score-threshold', type=float, default=0.01, help='score threshold for NMS')
-    parser.add_argument('--epochs', default=30, type=int, help='number of training epochs')
+    parser.add_argument('--epochs', default=100, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
     # ------------------------------------------------------------------------------------------------------------------
