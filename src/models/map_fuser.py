@@ -48,6 +48,8 @@ class MapFuser:
         if scale_output:
             fused_map = (fused_map * 255.0).astype(np.uint8)
 
+        self.prob_maps.clear()
+
         return fused_map
 
     @staticmethod
