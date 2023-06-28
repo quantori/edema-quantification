@@ -48,6 +48,8 @@ class MapFuser:
         if scale_output:
             fused_map = (fused_map * 255.0).astype(np.uint8)
 
+        self.prob_maps.clear()
+
         return fused_map
 
     @staticmethod
@@ -78,7 +80,6 @@ if __name__ == '__main__':
         prob_map = cv2.imread(map_path, cv2.IMREAD_GRAYSCALE)
         fuser.add_prob_map(prob_map)
     fused_map = fuser.conditional_probability_fusion(scale_output=True)
-    print(np.mean(fused_map), np.std(fused_map))
 
     # Process probability map
     from src.models.mask_processor import MaskProcessor
