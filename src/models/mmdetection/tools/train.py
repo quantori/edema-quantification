@@ -56,13 +56,16 @@ def parse_args():
     parser.add_argument('--dataset-type', type=str, default='CocoDataset', help='type of the dataset')
     # ----------------------------------------------- CUSTOM ARGUMENTS -------------------------------------------------
     parser.add_argument('--filter-empty-gt', action='store_true', help='whether to exclude the empty GT images')
-    parser.add_argument('--batch-size', type=int, default=None, help='batch size')
+    parser.add_argument('--batch-size', type=int, default=4, help='batch size')
     parser.add_argument('--img-size', type=int, nargs='+', default=None, help='input image size')
-    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'RMSprop', 'Adam', 'RAdam'], help='optimizer')
-    parser.add_argument('--lr', type=float, default=0.01, help='optimizer learning rate')
-    parser.add_argument('--ratios', type=float, nargs='+', default=[0.25, 0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0], help='anchor box ratios')
-    parser.add_argument('--use-augmentation', action='store_true', help='use augmentation for the train dataset')
-    parser.add_argument('--epochs', default=50, type=int, help='number of training epochs')
+    parser.add_argument('--optimizer', type=str, default='Adam', choices=['SGD', 'RMSprop', 'Adam', 'AdamW', 'RAdam'], help='optimizer')
+    parser.add_argument('--lr', type=float, default=0.0001, help='optimizer learning rate')
+    parser.add_argument('--scheduler', type=str, default=None, choices=['cosine', 'default'], help='LR scheduler')
+    parser.add_argument('--ratios', type=float, nargs='+', default=None, help='list of anchor box ratios')
+    parser.add_argument('--use-augmentation', action='store_true', help='use augmentation during model training')
+    parser.add_argument('--iou-threshold', type=float, default=0.5, help='IoU threshold for NMS')
+    parser.add_argument('--score-threshold', type=float, default=0.01, help='score threshold for NMS')
+    parser.add_argument('--epochs', default=100, type=int, help='number of training epochs')
     parser.add_argument('--seed', type=int, default=11, help='seed value for reproducible results')
     parser.add_argument('--num-workers', type=int, default=None, help='workers to pre-fetch data for each single GPU')
     # ------------------------------------------------------------------------------------------------------------------
@@ -146,18 +149,19 @@ def main():
 
     # Set anchor box ratios
     model_family = str(Path(args.config).parent.name)
-    if model_family in ['grid_rcnn', 'libra_rcnn', 'faster_rcnn']:
-        cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
-    elif model_family in ['guided_anchoring']:
-        cfg.model.rpn_head.approx_anchor_generator['ratios'] = args.ratios
-    elif model_family in ['cascade_rpn']:
-        cfg.model.rpn_head.stages[0].anchor_generator['ratios'] = args.ratios
-    elif model_family in ['tood', 'gfl', 'paa', 'fsaf', 'atss']:
-        cfg.model.bbox_head.anchor_generator['ratios'] = args.ratios
-    elif model_family in ['sabl']:
-        cfg.model.bbox_head.approx_anchor_generator['ratios'] = args.ratios
-    else:
-        print(f'\n{cfg.model.type} will be using Default anchor_generator ratios\n')
+    if args.ratios is not None and isinstance(args.ratios, list):
+        if model_family in ['grid_rcnn', 'libra_rcnn', 'faster_rcnn']:
+            cfg.model.rpn_head.anchor_generator['ratios'] = args.ratios
+        elif model_family in ['guided_anchoring']:
+            cfg.model.rpn_head.approx_anchor_generator['ratios'] = args.ratios
+        elif model_family in ['cascade_rpn']:
+            cfg.model.rpn_head.stages[0].anchor_generator['ratios'] = args.ratios
+        elif model_family in ['tood', 'gfl', 'paa', 'fsaf', 'atss']:
+            cfg.model.bbox_head.anchor_generator['ratios'] = args.ratios
+        elif model_family in ['sabl']:
+            cfg.model.bbox_head.approx_anchor_generator['ratios'] = args.ratios
+        else:
+            print(f'\n{cfg.model.type} will be using default anchor_generator ratios\n')
 
     # Set dataset metadata
     cfg.data_root = args.data_dir
@@ -211,6 +215,14 @@ def main():
             eps=1e-08,
             weight_decay=0.0001,
         )
+    elif args.optimizer == 'AdamW':
+        cfg.optimizer = dict(
+            type='AdamW',
+            lr=args.lr,
+            betas=(0.9, 0.999),
+            eps=1e-08,
+            weight_decay=0.0001,
+        )
     elif args.optimizer == 'RAdam':
         cfg.optimizer = dict(
             type='RAdam',
@@ -224,15 +236,20 @@ def main():
 
     # Set learning rate scheme
     # https://github.com/open-mmlab/mmcv/blob/master/mmcv/runner/hooks/lr_updater.py
-    cfg.lr_config = dict(
-        policy='CosineAnnealing',
-        warmup='linear',
-        warmup_iters=max(1, int(0.2 * args.epochs)),
-        warmup_ratio=0.1,
-        min_lr=args.lr / 100,
-        warmup_by_epoch=True,
-        by_epoch=True,
-    )
+    if args.scheduler == 'cosine':
+        cfg.lr_config = dict(
+            policy='CosineAnnealing',
+            warmup='linear',
+            warmup_iters=max(1, int(0.2 * args.epochs)),
+            warmup_ratio=0.1,
+            min_lr=args.lr / 100,
+            warmup_by_epoch=True,
+            by_epoch=True,
+        )
+    elif args.scheduler == 'default':
+        pass
+    else:
+        cfg.lr_config = None
 
     # Set the evaluation metric
     cfg.evaluation.metric = 'bbox'
@@ -245,6 +262,9 @@ def main():
 
     # Set the checkpoint saving interval
     cfg.checkpoint_config.interval = 1
+
+    # Calculate metrics on both training and validation datasets
+    cfg.workflow = [('train', 1), ('val', 1)]
 
     # Set seed thus the results are more reproducible
     if args.seed is not None:
@@ -274,6 +294,14 @@ def main():
     # Augmentation settings
     # Docs: https://mmdetection.readthedocs.io/en/v2.15.1/api.html
     if args.use_augmentation:
+
+        # Get the minimum dimension
+        if isinstance(cfg.data.train.pipeline[2].img_scale, tuple):
+            min_dim = min(cfg.data.train.pipeline[2].img_scale)
+        else:
+            min_dim = min(min(sublist) for sublist in cfg.data.train.pipeline[2].img_scale)
+        translate_offset = int(0.1 * min_dim)
+
         cfg.train_pipeline = [
             dict(
                 type='LoadImageFromFile',
@@ -311,7 +339,7 @@ def main():
             dict(
                 type='Translate',
                 level=1,
-                max_translate_offset=int(0.1 * min(cfg.data.train.pipeline[2].img_scale)),
+                max_translate_offset=translate_offset,
                 prob=0.2,
             ),
             dict(
@@ -347,6 +375,27 @@ def main():
             ),
         ]
 
+    # Set iou_threshold and score_threshold for NMS
+    if args.iou_threshold is not None:
+        if 'nms' in cfg.model['test_cfg']:
+            cfg.model['test_cfg']['nms']['iou_threshold'] = args.iou_threshold
+        elif (
+                'rpn' in cfg.model['test_cfg']
+                and 'rcnn' in cfg.model['test_cfg']
+        ):
+            cfg.model['test_cfg']['rpn']['nms']['iou_threshold'] = args.iou_threshold
+            cfg.model['test_cfg']['rcnn']['nms']['iou_threshold'] = args.iou_threshold
+        else:
+            raise ValueError('Unknown case for the assignment of iou_threshold')
+
+    if args.score_threshold is not None:
+        if 'score_thr' in cfg.model['test_cfg']:
+            cfg.model['test_cfg']['score_thr'] = args.score_threshold
+        elif 'rcnn' in cfg.model['test_cfg']:
+            cfg.model['test_cfg']['rcnn']['score_thr'] = args.score_threshold
+        else:
+            raise ValueError('Unknown case for the assignment of score_threshold')
+
     # Final config used for training and testing
     print(f'Config:\n{cfg.pretty_text}')
     # ------------------------------------------------------------------------------------------------------------------
@@ -378,7 +427,7 @@ def main():
     timestamp = time.strftime('%d%m_%H%M%S', time.localtime())
     if args.work_dir is not None:
         # update configs according to CLI args if args.work_dir is not None
-        cfg.work_dir = osp.join(args.work_dir, f'{cfg.model.type}_{timestamp}')
+        cfg.work_dir = osp.join(args.work_dir, f'{model_family}_{timestamp}')
     elif cfg.get('work_dir', None) is None:
         # use config filename as default work_dir if cfg.work_dir is None
         cfg.work_dir = osp.join(
@@ -469,7 +518,7 @@ def main():
         val_dataset = copy.deepcopy(cfg.data.val)
         val_dataset.pipeline = cfg.data.train.get(
             'pipeline',
-            cfg.data.train.dataset.get('pipeline'),
+            cfg.data.val.get('pipeline')
         )
         datasets.append(build_dataset(val_dataset))
     if cfg.checkpoint_config is not None:
@@ -489,7 +538,7 @@ def main():
     if ml_flow_logger_item:
         ml_flow_logger = ml_flow_logger_item[0]
         mlflow.set_experiment('Edema')
-        run_name = f'{cfg.model.type}_{timestamp}'
+        run_name = f'{model_family}_{timestamp}'
         mlflow.set_tag('mlflow.runName', run_name)
         ml_flow_logger['params'] = dict(
             train_images=len(os.listdir(cfg.data.train.img_prefix)),
@@ -502,9 +551,13 @@ def main():
             batch_size=cfg.data.samples_per_gpu,
             optimizer=cfg.optimizer.type,
             lr=cfg.optimizer.lr,
+            scheduler=args.scheduler,
+            iou_threshold=args.iou_threshold,
+            score_threshold=args.score_threshold,
             epochs=args.epochs,
             seed=cfg.seed,
             use_augmentation=args.use_augmentation,
+            ratios=args.ratios,
             device=cfg.device,
             cfg=cfg.filename,
         )
