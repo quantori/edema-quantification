@@ -263,6 +263,9 @@ def main():
     # Set the checkpoint saving interval
     cfg.checkpoint_config.interval = 1
 
+    # Calculate metrics on both training and validation datasets
+    cfg.workflow = [('train', 1), ('val', 1)]
+
     # Set seed thus the results are more reproducible
     if args.seed is not None:
         cfg.seed = args.seed
@@ -393,7 +396,6 @@ def main():
         else:
             raise ValueError('Unknown case for the assignment of score_threshold')
 
-
     # Final config used for training and testing
     print(f'Config:\n{cfg.pretty_text}')
     # ------------------------------------------------------------------------------------------------------------------
@@ -516,7 +518,7 @@ def main():
         val_dataset = copy.deepcopy(cfg.data.val)
         val_dataset.pipeline = cfg.data.train.get(
             'pipeline',
-            cfg.data.train.dataset.get('pipeline'),
+            cfg.data.val.get('pipeline')
         )
         datasets.append(build_dataset(val_dataset))
     if cfg.checkpoint_config is not None:
