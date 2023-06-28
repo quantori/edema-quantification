@@ -55,6 +55,7 @@ class FeatureDetector:
         )
         self.features = self.model.CLASSES
 
+        # Set conf_threshold
         try:
             self.model.test_cfg.rcnn.score_thr = conf_threshold
         except Exception:
