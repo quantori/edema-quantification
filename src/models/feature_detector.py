@@ -19,6 +19,7 @@ class FeatureDetector:
         self,
         model_dir: str,
         conf_threshold: float = 0.01,
+        iou_threshold: float = 0.5,
         device: str = 'auto',
     ):
         # Get config path
@@ -54,10 +55,20 @@ class FeatureDetector:
         )
         self.features = self.model.CLASSES
 
+        # Set conf_threshold
         try:
             self.model.test_cfg.rcnn.score_thr = conf_threshold
         except Exception:
             self.model.test_cfg.score_thr = conf_threshold
+
+        # Set iou_threshold
+        if 'nms' in self.model.test_cfg:
+            self.model.test_cfg.nms.iou_threshold = iou_threshold
+        elif 'rpn' in self.model.test_cfg and 'rcnn' in self.model.test_cfg:
+            self.model.test_cfg.rpn.nms.iou_threshold = iou_threshold
+            self.model.test_cfg.rcnn.nms.iou_threshold = iou_threshold
+        else:
+            raise ValueError('Unknown case for the assignment of iou_threshold')
 
         # Log model parameters
         logging.info('')
@@ -154,8 +165,9 @@ if __name__ == '__main__':
         ext_list='.png',
     )
     model = FeatureDetector(
-        model_dir='models/feature_detection/FasterRCNN',
+        model_dir='models/feature_detection/FasterRCNN_ResNet50',
         conf_threshold=0.01,
+        iou_threshold=0.5,
         device='auto',
     )
     df_dets = pd.DataFrame()
@@ -169,7 +181,7 @@ if __name__ == '__main__':
         df_dets = pd.concat([df_dets, df_dets_])
     df_dets.index += 1
     df_dets.to_excel(
-        os.path.join(test_dir, 'predictions2.xlsx'),
+        os.path.join(test_dir, 'predictions.xlsx'),
         sheet_name='Detections',
         index=True,
         index_label='ID',
