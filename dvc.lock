@@ -9,9 +9,9 @@ stages:
       md5: 370c899ba0c5fcea7f28b46d00a38298
       size: 106
     - path: data/sly
-      md5: dd4a11f5324178b4230a040ee212ed11.dir
-      size: 8210595275
-      nfiles: 2004
+      md5: 657c03030d21a0fdc8cb45857af24495.dir
+      size: 8210646507
+      nfiles: 2012
     - path: src/data/convert_sly_to_int.py
       md5: 9f4a197961983bbbfd8ee971214b7a26
       size: 5771
@@ -24,8 +24,8 @@ stages:
       size: 4423453676
       nfiles: 1000
     - path: data/interim/metadata.xlsx
-      md5: 0190a41d1e55662e8e89d0fa99001a59
-      size: 1327333
+      md5: 1477043a76e0a7ad8f73017c9b307220
+      size: 1327334
   segment_lungs:
     cmd:
     - rm -rf data/interim_lungs || true
@@ -80,8 +80,8 @@ stages:
       md5: 68cf3768ddf79a99b33ff586441c325c
       size: 5685
     - path: src/models/map_fuser.py
-      md5: ba910187e7c8c24062e2267427afeae9
-      size: 2861
+      md5: a9b32e9c3d876967b8d3321eb3759a19
+      size: 2844
     - path: src/models/mask_processor.py
       md5: 9d6d74e919350da1f1ea5fc02ccd4309
       size: 1894
@@ -95,7 +95,7 @@ stages:
       size: 16801204
       nfiles: 1000
     - path: data/interim_fused/metadata.xlsx
-      md5: 61a77a9c929a5ad6ebb82e55d17c9e45
+      md5: 0a1b15ddf344f3f1f03f925130a97199
       size: 5657114
   convert_int_to_final:
     cmd:
@@ -110,10 +110,10 @@ stages:
       size: 4423453676
       nfiles: 1000
     - path: data/interim/metadata.xlsx
-      md5: 0190a41d1e55662e8e89d0fa99001a59
-      size: 1327333
+      md5: 1477043a76e0a7ad8f73017c9b307220
+      size: 1327334
     - path: data/interim_fused/metadata.xlsx
-      md5: 61a77a9c929a5ad6ebb82e55d17c9e45
+      md5: 0a1b15ddf344f3f1f03f925130a97199
       size: 5657114
     - path: src/data/convert_int_to_final.py
       md5: b7023dacce92b71a33579c91560b2372
@@ -127,7 +127,7 @@ stages:
       size: 2585867050
       nfiles: 1000
     - path: data/final/metadata.xlsx
-      md5: cf2b36143c9fd1d1e6f8e4a7097f27d5
+      md5: 622ce7ffac8fcd3c2863234ba911c766
       size: 897810
   convert_final_to_coco:
     cmd:
@@ -142,7 +142,7 @@ stages:
       size: 2585867050
       nfiles: 1000
     - path: data/final/metadata.xlsx
-      md5: cf2b36143c9fd1d1e6f8e4a7097f27d5
+      md5: 622ce7ffac8fcd3c2863234ba911c766
       size: 897810
     - path: src/data/convert_final_to_coco.py
       md5: f62e735c1063ce5b966d1f0e6aa1be39
@@ -155,13 +155,13 @@ stages:
       size: 7665
     outs:
     - path: data/coco/metadata.xlsx
-      md5: 2cfa30935321174bff410828b63e353a
+      md5: 10223620b33f8b2f0e11e26b80270220
       size: 623239
     - path: data/coco/test
-      md5: a9682e016bfb9e89ec3753e989de6601.dir
+      md5: a019e4b36941c0c814d47416e5015059.dir
       size: 512196728
       nfiles: 202
     - path: data/coco/train
-      md5: 309d5e4f29ed361ba42338f35c5ef8fd.dir
+      md5: 9548060ea15d4a767fc80a725d5b5537.dir
       size: 2013694183
       nfiles: 781

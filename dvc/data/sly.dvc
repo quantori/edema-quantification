@@ -1,6 +1,6 @@
 wdir: ../../data
 outs:
-- md5: dd4a11f5324178b4230a040ee212ed11.dir
-  size: 8210595275
-  nfiles: 2004
+- md5: 657c03030d21a0fdc8cb45857af24495.dir
+  size: 8210646507
+  nfiles: 2012
   path: sly
