@@ -60,6 +60,7 @@ def parse_args():
     parser.add_argument('--img-size', type=int, nargs='+', default=None, help='input image size')
     parser.add_argument('--optimizer', type=str, default='Adam', choices=['SGD', 'RMSprop', 'Adam', 'AdamW', 'RAdam'], help='optimizer')
     parser.add_argument('--lr', type=float, default=0.0001, help='optimizer learning rate')
+    parser.add_argument('--weight-decay', type=float, default=0.001, help='weight decay')
     parser.add_argument('--scheduler', type=str, default=None, choices=['cosine', 'default'], help='LR scheduler')
     parser.add_argument('--ratios', type=float, nargs='+', default=None, help='list of anchor box ratios')
     parser.add_argument('--use-augmentation', action='store_true', help='use augmentation during model training')
@@ -196,7 +197,7 @@ def main():
             type='SGD',
             lr=args.lr,
             momentum=0.9,
-            weight_decay=0.0001,
+            weight_decay=args.weight_decay,
         )
     elif args.optimizer == 'RMSprop':
         cfg.optimizer = dict(
@@ -204,8 +205,8 @@ def main():
             lr=args.lr,
             alpha=0.99,
             eps=1e-08,
-            weight_decay=0,
             momentum=0,
+            weight_decay=args.weight_decay,
         )
     elif args.optimizer == 'Adam':
         cfg.optimizer = dict(
@@ -213,7 +214,7 @@ def main():
             lr=args.lr,
             betas=(0.9, 0.999),
             eps=1e-08,
-            weight_decay=0.0001,
+            weight_decay=args.weight_decay,
         )
     elif args.optimizer == 'AdamW':
         cfg.optimizer = dict(
@@ -221,7 +222,7 @@ def main():
             lr=args.lr,
             betas=(0.9, 0.999),
             eps=1e-08,
-            weight_decay=0.0001,
+            weight_decay=args.weight_decay,
         )
     elif args.optimizer == 'RAdam':
         cfg.optimizer = dict(
@@ -229,7 +230,7 @@ def main():
             lr=args.lr,
             betas=(0.9, 0.999),
             eps=1e-08,
-            weight_decay=0.0001,
+            weight_decay=args.weight_decay,
         )
     else:
         raise ValueError(f'Unknown optimizer: {args.optimizer}')
@@ -551,6 +552,7 @@ def main():
             batch_size=cfg.data.samples_per_gpu,
             optimizer=cfg.optimizer.type,
             lr=cfg.optimizer.lr,
+            weight_decay=args.weight_decay,
             scheduler=args.scheduler,
             iou_threshold=args.iou_threshold,
             score_threshold=args.score_threshold,
