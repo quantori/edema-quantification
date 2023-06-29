@@ -9,6 +9,7 @@ import pandas as pd
 import supervisely_lib as sly
 from joblib import Parallel, delayed
 from omegaconf import DictConfig, OmegaConf
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from src.data.utils_sly import (
@@ -139,25 +140,85 @@ def process_sample(
     return ann_info
 
 
+def split_dataset(
+    df: pd.DataFrame,
+    train_size: float,
+    seed: int,
+) -> pd.DataFrame:
+    """Split dataset with stratification into training and test subsets.
+
+    Args:
+        df: data frame derived from supervisely annotation JSON files
+        train_size: a fraction used to split dataset into train and test subsets
+        seed: random value for splitting train and test subsets
+    Returns:
+        df_out: data frame with train and test subsets
+    """
+    # Extract a subset of unique subject IDs with stratification
+    df_unique_subjects = df.groupby(by='Subject ID', as_index=False)['Class ID'].max()
+
+    # Split dataset into train and test subsets with
+    train_ids, test_ids = train_test_split(
+        df_unique_subjects,
+        train_size=train_size,
+        shuffle=True,
+        random_state=seed,
+        stratify=df_unique_subjects['Class ID'],
+    )
+
+    # Extract train and test subsets by indices
+    df_train = df[df['Subject ID'].isin(train_ids['Subject ID'])]
+    df_test = df[df['Subject ID'].isin(test_ids['Subject ID'])]
+    df_train.reset_index(inplace=True, drop=True)
+    df_test.reset_index(inplace=True, drop=True)
+
+    # Move cases without edema from test subset to training subset
+    mask_empty = df_train['Class ID'] == 0
+    df_empty = df_train[mask_empty]
+    df_train = df_train.drop(df_train.index[mask_empty])
+    df_test = df_test.append(df_empty, ignore_index=True)
+
+    # Add split column
+    df_train['Split'] = 'train'
+    df_test['Split'] = 'test'
+
+    # Combine subsets into a single dataframe
+    df_out = pd.concat([df_train, df_test])
+    df_out.sort_values(by=['Image path'], inplace=True)
+    df_out.reset_index(drop=True, inplace=True)
+
+    log.info('')
+    log.info('Overall train/test split')
+    log.info(
+        f'Subjects..................: {df_train["Subject ID"].nunique()}/{df_test["Subject ID"].nunique()}',
+    )
+    log.info(
+        f'Studies...................: {df_train["Study ID"].nunique()}/{df_test["Study ID"].nunique()}',
+    )
+    log.info(f'Objects...................: {len(df_train)}/{len(df_test)}')
+
+    return df_out
+
+
 def save_metadata(
-    metadata: pd.DataFrame,
+    df: pd.DataFrame,
     save_dir: str,
 ) -> None:
     """Save metadata for an intermediate dataset.
 
     Args:
-        metadata: dataframe with metadata for all images
+        df: dataframe with metadata for all images
         save_dir: directory where the output files will be saved
     Returns:
         None
     """
-    metadata_path = os.path.join(save_dir, 'metadata.xlsx')
-    logging.info(f'Saving metadata to {metadata_path}')
-    metadata.sort_values(['Image path'], inplace=True)
-    metadata.reset_index(drop=True, inplace=True)
-    metadata.index += 1
-    metadata.to_excel(
-        metadata_path,
+    df_path = os.path.join(save_dir, 'metadata.xlsx')
+    logging.info(f'Saving metadata to {df_path}')
+    df.sort_values(['Image path'], inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    df.index += 1
+    df.to_excel(
+        df_path,
         sheet_name='Metadata',
         index=True,
         index_label='ID',
@@ -181,6 +242,7 @@ def main(cfg: DictConfig) -> None:
     Returns:
         None
     """
+
     df = read_sly_project(
         dataset_dir=cfg.dataset_dir,
         include_dirs=cfg.include_dirs,
@@ -197,12 +259,19 @@ def main(cfg: DictConfig) -> None:
         delayed(processing_func)(group)
         for group in tqdm(groups, desc='Dataset conversion', unit=' image')
     )
+    df = pd.concat(result)
 
-    metadata = pd.concat(result)
+    df = split_dataset(
+        df=df,
+        train_size=cfg.train_size,
+        seed=cfg.seed,
+    )
+
     save_metadata(
-        metadata=metadata,
+        df=df,
         save_dir=cfg.save_dir,
     )
+
     log.info('Complete')
 
 

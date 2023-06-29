@@ -6,7 +6,6 @@ from typing import List
 import hydra
 import pandas as pd
 from omegaconf import DictConfig, OmegaConf
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from src.data.utils import copy_files
@@ -29,72 +28,12 @@ def process_metadata(
     Returns:
         meta: data frame derived from a meta file
     """
-    metadata = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
-    metadata = metadata[~metadata['Feature'].isin(exclude_features)]
-    metadata = metadata.dropna(subset=['Class ID'])
+    df = pd.read_excel(os.path.join(dataset_dir, 'metadata.xlsx'))
+    df.drop('ID', axis=1, inplace=True)
+    df = df[~df['Feature'].isin(exclude_features)]
+    df = df.dropna(subset=['Class ID'])
 
-    return metadata
-
-
-def split_dataset(
-    df: pd.DataFrame,
-    train_size: float,
-    seed: int,
-) -> pd.DataFrame:
-    """Split dataset with stratification into training and test subsets.
-
-    Args:
-        df: data frame derived from a final metadata file
-        train_size: a fraction used to split dataset into train and test subsets
-        seed: random value for splitting train and test subsets
-    Returns:
-        subsets: dictionary which contains image/annotation paths for train and test subsets
-    """
-    # Extract a subset of unique subject IDs with stratification
-    df_unique_subjects = df.groupby(by='Subject ID', as_index=False)['Class ID'].max().astype(int)
-
-    # Split dataset into train and test subsets with
-    train_ids, test_ids = train_test_split(
-        df_unique_subjects,
-        train_size=train_size,
-        shuffle=True,
-        random_state=seed,
-        stratify=df_unique_subjects['Class ID'],
-    )
-
-    # Extract train and test subsets by indices
-    df_train = df[df['Subject ID'].isin(train_ids['Subject ID'])]
-    df_test = df[df['Subject ID'].isin(test_ids['Subject ID'])]
-
-    # Move cases without edema from test subset to training subset
-    mask_empty = df_test['Class ID'] == 0
-    df_empty = df_test[mask_empty]
-    df_test = df_test.drop(df_test.index[mask_empty])
-    df_train = df_train.append(df_empty, ignore_index=True)
-    df_train.reset_index(inplace=True, drop=True)
-    df_test.reset_index(inplace=True, drop=True)
-
-    # Add split column
-    df_train = df_train.assign(Split='train')
-    df_test = df_test.assign(Split='test')
-
-    # Combine subsets into a single dataframe
-    df_out = pd.concat([df_train, df_test])
-    df_out.drop('ID', axis=1, inplace=True)
-    df_out.sort_values(by=['Image path'], inplace=True)
-    df_out.reset_index(drop=True, inplace=True)
-
-    log.info('')
-    log.info('Overall train/test split')
-    log.info(
-        f'Subjects..................: {df_train["Subject ID"].nunique()}/{df_test["Subject ID"].nunique()}',
-    )
-    log.info(
-        f'Studies...................: {df_train["Study ID"].nunique()}/{df_test["Study ID"].nunique()}',
-    )
-    log.info(f'Objects...................: {len(df_train)}/{len(df_test)}')
-
-    return df_out
+    return df
 
 
 def prepare_coco(
@@ -104,10 +43,10 @@ def prepare_coco(
     """Prepare and save training and test subsets in COCO format.
 
     Args:
-        df: dataframe containing information about the training and test subsets
+        df: data frame containing information about the training and test subsets
         save_dir: directory where split datasets are stored
     Returns:
-        df: COCO dataframe with training and test subsets
+        df: COCO data frame with training and test subsets
     """
     categories_coco = []
     class_names = list(df['Feature'].unique())
@@ -235,23 +174,15 @@ def main(cfg: DictConfig) -> None:
     """
     log.info(f'Input directory...........: {cfg.dataset_dir}')
     log.info(f'Excluded features.........: {cfg.exclude_features}')
-    log.info(f'Train/Test split..........: {cfg.train_size:.2f} / {(1 - cfg.train_size):.2f}')
-    log.info(f'Seed......................: {cfg.seed}')
     log.info(f'Output directory..........: {cfg.save_dir}')
 
-    metadata = process_metadata(
+    df = process_metadata(
         dataset_dir=cfg.dataset_dir,
         exclude_features=cfg.exclude_features,
     )
 
-    metadata = split_dataset(
-        df=metadata,
-        train_size=cfg.train_size,
-        seed=cfg.seed,
-    )
-
     df = prepare_coco(
-        df=metadata,
+        df=df,
         save_dir=cfg.save_dir,
     )
 
