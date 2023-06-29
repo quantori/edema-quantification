@@ -6,15 +6,15 @@ stages:
     - python src/data/convert_sly_to_int.py
     deps:
     - path: configs/convert_sly_to_int.yaml
-      md5: 370c899ba0c5fcea7f28b46d00a38298
-      size: 106
+      md5: dd9bc07066dc7b3f9c423d194d9c5ad2
+      size: 132
     - path: data/sly
       md5: 657c03030d21a0fdc8cb45857af24495.dir
       size: 8210646507
       nfiles: 2012
     - path: src/data/convert_sly_to_int.py
-      md5: 9f4a197961983bbbfd8ee971214b7a26
-      size: 5771
+      md5: 861578d1fef3787258b7445dd0b4877a
+      size: 7975
     - path: src/data/utils_sly.py
       md5: 56d50266933832f27463c69753bfad84
       size: 7665
@@ -24,8 +24,8 @@ stages:
       size: 4423453676
       nfiles: 1000
     - path: data/interim/metadata.xlsx
-      md5: 1477043a76e0a7ad8f73017c9b307220
-      size: 1327334
+      md5: 229dcc29505e49719c6653ab4a34588e
+      size: 1355126
   segment_lungs:
     cmd:
     - rm -rf data/interim_lungs || true
@@ -110,8 +110,8 @@ stages:
       size: 4423453676
       nfiles: 1000
     - path: data/interim/metadata.xlsx
-      md5: 1477043a76e0a7ad8f73017c9b307220
-      size: 1327334
+      md5: 229dcc29505e49719c6653ab4a34588e
+      size: 1355126
     - path: data/interim_fused/metadata.xlsx
       md5: 0a1b15ddf344f3f1f03f925130a97199
       size: 5657114
@@ -127,26 +127,26 @@ stages:
       size: 2585867050
       nfiles: 1000
     - path: data/final/metadata.xlsx
-      md5: 622ce7ffac8fcd3c2863234ba911c766
-      size: 897810
+      md5: 25eff015d4682ee45252bdb53b1fc9fb
+      size: 925026
   convert_final_to_coco:
     cmd:
     - rm -rf data/coco || true
     - python src/data/convert_final_to_coco.py
     deps:
     - path: configs/convert_final_to_coco.yaml
-      md5: 8886a7915a5ece10d3a01b2b5b6df238
-      size: 148
+      md5: 4fe13b8c205a69e7ad1c421dc5ba29a8
+      size: 122
     - path: data/final/img
       md5: e845d33586856ede0fc96cea87a8ac03.dir
       size: 2585867050
       nfiles: 1000
     - path: data/final/metadata.xlsx
-      md5: 622ce7ffac8fcd3c2863234ba911c766
-      size: 897810
+      md5: 25eff015d4682ee45252bdb53b1fc9fb
+      size: 925026
     - path: src/data/convert_final_to_coco.py
-      md5: f62e735c1063ce5b966d1f0e6aa1be39
-      size: 8279
+      md5: e1dbe465d9d198e51384a8b0205f70ed
+      size: 5724
     - path: src/data/utils_coco.py
       md5: fe5cc34646f753c926b4ae39b42a3bdd
       size: 1412
@@ -155,13 +155,13 @@ stages:
       size: 7665
     outs:
     - path: data/coco/metadata.xlsx
-      md5: 10223620b33f8b2f0e11e26b80270220
-      size: 623239
+      md5: a9d80c80dd3d19601fe7dcf6c49c3bde
+      size: 623501
     - path: data/coco/test
-      md5: a019e4b36941c0c814d47416e5015059.dir
-      size: 512196728
+      md5: b9ea7b025573d8c4ed5ba6a8690be7d4.dir
+      size: 513268792
       nfiles: 202
     - path: data/coco/train
-      md5: 9548060ea15d4a767fc80a725d5b5537.dir
-      size: 2013694183
+      md5: b9cc6428e335e62d4906cc5581973735.dir
+      size: 2012622133
       nfiles: 781
