@@ -206,7 +206,7 @@ if __name__ == '__main__':
     )
     dets = evaluator.combine_data(
         gt_path='data/coco/test/labels.xlsx',
-        pred_path='data/coco/test/predictions.xlsx',
+        pred_path='data/interim_predict/metadata.xlsx',
         exclude_features=[],
     )
     df_metrics, df_metrics_cw = evaluator.evaluate(detections=dets)
