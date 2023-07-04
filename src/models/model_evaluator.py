@@ -49,9 +49,9 @@ class ModelEvaluator:
         samples = []
         img_paths = df_pred['Image path'].unique()
         for img_path in img_paths:
-            img_name = Path(img_path).name
-            df_gt_sample = df_gt[df_gt['Image name'] == img_name]
-            df_pred_sample = df_pred[df_pred['Image name'] == img_name]
+            img_id = Path(img_path).parts[-2]
+            df_gt_sample = df_gt[df_gt['Image path'].str.contains(img_id)]
+            df_pred_sample = df_pred[df_pred['Image path'].str.contains(img_id)]
 
             dets_gt = self._process_detections(df=df_gt_sample)
             dets_pred = self._process_detections(df=df_pred_sample)
