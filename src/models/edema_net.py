@@ -149,8 +149,9 @@ class EdemaNet:
         df_fused = self.box_fuser.fuse_detections(df_list=df_dets_list)
 
         # Assign an edema class to an image
-        df_out = self.edema_classifier.classify(df=df_fused)
-
+        df_classifier = self.edema_classifier.classify(df=df_fused)
+        df_out = df_classifier.copy()
+        df_out['Lungs mask crop path'] = mask_crop_path
         return df_out
 
 
