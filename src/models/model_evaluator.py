@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+import cv2
 import fiftyone as fo
 import pandas as pd
 
@@ -41,6 +42,7 @@ class ModelEvaluator:
                 metadata='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.metadata.ImageMetadata)',
                 ground_truth='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
                 predictions='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
+                lung_mask='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Segmentation)',
             ),
             info=dict(),
         )
@@ -56,6 +58,7 @@ class ModelEvaluator:
             dets_gt = self._process_detections(df=df_gt_sample)
             dets_pred = self._process_detections(df=df_pred_sample)
 
+            lung_mask_crop = cv2.imread(df_pred_sample.iloc[0]['Lungs mask crop path'])
             samples.append(
                 dict(
                     filepath=img_path,
@@ -68,6 +71,11 @@ class ModelEvaluator:
                     predictions=dict(
                         _cls='Detections',
                         detections=dets_pred,
+                    ),
+                    lung_mask=dict(
+                        _cls='Segmentation',
+                        mask_path=df_pred_sample.iloc[0]['Lungs mask crop path'],
+                        mask=lung_mask_crop,
                     ),
                 ),
             )
