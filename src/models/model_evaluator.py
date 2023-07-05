@@ -58,11 +58,14 @@ class ModelEvaluator:
             dets_gt = self._process_detections(df=df_gt_sample)
             dets_pred = self._process_detections(df=df_pred_sample)
 
-            lung_mask_crop = cv2.imread(df_pred_sample.iloc[0]['Lungs mask crop path'])
+            mask_path = img_path.replace('img_crop', 'mask_crop')
+            mask_crop = cv2.imread(mask_path)
+
+            split = df_gt_sample['Split'].unique()[0]
             samples.append(
                 dict(
                     filepath=img_path,
-                    tags=['validation'],
+                    tags=[split],
                     metadata=None,
                     ground_truth=dict(
                         _cls='Detections',
@@ -74,8 +77,8 @@ class ModelEvaluator:
                     ),
                     lung_mask=dict(
                         _cls='Segmentation',
-                        mask_path=df_pred_sample.iloc[0]['Lungs mask crop path'],
-                        mask=lung_mask_crop,
+                        mask_path=mask_path,
+                        mask=mask_crop,
                     ),
                 ),
             )
@@ -205,18 +208,3 @@ class ModelEvaluator:
         session = fo.launch_app(dataset=dataset)
         session.wait()
         dataset.delete()
-
-
-if __name__ == '__main__':
-    evaluator = ModelEvaluator(
-        iou_threshold=0.5,
-        conf_threshold=0.5,
-    )
-    dets = evaluator.combine_data(
-        gt_path='data/coco/test/labels.xlsx',
-        pred_path='data/interim_predict/metadata.xlsx',
-        exclude_features=[],
-    )
-    df_metrics, df_metrics_cw = evaluator.evaluate(detections=dets)
-    evaluator.visualize(detections=dets)
-    print('Complete')
