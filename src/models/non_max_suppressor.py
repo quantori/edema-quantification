@@ -3,7 +3,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from ensemble_boxes import nms, soft_nms
-from tqdm import tqdm
 
 from src.data.utils_sly import FEATURE_MAP_REVERSED
 
@@ -44,12 +43,7 @@ class NonMaxSuppressor:
         # Process predictions one image at a time
         df_out = pd.DataFrame(columns=df_filtered.columns)
         img_groups = df_filtered.groupby('Image path')
-        for img_id, (img_path, df_img) in tqdm(
-            enumerate(img_groups),
-            desc='Suppress detections',
-            unit=' images',
-            total=len(img_groups),
-        ):
+        for img_id, (img_path, df_img) in enumerate(img_groups):
             # Get normalized list of box coordinates
             box_list = []
             for _, row in df_img.iterrows():

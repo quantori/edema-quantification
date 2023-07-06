@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+import cv2
 import fiftyone as fo
 import pandas as pd
 
@@ -41,6 +42,7 @@ class ModelEvaluator:
                 metadata='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.metadata.ImageMetadata)',
                 ground_truth='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
                 predictions='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
+                lung_mask='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Segmentation)',
             ),
             info=dict(),
         )
@@ -49,17 +51,21 @@ class ModelEvaluator:
         samples = []
         img_paths = df_pred['Image path'].unique()
         for img_path in img_paths:
-            img_name = Path(img_path).name
-            df_gt_sample = df_gt[df_gt['Image name'] == img_name]
-            df_pred_sample = df_pred[df_pred['Image name'] == img_name]
+            img_id = Path(img_path).parts[-2]
+            df_gt_sample = df_gt[df_gt['Image path'].str.contains(img_id)]
+            df_pred_sample = df_pred[df_pred['Image path'].str.contains(img_id)]
 
             dets_gt = self._process_detections(df=df_gt_sample)
             dets_pred = self._process_detections(df=df_pred_sample)
 
+            mask_path = img_path.replace('img_crop', 'mask_crop')
+            mask_crop = cv2.imread(mask_path)
+
+            split = df_gt_sample['Split'].unique()[0]
             samples.append(
                 dict(
                     filepath=img_path,
-                    tags=['validation'],
+                    tags=[split],
                     metadata=None,
                     ground_truth=dict(
                         _cls='Detections',
@@ -68,6 +74,11 @@ class ModelEvaluator:
                     predictions=dict(
                         _cls='Detections',
                         detections=dets_pred,
+                    ),
+                    lung_mask=dict(
+                        _cls='Segmentation',
+                        mask_path=mask_path,
+                        mask=mask_crop,
                     ),
                 ),
             )
@@ -197,18 +208,3 @@ class ModelEvaluator:
         session = fo.launch_app(dataset=dataset)
         session.wait()
         dataset.delete()
-
-
-if __name__ == '__main__':
-    evaluator = ModelEvaluator(
-        iou_threshold=0.5,
-        conf_threshold=0.5,
-    )
-    dets = evaluator.combine_data(
-        gt_path='data/coco/test/labels.xlsx',
-        pred_path='data/coco/test/predictions.xlsx',
-        exclude_features=[],
-    )
-    df_metrics, df_metrics_cw = evaluator.evaluate(detections=dets)
-    evaluator.visualize(detections=dets)
-    print('Complete')
