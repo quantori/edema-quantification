@@ -1,0 +1,6 @@
+wdir: ../../data
+outs:
+- md5: a31686bed09fdb15822e43a38301ae03.dir
+  size: 13852861356
+  nfiles: 8775
+  path: healthy
