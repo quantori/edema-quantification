@@ -1,5 +1,0 @@
-wdir: ../../data
-outs:
-- md5: e0ec336a910349d75aa3fcf168e7918a
-  size: 26314325915
-  path: healthy_stacked.zip
