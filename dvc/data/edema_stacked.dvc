@@ -1,5 +1,0 @@
-wdir: ../../data
-outs:
-- md5: 971f8349c26cabba50831b7ad9161ec6
-  size: 23984570422
-  path: edema_stacked.zip
