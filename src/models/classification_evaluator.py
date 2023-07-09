@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.metrics import classification_report
 
 
-def evaluate_classifiaction(
+def evaluate_classification(
     df_gt: pd.DataFrame,
     df_pred: pd.DataFrame,
     save_dir: str = 'eval',
@@ -67,7 +67,7 @@ def _filter_dfs(
     # Leave only those rows which are present in both DataFrames.
     df_pred_filtered = df_pred[df_pred['Image name'].isin(df_gt['Image name'])]
     df_gt_filtered = df_gt[df_gt['Image name'].isin(df_pred_filtered['Image name'])]
-    return (df_gt_filtered, df_pred_filtered)
+    return df_gt_filtered, df_pred_filtered
 
 
 def _get_labels(
@@ -118,4 +118,4 @@ def _save_df_report(
 if __name__ == '__main__':
     df_gt = pd.read_excel('data/interim/metadata.xlsx')
     df_pred = pd.read_excel('data/interim_predict/metadata.xlsx')
-    evaluate_classifiaction(df_gt, df_pred, mode='train')
+    evaluate_classification(df_gt, df_pred, mode='test')
