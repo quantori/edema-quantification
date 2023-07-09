@@ -1,0 +1,6 @@
+wdir: ../../data
+outs:
+- md5: 7a8069292ed18e15d7fb6639ade16279.dir
+  size: 34497621245
+  nfiles: 4271
+  path: healthy_stacked
