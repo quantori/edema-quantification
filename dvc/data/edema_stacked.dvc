@@ -1,0 +1,6 @@
+wdir: ../../data
+outs:
+- md5: 36eb3d823938524c33d845d49079130d.dir
+  size: 31318674519
+  nfiles: 3818
+  path: edema_stacked
