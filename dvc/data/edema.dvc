@@ -1,5 +1,6 @@
 wdir: ../../data
 outs:
-- md5: 92e60befc861dddb7b60201cc06054e3
-  size: 12265992765
-  path: edema.zip
+- md5: a3ac952ab79f1c48f4d4aa13a83de134.dir
+  size: 12360206196
+  nfiles: 8442
+  path: edema
