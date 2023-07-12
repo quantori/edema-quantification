@@ -11,7 +11,7 @@ def evaluate_classification(
     df_gt: pd.DataFrame,
     df_pred: pd.DataFrame,
     save_dir: str = 'eval',
-    mode: str = 'all',
+    mode: str = 'train',
 ) -> None:
     """Evaluates classification metrics.
 
@@ -22,13 +22,13 @@ def evaluate_classification(
         df_gt: DataFrame with ground truth labels.
         df_pred: DataFrame with predicted labels.
         save_dir: the directory for saving the output DataFrame.
-        mode: defines which data to use {'test', 'train', 'all'}.
+        mode: defines which data to use {'test', 'train'}.
     """
     df_gt_preprocessed = _preprocess_df_gt(df_gt, mode)
     df_pred_preprocessed = _preprocess_df_pred(df_pred)
     df_gt_filtered, df_pred_filtered = _filter_dfs(df_gt_preprocessed, df_pred_preprocessed)
     gt_labels, pred_labels = _get_labels(df_gt_filtered, df_pred_filtered)
-    df_report = _get_df_report(gt_labels, pred_labels)
+    df_report = _get_df_report(gt_labels, pred_labels, mode)
     _save_df_report(df_report, save_dir, mode)
 
 
@@ -40,11 +40,9 @@ def _preprocess_df_gt(
     if mode == 'test':
         df_gt.drop_duplicates(subset=['Image name'], keep='first', inplace=True)
         df_gt = df_gt[df_gt['Split'] == 'test']
-    elif mode == 'train':
-        df_gt.drop_duplicates(subset=['Image name'], keep='first', inplace=True)
-        df_gt = df_gt[df_gt['Split'] == 'train']
     else:
         df_gt.drop_duplicates(subset=['Image name'], keep='first', inplace=True)
+        df_gt = df_gt[df_gt['Split'] == 'train']
     return df_gt
 
 
@@ -83,15 +81,24 @@ def _get_labels(
 def _get_df_report(
     gt_labels: np.array,
     pred_labels: np.array,
+    mode: str,
 ) -> pd.DataFrame:
     # Returns DataFrame with main metrics (precision, recall, f1, accuracy). Based on
-    # classification_report() function of scikit-learn.
-    target_names = (
-        'No edema',
-        'Vascular congestion',
-        'Interstitial edema',
-        'Alveolar edema',
-    )
+    # the classification_report() function of scikit-learn. For the 'train' mode exclude the
+    # 'No edema' class since the train dataset does not contain 'No edema' samples.
+    if mode == 'test':
+        target_names = (  # type: ignore
+            'No edema',
+            'Vascular congestion',
+            'Interstitial edema',
+            'Alveolar edema',
+        )
+    else:
+        target_names = (  # type: ignore
+            'Vascular congestion',
+            'Interstitial edema',
+            'Alveolar edema',
+        )
     report = classification_report(
         gt_labels,
         pred_labels,
@@ -118,4 +125,4 @@ def _save_df_report(
 if __name__ == '__main__':
     df_gt = pd.read_excel('data/interim/metadata.xlsx')
     df_pred = pd.read_excel('data/interim_predict/metadata.xlsx')
-    evaluate_classification(df_gt, df_pred, mode='test')
+    evaluate_classification(df_gt, df_pred, mode='train')
