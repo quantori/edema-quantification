@@ -4,7 +4,7 @@ import os
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from src.models.model_evaluator import ModelEvaluator
+from src.models.detection_evaluator import DetectionEvaluator
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -19,7 +19,7 @@ def main(cfg: DictConfig) -> None:
     log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
 
     # Initialize evaluator instance
-    evaluator = ModelEvaluator(
+    evaluator = DetectionEvaluator(
         iou_threshold=cfg.iou_threshold,
         conf_threshold=cfg.conf_threshold,
     )
