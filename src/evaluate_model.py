@@ -7,7 +7,7 @@ import pandas as pd
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-from src.models.model_evaluator import ModelEvaluator
+from src.models.detection_evaluator import DetectionEvaluator
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -37,7 +37,7 @@ def process_threshold_pair(
     iou_threshold, conf_threshold = threshold_pair
 
     # Initialize evaluator instance
-    evaluator = ModelEvaluator(
+    evaluator = DetectionEvaluator(
         iou_threshold=iou_threshold,
         conf_threshold=conf_threshold,
     )

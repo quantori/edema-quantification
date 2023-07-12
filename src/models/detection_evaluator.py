@@ -6,7 +6,7 @@ import fiftyone as fo
 import pandas as pd
 
 
-class ModelEvaluator:
+class DetectionEvaluator:
     """A class used for the detection of radiological signs."""
 
     def __init__(
