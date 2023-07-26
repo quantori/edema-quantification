@@ -2,7 +2,7 @@ defaults:
 - main
 - _self_
 
-gt_path: data/interim/metadata.xlsx
+gt_path: data/final/metadata.xlsx
 pred_path: data/interim_predict/metadata.xlsx
 iou_threshold: 0.5
 conf_threshold: 0.5

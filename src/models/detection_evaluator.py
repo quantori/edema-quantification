@@ -29,9 +29,11 @@ class DetectionEvaluator:
         df_gt = pd.read_excel(gt_path)
         df_pred = pd.read_excel(pred_path)
         df_pred = df_pred[df_pred['Confidence'] >= self.conf_threshold]
+        df_pred = DetectionEvaluator._preprocess_df_pred(df_pred)
         if len(exclude_features) > 0:
             df_gt = df_gt[~df_gt['Feature'].isin(exclude_features)]
-            df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
+            # df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
+            df_pred = df_pred[df_pred['Image name'].isin(df_gt['Image name'])]
 
         # Initialization of the fiftyone dataset
         dataset = dict(
@@ -86,6 +88,17 @@ class DetectionEvaluator:
         dataset.update(dict(samples=samples))  # type: ignore
 
         return dataset
+
+    @staticmethod
+    def _preprocess_df_pred(
+        df_pred: pd.DataFrame,
+    ) -> pd.DataFrame:
+        # Change names in the 'Image name' column.
+        df_pred['Image name'] = df_pred.apply(
+            func=lambda row: f'{Path(str(row["Image path"])).parts[-2]}.png',
+            axis=1,
+        )
+        return df_pred
 
     @staticmethod
     def _process_detections(
