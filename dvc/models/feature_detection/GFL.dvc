@@ -1,0 +1,5 @@
+wdir: ../../../models/feature_detection/GFL
+outs:
+- md5: a58a03db5a01f844263a77f1cbd68bc7
+  size: 638959311
+  path: weights.pth
