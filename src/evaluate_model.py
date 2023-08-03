@@ -4,10 +4,8 @@ from typing import List, Tuple
 
 import hydra
 import pandas as pd
+from joblib import Parallel, delayed
 from omegaconf import DictConfig, OmegaConf
-from tqdm import tqdm
-
-from src.models.detection_evaluator import DetectionEvaluator
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -36,21 +34,24 @@ def process_threshold_pair(
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     iou_threshold, conf_threshold = threshold_pair
 
-    # Initialize evaluator instance
-    evaluator = DetectionEvaluator(
-        iou_threshold=iou_threshold,
-        conf_threshold=conf_threshold,
-    )
+    df_metrics = pd.DataFrame()
+    df_metrics_cw = pd.DataFrame()
 
-    # Combine ground truth and predictions
-    detections = evaluator.combine_data(
-        gt_path=gt_path,
-        pred_path=pred_path,
-        exclude_features=exclude_features,
-    )
-
-    # Estimate key detection metrics
-    df_metrics, df_metrics_cw = evaluator.evaluate(detections=detections)
+    # # Initialize evaluator instance
+    # evaluator = DetectionEvaluator(
+    #     iou_threshold=iou_threshold,
+    #     conf_threshold=conf_threshold,
+    # )
+    #
+    # # Combine ground truth and predictions
+    # detections = evaluator.combine_data(
+    #     gt_path=gt_path,
+    #     pred_path=pred_path,
+    #     exclude_features=exclude_features,
+    # )
+    #
+    # # Estimate key detection metrics
+    # df_metrics, df_metrics_cw = evaluator.evaluate(detections=detections)
 
     return df_metrics, df_metrics_cw
 
@@ -111,24 +112,37 @@ def main(cfg: DictConfig) -> None:
     threshold_pairs = [(iou, conf) for iou in iou_thresholds for conf in conf_thresholds]
 
     # Compute metrics for all threshold pairs
-    df_metrics = pd.DataFrame()
-    df_metrics_cw = pd.DataFrame()
-    for threshold_pair in tqdm(threshold_pairs, desc='Evaluation', unit='pair'):
-        df_metrics_, df_metrics_cw_ = process_threshold_pair(
+    Parallel(n_jobs=-1)(
+        delayed(process_threshold_pair)(
             threshold_pair=threshold_pair,
             gt_path=cfg.gt_path,
             pred_path=cfg.pred_path,
             exclude_features=cfg.exclude_features,
         )
-        df_metrics = pd.concat([df_metrics, df_metrics_])
-        df_metrics_cw = pd.concat([df_metrics_cw, df_metrics_cw_])
-
-    # Save metrics
-    save_metrics(
-        df_metrics=df_metrics,
-        df_metrics_cw=df_metrics_cw,
-        save_dir=cfg.save_dir,
+        for threshold_pair in threshold_pairs
     )
+
+    # TODO: concat result and get df_metrics and df_metrics_cw
+
+    # TODO: Sequential processing
+    # df_metrics = pd.DataFrame()
+    # df_metrics_cw = pd.DataFrame()
+    # for threshold_pair in tqdm(threshold_pairs, desc='Evaluation', unit='pair'):
+    #     df_metrics_, df_metrics_cw_ = process_threshold_pair(
+    #         threshold_pair=threshold_pair,
+    #         gt_path=cfg.gt_path,
+    #         pred_path=cfg.pred_path,
+    #         exclude_features=cfg.exclude_features,
+    #     )
+    #     df_metrics = pd.concat([df_metrics, df_metrics_])
+    #     df_metrics_cw = pd.concat([df_metrics_cw, df_metrics_cw_])
+
+    # TODO: define new metric dataframes
+    # save_metrics(
+    #     df_metrics=df_metrics,
+    #     df_metrics_cw=df_metrics_cw,
+    #     save_dir=cfg.save_dir,
+    # )
 
     log.info('Complete')
 
