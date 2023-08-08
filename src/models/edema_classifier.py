@@ -1,5 +1,3 @@
-from typing import List
-
 import pandas as pd
 
 from src.data.utils_sly import CLASS_MAP
@@ -9,7 +7,7 @@ class EdemaClassifier:
     """A classifier that assigns an edema class to an X-ray image."""
 
     def __init__(self) -> None:
-        self._output: List = []
+        pass
 
     def classify(
         self,
@@ -30,9 +28,7 @@ class EdemaClassifier:
             edema_severity = EdemaClassifier._get_edema_severity(df_img)
             df_img['Class ID'] = CLASS_MAP[edema_severity]
             df_img['Class'] = edema_severity
-            self._output.append(df_img)
-        df_out = pd.concat(self._output)
-        return df_out
+        return df_img
 
     @staticmethod
     def _get_edema_severity(df: pd.DataFrame) -> str:
