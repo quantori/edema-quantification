@@ -9,7 +9,7 @@ save_dir: data/interim_predict
 seg_model_dirs: ['models/lung_segmentation/DeepLabV3', 'models/lung_segmentation/FPN', 'models/lung_segmentation/MAnet']
 
 # Detection settings
-det_model_dirs: ['models/feature_detection/FasterRCNN_ResNet50']
+det_model_dirs: ['models/feature_detection/Faster_RCNN']
 img_size: [1536, 1536]
 lung_extension: [50, 50, 50, 150]
 
