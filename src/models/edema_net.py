@@ -22,8 +22,7 @@ from src.models.non_max_suppressor import NonMaxSuppressor
 class EdemaNet:
     """A network dedicated to processing X-ray images and predicting the stage of edema."""
 
-    IMG_NAME = 'img.png'
-    IMG_CROP_NAME = 'img_crop.png'
+    SRC_SUFFIX = 'src'
     MASK_NAME = 'mask.png'
     MASK_CROP_NAME = 'mask_crop.png'
     MAP_NAME = 'map.png'
@@ -58,10 +57,10 @@ class EdemaNet:
         save_dir: str,
     ) -> pd.DataFrame:
         # Create a directory and copy an image into it
-        img_name = Path(img_path).stem
-        img_dir = os.path.join(save_dir, img_name)
+        img_stem = Path(img_path).stem
+        img_dir = os.path.join(save_dir, img_stem)
         os.makedirs(img_dir, exist_ok=True)
-        dst_path = os.path.join(img_dir, self.IMG_NAME)
+        dst_path = os.path.join(img_dir, f'{img_stem}_{self.SRC_SUFFIX}.png')
         shutil.copy(img_path, dst_path)
         img_path = dst_path
         img = cv2.imread(img_path)
@@ -121,7 +120,7 @@ class EdemaNet:
             y2=lungs_coords[3],
             output_size=self.img_size,
         )
-        img_crop_path = os.path.join(img_dir, self.IMG_CROP_NAME)
+        img_crop_path = os.path.join(img_dir, f'{img_stem}.png')
         cv2.imwrite(img_crop_path, img_crop)
         mask_crop = process_image(
             img=mask_clean,
