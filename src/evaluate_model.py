@@ -1,21 +1,21 @@
 import os
-from functools import partial
-from multiprocessing import Pool
 from typing import Any, Dict, List, Sequence, Tuple, Union
 
 import hydra
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from src.object_detection_metrics.lib.BoundingBox import BoundingBox
-from src.object_detection_metrics.lib.BoundingBoxes import BoundingBoxes
-from src.object_detection_metrics.lib.Evaluator import Evaluator
-from src.object_detection_metrics.lib.utils import BBFormat, BBType, CoordinatesType
+from src import BBFormat, BBType, BoundingBox, BoundingBoxes, CoordinatesType, Evaluator
 
 
-def _get_confidence_array(min_value: float, max_value: float, step: float) -> np.ndarray:
+def _get_confidence_array(
+    min_value: float,
+    max_value: float,
+    step: float,
+) -> np.ndarray:
     return np.fromiter((i for i in np.arange(min_value, max_value + step, step)), dtype=float)
 
 
@@ -31,15 +31,19 @@ def _get_bounding_boxes(
     return bounding_boxes
 
 
-def _add_gt_bboxes(df_gt: pd.DataFrame, bounding_boxes: BoundingBoxes) -> BoundingBoxes:
-    for row in df_gt.itertuples():
+def _add_gt_bboxes(
+    df_gt: pd.DataFrame,
+    bounding_boxes: BoundingBoxes,
+) -> BoundingBoxes:
+    for _, row in df_gt.iterrows():
         bb_gt = BoundingBox(
-            imageName=row._3,
-            classId=row.Feature,
-            x=row.x1,
-            y=row.y1,
-            w=row.x2,
-            h=row.y2,
+            imageName=row['Image name'],
+            # TODO: make sure we have to use Feature (str) instead of Feature ID (str(int))
+            classId=row['Feature'],
+            x=row['x1'],
+            y=row['y1'],
+            w=row['x2'],  # TODO: double check if this is for the x2 coordinate
+            h=row['y2'],  # TODO: double check if this is for the y2 coordinate
             typeCoordinates=CoordinatesType.Absolute,
             bbType=BBType.GroundTruth,
             format=BBFormat.XYX2Y2,
@@ -48,16 +52,20 @@ def _add_gt_bboxes(df_gt: pd.DataFrame, bounding_boxes: BoundingBoxes) -> Boundi
     return bounding_boxes
 
 
-def _add_pred_bboxes(df_pred: pd.DataFrame, bounding_boxes: BoundingBoxes) -> BoundingBoxes:
-    for row in df_pred.itertuples():
+def _add_pred_bboxes(
+    df_pred: pd.DataFrame,
+    bounding_boxes: BoundingBoxes,
+) -> BoundingBoxes:
+    for _, row in df_pred.iterrows():
         bb_pred = BoundingBox(
-            imageName=row._3,
-            classId=row.Feature,
+            imageName=row['Image name'],
+            # TODO: make sure we have to use Feature (str) instead of Feature ID (str(int))
+            classId=row['Feature'],
             classConfidence=row.Confidence,
-            x=row.x1,
-            y=row.y1,
-            w=row.x2,
-            h=row.y2,
+            x=row['x1'],
+            y=row['y1'],
+            w=row['x2'],  # TODO: double check if this is for the x2 coordinate
+            h=row['y2'],  # TODO: double check if this is for the y2 coordinate
             typeCoordinates=CoordinatesType.Absolute,
             bbType=BBType.Detected,
             format=BBFormat.XYX2Y2,
@@ -93,9 +101,19 @@ def _exclude_features(
         return dfs
 
 
-def _create_df(results: List[Dict[str, Union[float, List[Dict[str, Any]]]]]) -> pd.DataFrame:
+def _create_df(
+    results: List[Dict[str, Union[float, List[Dict[str, Any]]]]],
+) -> pd.DataFrame:
     df = pd.DataFrame(
-        columns=['Class', 'AP', 'Total positives', 'Total TP', 'Total FP', 'Confidence'],
+        columns=[
+            'Class',
+            'AP',
+            'Total positives',
+            'Total TP',
+            'Total FP',
+            # 'Total FN', TODO: please add this as value if possible
+            'Confidence',
+        ],
     )
     for result in results:
         for cls in result['metrics']:  # type: ignore
@@ -119,9 +137,12 @@ def _save_df(
 ) -> None:
     os.makedirs(save_dir, exist_ok=True)
     metrics_path = os.path.join(save_dir, 'detection_metrics.xlsx')
+    df.index += 1
     df.to_excel(
         metrics_path,
         sheet_name='Metrics',
+        index=True,
+        index_label='ID',
     )
 
 
@@ -141,25 +162,18 @@ def main(cfg: DictConfig) -> None:
     # Read DataFrames and exclude features.
     df_gt = pd.read_excel(cfg.gt_path)
     df_pred = pd.read_excel(cfg.pred_path)
-    # TODO: Clarify if df_pred is supposed to have 'Heart', 'Lungs', etc.
     df_gt_filtered, df_pred_filterd = _exclude_features((df_gt, df_pred), cfg.exclude_features)
 
-    # Compute metrics for all confidence thresholds classwise.
-    with Pool() as p:
-        results = list(
-            tqdm(
-                p.imap(
-                    partial(
-                        evaluate,
-                        df_gt=df_gt_filtered,
-                        df_pred=df_pred_filterd,
-                        iou_threshold=cfg.iou_threshold,
-                    ),
-                    conf_thresholds,
-                ),
-                total=len(conf_thresholds),
-            ),
+    # Compute metrics for all confidence thresholds class-wise
+    results = Parallel(n_jobs=-1, backend='threading')(
+        delayed(evaluate)(
+            confidence_threshold=conf_threshold,
+            df_gt=df_gt_filtered,
+            df_pred=df_pred_filterd,
+            iou_threshold=cfg.iou_threshold,
         )
+        for conf_threshold in tqdm(conf_thresholds, desc='Model evaluation')
+    )
 
     # Create and save a DataFrame with the metrics.
     df = _create_df(results)
