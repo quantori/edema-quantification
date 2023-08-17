@@ -127,35 +127,12 @@ def _create_df(
                     'Total positives': cls['total positives'],
                     'Total TP': cls['total TP'],
                     'Total FP': cls['total FP'],
-                    'Total FN': round(cls['total TP'] / cls['recall'][-1] - cls['total TP'])
-                    if cls['recall'].size != 0 and cls['recall'][-1] != 0
-                    else 0,
+                    'Total FN': calculate_false_negatives(cls['recall'], cls['total TP']),
                     'Precision': cls['precision'][-1] if cls['precision'].size != 0 else 0,
                     'Recall': cls['recall'][-1] if cls['recall'].size != 0 else 0,
-                    'F1': 2
-                    * (
-                        (cls['precision'][-1] * cls['recall'][-1])
-                        / (cls['precision'][-1] + cls['recall'][-1])
-                    )
-                    if (cls['precision'].size != 0 and cls['recall'].size != 0)
-                    and (cls['precision'][-1] != 0 or cls['recall'][-1] != 0)
-                    else 0,
-                    'F0.5': (1 + 0.5**2)
-                    * (
-                        (cls['precision'][-1] * cls['recall'][-1])
-                        / ((0.5**2 * cls['precision'][-1]) + cls['recall'][-1])
-                    )
-                    if (cls['precision'].size != 0 and cls['recall'].size != 0)
-                    and (cls['precision'][-1] != 0 or cls['recall'][-1] != 0)
-                    else 0,
-                    'F2': (1 + 2**2)
-                    * (
-                        (cls['precision'][-1] * cls['recall'][-1])
-                        / ((2**2 * cls['precision'][-1]) + cls['recall'][-1])
-                    )
-                    if (cls['precision'].size != 0 and cls['recall'].size != 0)
-                    and (cls['precision'][-1] != 0 or cls['recall'][-1] != 0)
-                    else 0,
+                    'F1': calculate_f_beta(cls['precision'], cls['recall']),
+                    'F0.5': calculate_f_beta(cls['precision'], cls['recall'], beta=0.5),
+                    'F2': calculate_f_beta(cls['precision'], cls['recall'], beta=2),
                     'Confidence': result['confidence_threshold'],
                 },
                 ignore_index=True,
@@ -176,6 +153,22 @@ def _save_df(
         index=True,
         index_label='ID',
     )
+
+
+def calculate_f_beta(precision: np.ndarray, recall: np.ndarray, beta: float = 1) -> float:
+    if (precision.size != 0 and recall.size != 0) and (precision[-1] != 0 or recall[-1] != 0):
+        return (1 + beta**2) * (
+            (precision[-1] * recall[-1]) / ((beta**2 * precision[-1]) + recall[-1])
+        )
+    else:
+        return 0.0
+
+
+def calculate_false_negatives(recall: np.ndarray, total_tp: float) -> int:
+    if recall.size != 0 and recall[-1] != 0:
+        return round(total_tp / recall[-1] - total_tp)
+    else:
+        return 0
 
 
 @hydra.main(
