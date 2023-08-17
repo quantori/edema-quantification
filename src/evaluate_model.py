@@ -35,15 +35,14 @@ def _add_gt_bboxes(
     df_gt: pd.DataFrame,
     bounding_boxes: BoundingBoxes,
 ) -> BoundingBoxes:
-    for _, row in df_gt.iterrows():
+    for row in df_gt.itertuples():
         bb_gt = BoundingBox(
-            imageName=row['Image name'],
-            # TODO: make sure we have to use Feature (str) instead of Feature ID (str(int))
-            classId=row['Feature'],
-            x=row['x1'],
-            y=row['y1'],
-            w=row['x2'],  # TODO: double check if this is for the x2 coordinate
-            h=row['y2'],  # TODO: double check if this is for the y2 coordinate
+            imageName=row._3,
+            classId=row.Feature,
+            x=row.x1,
+            y=row.y1,
+            w=row.x2,
+            h=row.y2,
             typeCoordinates=CoordinatesType.Absolute,
             bbType=BBType.GroundTruth,
             format=BBFormat.XYX2Y2,
@@ -56,16 +55,15 @@ def _add_pred_bboxes(
     df_pred: pd.DataFrame,
     bounding_boxes: BoundingBoxes,
 ) -> BoundingBoxes:
-    for _, row in df_pred.iterrows():
+    for row in df_pred.itertuples():
         bb_pred = BoundingBox(
-            imageName=row['Image name'],
-            # TODO: make sure we have to use Feature (str) instead of Feature ID (str(int))
-            classId=row['Feature'],
+            imageName=row._3,
+            classId=row.Feature,
             classConfidence=row.Confidence,
-            x=row['x1'],
-            y=row['y1'],
-            w=row['x2'],  # TODO: double check if this is for the x2 coordinate
-            h=row['y2'],  # TODO: double check if this is for the y2 coordinate
+            x=row.x1,
+            y=row.y1,
+            w=row.x2,
+            h=row.y2,
             typeCoordinates=CoordinatesType.Absolute,
             bbType=BBType.Detected,
             format=BBFormat.XYX2Y2,
