@@ -109,7 +109,12 @@ def _create_df(
             'Total positives',
             'Total TP',
             'Total FP',
-            # 'Total FN', TODO: please add this as value if possible
+            'Total FN',
+            'Precision',
+            'Recall',
+            'F1',
+            'F0.5',
+            'F2',
             'Confidence',
         ],
     )
@@ -122,6 +127,35 @@ def _create_df(
                     'Total positives': cls['total positives'],
                     'Total TP': cls['total TP'],
                     'Total FP': cls['total FP'],
+                    'Total FN': round(cls['total TP'] / cls['recall'][-1] - cls['total TP'])
+                    if cls['recall'].size != 0 and cls['recall'][-1] != 0
+                    else 0,
+                    'Precision': cls['precision'][-1] if cls['precision'].size != 0 else 0,
+                    'Recall': cls['recall'][-1] if cls['recall'].size != 0 else 0,
+                    'F1': 2
+                    * (
+                        (cls['precision'][-1] * cls['recall'][-1])
+                        / (cls['precision'][-1] + cls['recall'][-1])
+                    )
+                    if (cls['precision'].size != 0 and cls['recall'].size != 0)
+                    and (cls['precision'][-1] != 0 or cls['recall'][-1] != 0)
+                    else 0,
+                    'F0.5': (1 + 0.5**2)
+                    * (
+                        (cls['precision'][-1] * cls['recall'][-1])
+                        / ((0.5**2 * cls['precision'][-1]) + cls['recall'][-1])
+                    )
+                    if (cls['precision'].size != 0 and cls['recall'].size != 0)
+                    and (cls['precision'][-1] != 0 or cls['recall'][-1] != 0)
+                    else 0,
+                    'F2': (1 + 2**2)
+                    * (
+                        (cls['precision'][-1] * cls['recall'][-1])
+                        / ((2**2 * cls['precision'][-1]) + cls['recall'][-1])
+                    )
+                    if (cls['precision'].size != 0 and cls['recall'].size != 0)
+                    and (cls['precision'][-1] != 0 or cls['recall'][-1] != 0)
+                    else 0,
                     'Confidence': result['confidence_threshold'],
                 },
                 ignore_index=True,
