@@ -74,5 +74,6 @@ exclude: |
   (?x)(
       ^src/models/mmdetection/|
       ^src/models/smp/|
+      ^src/object_detection_metrics/|
       ^models/feature_detection/
   )
