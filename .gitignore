@@ -130,17 +130,12 @@ dmypy.json
 .pyre/
 
 # Dataset
-/data/edema/
-/data/edema_stacked/
-/data/healthy/
-/data/healthy_stacked/
-/data/sly/
-/data/interim/
-/data/interim_lungs/
-/data/interim_fused/
-/data/interim_predict/
-/data/final/
-/data/coco/
+/data/edema*/
+/data/healthy*/
+/data/sly*/
+/data/interim*/
+/data/final*/
+/data/coco*/
 
 # Models
 *.pth
