@@ -135,8 +135,8 @@ stages:
     - python src/data/convert_final_to_coco.py
     deps:
     - path: configs/convert_final_to_coco.yaml
-      md5: 4fe13b8c205a69e7ad1c421dc5ba29a8
-      size: 122
+      md5: 3d804671c9b2991f86d45298503f98e8
+      size: 232
     - path: data/final/img
       md5: e845d33586856ede0fc96cea87a8ac03.dir
       size: 2585867050
@@ -155,13 +155,13 @@ stages:
       size: 7665
     outs:
     - path: data/coco/metadata.xlsx
-      md5: a9d80c80dd3d19601fe7dcf6c49c3bde
-      size: 623501
+      md5: 2fc3dfc6b57db704fab69864660fae50
+      size: 623500
     - path: data/coco/test
-      md5: b9ea7b025573d8c4ed5ba6a8690be7d4.dir
-      size: 513268792
+      md5: c11605ed6ba8a944f4b3ebf5fc5dd158.dir
+      size: 513268791
       nfiles: 202
     - path: data/coco/train
-      md5: b9cc6428e335e62d4906cc5581973735.dir
-      size: 2012622133
+      md5: 90f612b4d60b420439263701ab984eb0.dir
+      size: 2012622132
       nfiles: 781
