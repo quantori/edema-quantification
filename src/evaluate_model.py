@@ -155,7 +155,11 @@ def _save_df(
     )
 
 
-def calculate_f_beta(precision: np.ndarray, recall: np.ndarray, beta: float = 1) -> float:
+def calculate_f_beta(
+    precision: np.ndarray,
+    recall: np.ndarray,
+    beta: float = 1,
+) -> float:
     if (precision.size != 0 and recall.size != 0) and (precision[-1] != 0 or recall[-1] != 0):
         return (1 + beta**2) * (
             (precision[-1] * recall[-1]) / ((beta**2 * precision[-1]) + recall[-1])
@@ -164,7 +168,10 @@ def calculate_f_beta(precision: np.ndarray, recall: np.ndarray, beta: float = 1)
         return 0.0
 
 
-def calculate_false_negatives(recall: np.ndarray, total_tp: float) -> int:
+def calculate_false_negatives(
+    recall: np.ndarray,
+    total_tp: float,
+) -> int:
     if recall.size != 0 and recall[-1] != 0:
         return round(total_tp / recall[-1] - total_tp)
     else:
