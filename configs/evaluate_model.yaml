@@ -7,6 +7,6 @@ pred_path: data/interim_predict/metadata.xlsx
 iou_threshold: 0.5
 conf_range: [0.0, 1.0]
 conf_step: 0.01
-# List of features: Cephalization, Artery, Heart, Kerley, Bronchus, Effusion, Bat, Infiltrate, Cuffing, Lungs
+# List of features: Cephalization, Artery, Bronchus, Kerley, Effusion, Bat, Infiltrate, Cuffing, Heart, Lungs
 exclude_features: [Heart, Lungs, Artery, Bronchus]
 save_dir: eval
