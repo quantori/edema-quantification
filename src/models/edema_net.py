@@ -135,24 +135,6 @@ class EdemaNet:
 
         # Recognize features and perform NMS
         df_dets_list = []
-        # df = pd.DataFrame(
-        #     columns=[
-        #         'Image path',
-        #         'Image name',
-        #         'Image height',
-        #         'Image width',
-        #         'x1',
-        #         'y1',
-        #         'x2',
-        #         'y2',
-        #         'Box width',
-        #         'Box height',
-        #         'Box area',
-        #         'Feature ID',
-        #         'Feature',
-        #         'Confidence',
-        #     ]
-        # )
         for idx, feature_detector in enumerate(self.feature_detectors):
             dets = feature_detector.predict(img=img_crop)
             df_dets = feature_detector.process_detections(
@@ -163,11 +145,7 @@ class EdemaNet:
             df_dets_list.append(df_nms)
         df = pd.concat(df_dets_list)
 
-        # Perform box fusion
-        # df_fused = self.box_fuser.fuse_detections(df_list=df_dets_list)
-
         # Assign an edema class to an image
-        # df_out = self.edema_classifier.classify(df=df_fused)
         df_out = self.edema_classifier.classify(df=df)
 
         return df_out
