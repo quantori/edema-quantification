@@ -1,5 +1,0 @@
-wdir: ../../../models/feature_detection/Faster_RCNN
-outs:
-- md5: 7899a0d6567983534f3d50b86e81ec59
-  size: 495154273
-  path: weights.pth
