@@ -1,0 +1,6 @@
+wdir: ../../../models/feature_detection
+outs:
+- md5: 75157310102c6ded3d5594d6a29169b2.dir
+  size: 2474232741
+  nfiles: 5
+  path: Faster_RCNN
