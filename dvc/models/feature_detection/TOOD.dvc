@@ -1,5 +1,0 @@
-wdir: ../../../models/feature_detection/TOOD
-outs:
-- md5: 48a6a0dc15aa88246d1f80712b0d3673
-  size: 640612512
-  path: weights.pth
