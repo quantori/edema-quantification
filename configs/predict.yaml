@@ -13,11 +13,11 @@ seg_model_dirs:
 
 # Detection settings
 det_model_dirs:
-- models/feature_detection/faster_rcnn_bat
-- models/feature_detection/faster_rcnn_cephalization
-- models/feature_detection/faster_rcnn_effusion
-- models/feature_detection/faster_rcnn_infiltrate
-- models/feature_detection/faster_rcnn_kerley
+- models/feature_detection/Faster_RCNN/bat
+- models/feature_detection/Faster_RCNN/cephalization
+- models/feature_detection/Faster_RCNN/effusion
+- models/feature_detection/Faster_RCNN/infiltrate
+- models/feature_detection/Faster_RCNN/kerley
 img_size: [1536, 1536]
 lung_extension: [50, 50, 50, 150]
 
