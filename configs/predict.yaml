@@ -6,10 +6,18 @@ data_dir: data/interim
 save_dir: data/interim_predict
 
 # Segmentation settings
-seg_model_dirs: ['models/lung_segmentation/DeepLabV3', 'models/lung_segmentation/FPN', 'models/lung_segmentation/MAnet']
+seg_model_dirs:
+- models/lung_segmentation/DeepLabV3
+- models/lung_segmentation/FPN
+- models/lung_segmentation/MAnet
 
 # Detection settings
-det_model_dirs: ['models/feature_detection/Faster_RCNN']
+det_model_dirs:
+- models/feature_detection/Faster_RCNN/bat
+- models/feature_detection/Faster_RCNN/cephalization
+- models/feature_detection/Faster_RCNN/effusion
+- models/feature_detection/Faster_RCNN/infiltrate
+- models/feature_detection/Faster_RCNN/kerley
 img_size: [1536, 1536]
 lung_extension: [50, 50, 50, 150]
 

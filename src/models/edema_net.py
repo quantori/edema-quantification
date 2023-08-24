@@ -143,12 +143,10 @@ class EdemaNet:
             )
             df_nms = self.non_max_suppressor.suppress_detections(df=df_dets)
             df_dets_list.append(df_nms)
-
-        # Perform box fusion
-        df_fused = self.box_fuser.fuse_detections(df_list=df_dets_list)
+        df = pd.concat(df_dets_list)
 
         # Assign an edema class to an image
-        df_out = self.edema_classifier.classify(df=df_fused)
+        df_out = self.edema_classifier.classify(df=df)
 
         return df_out
 

@@ -115,7 +115,7 @@ def _save_df_report(
     mode: str,
 ) -> None:
     os.makedirs(save_dir, exist_ok=True)
-    metrics_path = os.path.join(save_dir, f'cls_metrics_{mode}.xlsx')
+    metrics_path = os.path.join(save_dir, f'classification_metrics_{mode}.xlsx')
     df.to_excel(
         metrics_path,
         sheet_name='Metrics',
