@@ -3,5 +3,6 @@ defaults:
 - _self_
 
 dataset_dir: data/final
+# List of features: Cephalization, Artery, Bronchus, Kerley, Effusion, Bat, Infiltrate, Cuffing, Heart, Lungs
 exclude_features: [Lungs, Heart, Artery, Bronchus]
 save_dir: data/coco

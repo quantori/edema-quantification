@@ -110,6 +110,7 @@ def main(cfg: DictConfig) -> None:
 
     # Save metadata
     metadata_path = os.path.join(cfg.save_dir, 'metadata.xlsx')
+    df.reset_index(drop=True, inplace=True)
     df.index += 1
     df.to_excel(
         metadata_path,

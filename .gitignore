@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/
 lib64/
 parts/
 sdist/
@@ -56,7 +56,7 @@ coverage.xml
 *.pot
 
 # Django stuff:
-*.log
+# *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -130,17 +130,12 @@ dmypy.json
 .pyre/
 
 # Dataset
-/data/edema/
-/data/edema_stacked/
-/data/healthy/
-/data/healthy_stacked/
-/data/sly/
-/data/interim/
-/data/interim_lungs/
-/data/interim_fused/
-/data/interim_predict/
-/data/final/
-/data/coco/
+/data/edema*/
+/data/healthy*/
+/data/sly*/
+/data/interim*/
+/data/final*/
+/data/coco*/
 
 # Models
 *.pth

@@ -1,5 +1,14 @@
+<<<<<<< HEAD
 wdir: ../../../models/feature_detection/Faster_RCNN
 outs:
 - md5: 7899a0d6567983534f3d50b86e81ec59
   size: 495154273
   path: weights.pth
+=======
+wdir: ../../../models/feature_detection
+outs:
+- md5: 75157310102c6ded3d5594d6a29169b2.dir
+  size: 2474232741
+  nfiles: 5
+  path: Faster_RCNN
+>>>>>>> d99aa4137a5cd97bc953dfa684bd5888c8d4a9e4

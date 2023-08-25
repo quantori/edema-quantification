@@ -24,7 +24,11 @@ class IPrototypeLogger(ABC, Generic[DIST, BOXES]):
 
     @abstractclassmethod
     def save_prototype_distances(
-        self, distances: DIST, prototype_idx: int, *args, **kwargs
+        self,
+        distances: DIST,
+        prototype_idx: int,
+        *args,
+        **kwargs,
     ) -> None:
         """Called when prototype distances need to be saved."""
         raise NotImplementedError
