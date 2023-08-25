@@ -124,5 +124,5 @@ def _save_df_report(
 
 if __name__ == '__main__':
     df_gt = pd.read_excel('data/interim/metadata.xlsx')
-    df_pred = pd.read_excel('data/interim_predict/metadata.xlsx')
+    df_pred = pd.read_excel('data/interim_predict_TOOD/metadata.xlsx')
     evaluate_classification(df_gt, df_pred, mode='train')

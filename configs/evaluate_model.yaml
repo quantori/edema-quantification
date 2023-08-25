@@ -3,7 +3,7 @@ defaults:
 - _self_
 
 gt_path: data/final/metadata.xlsx
-pred_path: data/interim_predict/metadata.xlsx
+pred_path: data/interim_predict_TOOD/metadata.xlsx
 iou_threshold: 0.5
 conf_range: [0.0, 1.0]
 conf_step: 0.01
