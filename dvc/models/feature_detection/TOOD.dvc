@@ -1,0 +1,6 @@
+wdir: ../../../models/feature_detection
+outs:
+- md5: 536087105c2d6fda045e0c43fd596876.dir
+  size: 3202369888
+  nfiles: 5
+  path: TOOD
