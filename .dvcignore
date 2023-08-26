@@ -1,4 +1,9 @@
 # More info at https://dvc.org/doc/user-guide/dvcignore
-*.py
-*.json
-*.log
+
+# Detection models
+models/feature_detection/**/**/*.json
+models/feature_detection/**/**/*.py
+models/feature_detection/**/**/*.log
+
+# Segmentation models
+models/lung_segmentation/**/*.json
