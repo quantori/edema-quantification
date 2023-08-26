@@ -1,5 +1,0 @@
-wdir: ../../../models/feature_detection/SABL
-outs:
-- md5: 71a63436520a0d9fb75ddd63356ea6a5
-  size: 663484524
-  path: weights.pth
