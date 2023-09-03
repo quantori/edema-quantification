@@ -1,0 +1,6 @@
+wdir: ../../../models/feature_detection
+outs:
+- md5: 0996fbcf39222e2fd3ef1ee9d0d26773.dir
+  size: 3061977016
+  nfiles: 5
+  path: ATSS
