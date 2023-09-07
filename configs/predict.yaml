@@ -3,7 +3,7 @@ defaults:
 - _self_
 
 data_dir: data/interim
-save_dir: data/interim_predict_TOOD
+save_dir: data/interim_predict/SABL
 
 # Segmentation settings
 seg_model_dirs:
@@ -13,11 +13,11 @@ seg_model_dirs:
 
 # Detection settings
 det_model_dirs:
-- models/feature_detection/TOOD/bat
-- models/feature_detection/TOOD/cephalization
-- models/feature_detection/TOOD/effusion
-- models/feature_detection/TOOD/infiltrate
-- models/feature_detection/TOOD/kerley
+- models/feature_detection/SABL/cephalization
+- models/feature_detection/SABL/bat
+- models/feature_detection/SABL/effusion
+- models/feature_detection/SABL/infiltrate
+- models/feature_detection/SABL/kerley
 img_size: [1536, 1536]
 lung_extension: [50, 50, 50, 150]
 
@@ -25,13 +25,13 @@ lung_extension: [50, 50, 50, 150]
 nms_method: soft      # soft or standard
 iou_threshold: 0.5
 conf_thresholds:
-  Cephalization: 0.2
-  Artery: 0.2
-  Heart: 0.7
-  Kerley: 0.2
-  Bronchus: 0.2
-  Effusion: 0.2
-  Bat: 0.2
-  Infiltrate: 0.2
-  Cuffing: 0.2
-  Lungs: 0.7
+  Cephalization: 0.0
+  Artery: 0.0
+  Heart: 0.0
+  Kerley: 0.0
+  Bronchus: 0.0
+  Effusion: 0.0
+  Bat: 0.0
+  Infiltrate: 0.0
+  Cuffing: 0.0
+  Lungs: 0.0
