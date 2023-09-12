@@ -166,3 +166,13 @@ savings/
 
 # MLFlow
 /mlruns/
+
+# eval_rate
+eval_rate/ATSS/bat/imgs
+eval_rate/Cascade_RPN/bat/imgs
+eval_rate/Faster_RCNN/bat/imgs
+eval_rate/FSAF/bat/imgs
+eval_rate/GFL/bat/imgs
+eval_rate/PAA/bat/imgs
+eval_rate/SABL/bat/imgs
+eval_rate/TOOD/bat/imgs

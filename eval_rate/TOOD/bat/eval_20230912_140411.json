@@ -1,0 +1,1 @@
+{"config": "models/feature_detection/TOOD/bat/config.py", "metric": {"bbox_mAP": 0.3943, "bbox_mAP_50": 0.918, "bbox_mAP_75": 0.285, "bbox_mAP_s": -1.0, "bbox_mAP_m": -1.0, "bbox_mAP_l": 0.3943, "bbox_mAP_copypaste": "0.3943 0.9180 0.2850 -1.0000 -1.0000 0.3943"}}
