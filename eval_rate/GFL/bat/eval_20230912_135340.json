@@ -1,1 +1,0 @@
-{"config": "models/feature_detection/GFL/bat/config.py", "metric": {"bbox_mAP": 0.3963, "bbox_mAP_50": 0.9125, "bbox_mAP_75": 0.2647, "bbox_mAP_s": -1.0, "bbox_mAP_m": -1.0, "bbox_mAP_l": 0.3963, "bbox_mAP_copypaste": "0.3963 0.9125 0.2647 -1.0000 -1.0000 0.3963"}}

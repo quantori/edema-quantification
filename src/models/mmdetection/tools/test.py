@@ -238,7 +238,7 @@ def main():
         mmcv.mkdir_or_exist(osp.abspath(args.work_dir))
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
         json_file = osp.join(args.work_dir, f'eval_{timestamp}.json')
-        json_file_time = osp.join(args.work_dir, f'time_per_img_{timestamp}.json')
+        json_file_time = osp.join(args.work_dir, f'time_per_img.json')
 
     # build the dataloader
     dataset = build_dataset(cfg.data.test)

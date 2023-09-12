@@ -1,1 +1,0 @@
-{"config": "models/feature_detection/SABL/bat/config.py", "metric": {"bbox_mAP": 0.3971, "bbox_mAP_50": 0.9262, "bbox_mAP_75": 0.2312, "bbox_mAP_s": -1.0, "bbox_mAP_m": -1.0, "bbox_mAP_l": 0.3971, "bbox_mAP_copypaste": "0.3971 0.9262 0.2312 -1.0000 -1.0000 0.3971"}}
