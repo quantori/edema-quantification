@@ -238,6 +238,7 @@ def main():
         mmcv.mkdir_or_exist(osp.abspath(args.work_dir))
         timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
         json_file = osp.join(args.work_dir, f'eval_{timestamp}.json')
+        json_file_time = osp.join(args.work_dir, f'time_per_img.json')
 
     # build the dataloader
     dataset = build_dataset(cfg.data.test)
@@ -265,7 +266,7 @@ def main():
 
     if not distributed:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
-        outputs = single_gpu_test(
+        outputs, time_per_img = single_gpu_test(
             model,
             data_loader,
             args.show,
@@ -318,8 +319,10 @@ def main():
             metric = dataset.evaluate(outputs, **eval_kwargs)
             print(metric)
             metric_dict = dict(config=args.config, metric=metric)
+            time_dict = {'time_per_image': time_per_img}
             if args.work_dir is not None and rank == 0:
                 mmcv.dump(metric_dict, json_file)
+                mmcv.dump(time_dict, json_file_time)
 
 
 if __name__ == '__main__':

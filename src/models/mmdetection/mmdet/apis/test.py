@@ -22,14 +22,18 @@ def single_gpu_test(
 ):
     model.eval()
     results = []
+    times_list = []
     dataset = data_loader.dataset
     PALETTE = getattr(dataset, 'PALETTE', None)
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
         with torch.no_grad():
+            tic = time.perf_counter()
             result = model(return_loss=False, rescale=True, **data)
-
+            toc = time.perf_counter()
         batch_size = len(result)
+        print(f"\nTIME PER IMAGE EVAL: {(toc - tic)/batch_size:0.4f} seconds")
+        times_list.append((toc - tic)/batch_size)
         if show or out_dir:
             if batch_size == 1 and isinstance(data['img'][0], torch.Tensor):
                 img_tensor = data['img'][0]
@@ -81,7 +85,9 @@ def single_gpu_test(
 
         for _ in range(batch_size):
             prog_bar.update()
-    return results
+    print(f"\nTIME PER IMAGE EVAL AVERAGE: {(sum(times_list) / len(times_list)):0.4f} seconds")
+    time_per_img = sum(times_list) / len(times_list)
+    return results, time_per_img
 
 
 def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):

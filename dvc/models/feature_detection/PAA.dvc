@@ -1,0 +1,6 @@
+wdir: ../../../models/feature_detection
+outs:
+- md5: ac97b5ee1caaeca215f9e703f04dfb88.dir
+  size: 3061978616
+  nfiles: 5
+  path: PAA

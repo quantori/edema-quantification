@@ -1,0 +1,6 @@
+wdir: ../../../models/feature_detection
+outs:
+- md5: 0ba6b4669ddce4b9cd463a7f6fc0e363.dir
+  size: 3316729820
+  nfiles: 5
+  path: SABL

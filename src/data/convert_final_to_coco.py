@@ -113,6 +113,7 @@ def save_subset_metadata(
 ) -> None:
     # Save main dataset metadata
     save_path = os.path.join(save_dir, 'metadata.xlsx')
+    df.reset_index(drop=True, inplace=True)
     df.index += 1
     df.to_excel(
         save_path,

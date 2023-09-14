@@ -1,0 +1,6 @@
+wdir: ../../../models/feature_detection
+outs:
+- md5: 83b71baf6228e8902127ea9e510e552d.dir
+  size: 5638575524
+  nfiles: 5
+  path: FSAF

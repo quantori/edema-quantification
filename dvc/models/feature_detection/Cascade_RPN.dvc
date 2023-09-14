@@ -1,0 +1,6 @@
+wdir: ../../../models/feature_detection
+outs:
+- md5: db58e3a94ea1bb116d8e24bce7ccef65.dir
+  size: 2507202821
+  nfiles: 5
+  path: Cascade_RPN

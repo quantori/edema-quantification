@@ -166,3 +166,6 @@ savings/
 
 # MLFlow
 /mlruns/
+
+# eval images
+eval/*/imgs

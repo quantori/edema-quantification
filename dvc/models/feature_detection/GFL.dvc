@@ -1,0 +1,6 @@
+wdir: ../../../models/feature_detection
+outs:
+- md5: 9224fb5c3a8fe3be20e9302b44588484.dir
+  size: 3194103755
+  nfiles: 5
+  path: GFL
