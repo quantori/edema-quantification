@@ -426,6 +426,9 @@ def main():
 
     # work_dir is determined in this priority: CLI > segment in file > filename
     timestamp = time.strftime('%d%m_%H%M%S', time.localtime())
+    # Add suffix at the end
+    # timestamp_start = args.data_dir.rfind('_') + 1
+    # timestamp = args.data_dir[timestamp_start:]
     if args.work_dir is not None:
         # update configs according to CLI args if args.work_dir is not None
         cfg.work_dir = osp.join(args.work_dir, f'{model_family}_{timestamp}')
