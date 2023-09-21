@@ -123,8 +123,10 @@ def visualize(
             label_fields=['ground_truth', 'predictions'],
             overwrite=True,
             show_object_labels=True,
-            show_all_confidences=True,
-            per_object_label_colors=True,
+            show_object_confidences=True,
+            per_object_name_colors=True,
+            per_object_label_colors=False,
+            per_object_index_colors=True,
             bbox_alpha=0.75,
             bbox_linewidth=3,
         )
