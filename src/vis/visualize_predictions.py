@@ -93,7 +93,6 @@ def process_detections(
                 row['Box width'] / row['Image width'],
                 row['Box height'] / row['Image height'],
             ],
-            area=row['Box area'],
         )
 
         if 'Confidence' in df.columns:
@@ -105,6 +104,8 @@ def process_detections(
 
 def visualize(
     detections: Dict[str, Any],
+    save_dir: str,
+    save_images: bool = False,
 ) -> None:
     # Create dataset
     dataset = fo.Dataset(
@@ -113,6 +114,20 @@ def visualize(
         overwrite=True,
     )
     dataset = dataset.from_dict(detections)
+
+    # Save images
+    if save_images:
+        os.makedirs(save_dir, exist_ok=True)
+        dataset.draw_labels(
+            save_dir,
+            label_fields=['ground_truth', 'predictions'],
+            overwrite=True,
+            show_object_labels=True,
+            show_all_confidences=True,
+            per_object_label_colors=True,
+            bbox_alpha=0.75,
+            bbox_linewidth=3,
+        )
 
     # Visualize dataset
     session = fo.launch_app(dataset=dataset)
@@ -140,7 +155,11 @@ def main(cfg: DictConfig) -> None:
     )
 
     # Visually compare ground truth and predictions
-    visualize(detections=dets)
+    visualize(
+        detections=dets,
+        save_images=cfg.save_images,
+        save_dir=cfg.save_dir,
+    )
 
     log.info('Complete')
 
