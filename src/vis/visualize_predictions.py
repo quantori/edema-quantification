@@ -15,21 +15,25 @@ log.setLevel(logging.INFO)
 def combine_data(
     gt_path: str,
     pred_path: str,
-    conf_threshold: float,
+    conf_thresholds: dict,
     include_features: List[str],
 ) -> Dict[str, Any]:
     # Read ground truth and predictions
     df_gt = pd.read_excel(gt_path)
     df_pred = pd.read_excel(pred_path)
-    df_pred = df_pred[df_pred['Confidence'] >= conf_threshold]
     df_pred['Image name'] = df_pred.apply(
         func=lambda row: f'{Path(str(row["Image path"])).parts[-2]}.png',
         axis=1,
     )
+
+    # Include only specified features
     if len(include_features) > 0:
         df_gt = df_gt[df_gt['Feature'].isin(include_features)]
         df_pred = df_pred[df_pred['Feature'].isin(include_features)]
         df_pred = df_pred[df_pred['Image name'].isin(df_gt['Image name'])]
+
+    # Filter boxes by feature confidence
+    df_pred = filter_dataframe(df_pred, conf_thresholds)
 
     # Initialization of the fiftyone dataset
     dataset = dict(
@@ -75,6 +79,17 @@ def combine_data(
     dataset.update(dict(samples=samples))  # type: ignore
 
     return dataset
+
+
+def filter_dataframe(
+    df: pd.DataFrame,
+    conf_thresholds: dict,
+) -> pd.DataFrame:
+    df_filtered = pd.DataFrame()
+    for key, threshold in conf_thresholds.items():
+        mask = (df['Feature'] == key) & (df['Confidence'] >= threshold)
+        df_filtered = df_filtered.append(df[mask])
+    return df_filtered
 
 
 def process_detections(
@@ -145,14 +160,11 @@ def visualize(
 def main(cfg: DictConfig) -> None:
     log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
 
-    # Check conf_threshold
-    assert 0 <= cfg.conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
-
     # Combine ground truth and predictions
     dets = combine_data(
         gt_path=cfg.gt_path,
         pred_path=cfg.pred_path,
-        conf_threshold=cfg.conf_threshold,
+        conf_thresholds=cfg.conf_thresholds,
         include_features=cfg.include_features,
     )
 
