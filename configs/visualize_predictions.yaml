@@ -4,8 +4,78 @@ defaults:
 
 gt_path: data/final/metadata.xlsx
 pred_path: data/interim_predict/SABL/metadata.xlsx
-conf_threshold: 0.50
+conf_thresholds:
+  Cephalization: 0.37
+  Kerley: 0.53
+  Effusion: 0.77
+  Bat: 0.48
+  Infiltrate: 0.38
 # List of features: Cephalization, Artery, Heart, Kerley, Bronchus, Effusion, Bat, Infiltrate, Cuffing, Lungs
 include_features: [Bat]
 save_images: false
 save_dir: data/fiftyone/SABL/bat
+
+# Optimal thresholds:
+# ATSS:
+#conf_thresholds:
+#  Cephalization: 0.27
+#  Kerley: 0.54
+#  Effusion: 0.36
+#  Bat: 0.21
+#  Infiltrate: 0.48
+
+# Cascade RPN:
+#conf_thresholds:
+#  Cephalization: 0.42
+#  Kerley: 0.70
+#  Effusion: 0.96
+#  Bat: 0.50
+#  Infiltrate: 0.75
+
+# Faster R-CNN:
+#conf_thresholds:
+#  Cephalization: 0.71
+#  Kerley: 0.65
+#  Effusion: 0.77
+#  Bat: 0.62
+#  Infiltrate: 0.99
+
+# FSAF:
+#conf_thresholds:
+#  Cephalization: 0.44
+#  Kerley: 0.54
+#  Effusion: 0.47
+#  Bat: 0.45
+#  Infiltrate: 0.39
+
+# GFL:
+#conf_thresholds:
+#  Cephalization: 0.32
+#  Kerley: 0.60
+#  Effusion: 0.51
+#  Bat: 0.35
+#  Infiltrate: 0.72
+
+# PAA:
+#conf_thresholds:
+#  Cephalization: 0.46
+#  Kerley: 0.48
+#  Effusion: 0.71
+#  Bat: 0.56
+#  Infiltrate: 0.71
+
+# SABL:
+#conf_thresholds:
+#  Cephalization: 0.37
+#  Kerley: 0.53
+#  Effusion: 0.77
+#  Bat: 0.48
+#  Infiltrate: 0.38
+
+# TOOD:
+#conf_thresholds:
+#  Cephalization: 0.25
+#  Kerley: 0.41
+#  Effusion: 0.36
+#  Bat: 0.32
+#  Infiltrate: 0.24
