@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-import cv2
 import fiftyone as fo
 import hydra
 import pandas as pd
@@ -41,7 +40,6 @@ def combine_data(
             metadata='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.metadata.ImageMetadata)',
             ground_truth='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
             predictions='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
-            lung_mask='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Segmentation)',
         ),
         info=dict(),
     )
@@ -57,9 +55,6 @@ def combine_data(
         dets_gt = process_detections(df=df_gt_sample)
         dets_pred = process_detections(df=df_pred_sample)
 
-        mask_path = img_path.replace('img_crop', 'mask_crop')
-        mask_crop = cv2.imread(mask_path)
-
         split = df_gt_sample['Split'].unique()[0]
         samples.append(
             dict(
@@ -73,11 +68,6 @@ def combine_data(
                 predictions=dict(
                     _cls='Detections',
                     detections=dets_pred,
-                ),
-                lung_mask=dict(
-                    _cls='Segmentation',
-                    mask_path=mask_path,
-                    mask=mask_crop,
                 ),
             ),
         )
