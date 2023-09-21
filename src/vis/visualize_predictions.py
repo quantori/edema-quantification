@@ -16,7 +16,7 @@ def combine_data(
     gt_path: str,
     pred_path: str,
     conf_threshold: float,
-    exclude_features: List[str],
+    include_features: List[str],
 ) -> Dict[str, Any]:
     # Read ground truth and predictions
     df_gt = pd.read_excel(gt_path)
@@ -26,9 +26,9 @@ def combine_data(
         func=lambda row: f'{Path(str(row["Image path"])).parts[-2]}.png',
         axis=1,
     )
-    if len(exclude_features) > 0:
-        df_gt = df_gt[~df_gt['Feature'].isin(exclude_features)]
-        df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
+    if len(include_features) > 0:
+        df_gt = df_gt[df_gt['Feature'].isin(include_features)]
+        df_pred = df_pred[df_pred['Feature'].isin(include_features)]
         df_pred = df_pred[df_pred['Image name'].isin(df_gt['Image name'])]
 
     # Initialization of the fiftyone dataset
@@ -151,7 +151,7 @@ def main(cfg: DictConfig) -> None:
         gt_path=cfg.gt_path,
         pred_path=cfg.pred_path,
         conf_threshold=cfg.conf_threshold,
-        exclude_features=cfg.exclude_features,
+        include_features=cfg.include_features,
     )
 
     # Visually compare ground truth and predictions
