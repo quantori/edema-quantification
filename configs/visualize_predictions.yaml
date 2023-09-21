@@ -3,7 +3,7 @@ defaults:
 - _self_
 
 gt_path: data/final/metadata.xlsx
-pred_path: data/interim_predict/metadata.xlsx
-conf_threshold: 0.01
-# List of features: Cephalization, Artery, Heart, Kerley, Bronchus, Effusion, Bat, Infiltrate, Cuffing
-exclude_features: [Heart, Artery, Bronchus]
+pred_path: data/interim_predict/SABL/metadata.xlsx
+conf_threshold: 0.50
+# List of features: Cephalization, Artery, Heart, Kerley, Bronchus, Effusion, Bat, Infiltrate, Cuffing, Lungs
+exclude_features: [Cephalization, Artery, Heart, Kerley, Bronchus, Effusion, Infiltrate, Cuffing, Lungs]
