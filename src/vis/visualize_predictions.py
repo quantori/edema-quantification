@@ -29,7 +29,7 @@ def combine_data(
     )
     if len(exclude_features) > 0:
         df_gt = df_gt[~df_gt['Feature'].isin(exclude_features)]
-        # df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
+        df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
         df_pred = df_pred[df_pred['Image name'].isin(df_gt['Image name'])]
 
     # Initialization of the fiftyone dataset
