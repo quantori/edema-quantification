@@ -133,17 +133,19 @@ def visualize(
     # Save images
     if save_images:
         os.makedirs(save_dir, exist_ok=True)
+        # Config: https://docs.voxel51.com/api/fiftyone.utils.annotations.html#fiftyone.utils.annotations.DrawConfig
         dataset.draw_labels(
             save_dir,
             label_fields=['ground_truth', 'predictions'],
             overwrite=True,
-            show_object_labels=True,
+            show_object_names=False,
+            show_object_labels=False,
             show_object_confidences=True,
             per_object_name_colors=True,
             per_object_label_colors=False,
             per_object_index_colors=True,
-            bbox_alpha=0.75,
-            bbox_linewidth=3,
+            bbox_alpha=1.0,
+            bbox_linewidth=2,
         )
 
     # Visualize dataset
