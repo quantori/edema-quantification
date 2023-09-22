@@ -13,7 +13,7 @@ conf_thresholds:
 # List of features: Cephalization, Artery, Heart, Kerley, Bronchus, Effusion, Bat, Infiltrate, Cuffing, Lungs
 include_features: [Bat]
 save_images: false
-save_dir: data/fiftyone/SABL/bat
+save_dir: data/final_vis/SABL/bat
 
 # Optimal thresholds:
 # ATSS:
