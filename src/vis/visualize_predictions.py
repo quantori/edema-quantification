@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
-import cv2
 import fiftyone as fo
 import hydra
 import pandas as pd
@@ -16,21 +15,25 @@ log.setLevel(logging.INFO)
 def combine_data(
     gt_path: str,
     pred_path: str,
-    conf_threshold: float,
-    exclude_features: List[str],
+    conf_thresholds: dict,
+    include_features: List[str],
 ) -> Dict[str, Any]:
     # Read ground truth and predictions
     df_gt = pd.read_excel(gt_path)
     df_pred = pd.read_excel(pred_path)
-    df_pred = df_pred[df_pred['Confidence'] >= conf_threshold]
     df_pred['Image name'] = df_pred.apply(
         func=lambda row: f'{Path(str(row["Image path"])).parts[-2]}.png',
         axis=1,
     )
-    if len(exclude_features) > 0:
-        df_gt = df_gt[~df_gt['Feature'].isin(exclude_features)]
-        # df_pred = df_pred[~df_pred['Feature'].isin(exclude_features)]
+
+    # Include only specified features
+    if len(include_features) > 0:
+        df_gt = df_gt[df_gt['Feature'].isin(include_features)]
+        df_pred = df_pred[df_pred['Feature'].isin(include_features)]
         df_pred = df_pred[df_pred['Image name'].isin(df_gt['Image name'])]
+
+    # Filter boxes by feature confidence
+    df_pred = filter_dataframe(df_pred, conf_thresholds)
 
     # Initialization of the fiftyone dataset
     dataset = dict(
@@ -41,7 +44,6 @@ def combine_data(
             metadata='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.metadata.ImageMetadata)',
             ground_truth='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
             predictions='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Detections)',
-            lung_mask='fiftyone.core.fields.EmbeddedDocumentField(fiftyone.core.labels.Segmentation)',
         ),
         info=dict(),
     )
@@ -57,9 +59,6 @@ def combine_data(
         dets_gt = process_detections(df=df_gt_sample)
         dets_pred = process_detections(df=df_pred_sample)
 
-        mask_path = img_path.replace('img_crop', 'mask_crop')
-        mask_crop = cv2.imread(mask_path)
-
         split = df_gt_sample['Split'].unique()[0]
         samples.append(
             dict(
@@ -74,17 +73,23 @@ def combine_data(
                     _cls='Detections',
                     detections=dets_pred,
                 ),
-                lung_mask=dict(
-                    _cls='Segmentation',
-                    mask_path=mask_path,
-                    mask=mask_crop,
-                ),
             ),
         )
 
     dataset.update(dict(samples=samples))  # type: ignore
 
     return dataset
+
+
+def filter_dataframe(
+    df: pd.DataFrame,
+    conf_thresholds: dict,
+) -> pd.DataFrame:
+    df_filtered = pd.DataFrame()
+    for key, threshold in conf_thresholds.items():
+        mask = (df['Feature'] == key) & (df['Confidence'] >= threshold)
+        df_filtered = df_filtered.append(df[mask])
+    return df_filtered
 
 
 def process_detections(
@@ -103,7 +108,6 @@ def process_detections(
                 row['Box width'] / row['Image width'],
                 row['Box height'] / row['Image height'],
             ],
-            area=row['Box area'],
         )
 
         if 'Confidence' in df.columns:
@@ -115,6 +119,8 @@ def process_detections(
 
 def visualize(
     detections: Dict[str, Any],
+    save_dir: str,
+    save_images: bool = False,
 ) -> None:
     # Create dataset
     dataset = fo.Dataset(
@@ -123,6 +129,24 @@ def visualize(
         overwrite=True,
     )
     dataset = dataset.from_dict(detections)
+
+    # Save images
+    if save_images:
+        os.makedirs(save_dir, exist_ok=True)
+        # Config: https://docs.voxel51.com/api/fiftyone.utils.annotations.html#fiftyone.utils.annotations.DrawConfig
+        dataset.draw_labels(
+            save_dir,
+            label_fields=['ground_truth', 'predictions'],
+            overwrite=True,
+            show_object_names=False,
+            show_object_labels=False,
+            show_object_confidences=True,
+            per_object_name_colors=True,
+            per_object_label_colors=False,
+            per_object_index_colors=True,
+            bbox_alpha=1.0,
+            bbox_linewidth=2,
+        )
 
     # Visualize dataset
     session = fo.launch_app(dataset=dataset)
@@ -138,19 +162,20 @@ def visualize(
 def main(cfg: DictConfig) -> None:
     log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
 
-    # Check conf_threshold
-    assert 0 <= cfg.conf_threshold <= 1, 'conf_threshold must lie within [0, 1]'
-
     # Combine ground truth and predictions
     dets = combine_data(
         gt_path=cfg.gt_path,
         pred_path=cfg.pred_path,
-        conf_threshold=cfg.conf_threshold,
-        exclude_features=cfg.exclude_features,
+        conf_thresholds=cfg.conf_thresholds,
+        include_features=cfg.include_features,
     )
 
     # Visually compare ground truth and predictions
-    visualize(detections=dets)
+    visualize(
+        detections=dets,
+        save_images=cfg.save_images,
+        save_dir=cfg.save_dir,
+    )
 
     log.info('Complete')
 
