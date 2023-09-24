@@ -12,6 +12,79 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 
+def get_conf_thresholds(
+    model_name: str,
+) -> dict:
+    if model_name == 'ATSS':
+        conf_thresholds = {
+            'Cephalization': 0.27,
+            'Kerley': 0.54,
+            'Effusion': 0.36,
+            'Bat': 0.21,
+            'Infiltrate': 0.48,
+        }
+    elif model_name == 'Cascade RPN':
+        conf_thresholds = {
+            'Cephalization': 0.42,
+            'Kerley': 0.70,
+            'Effusion': 0.96,
+            'Bat': 0.50,
+            'Infiltrate': 0.75,
+        }
+    elif model_name == 'Faster R-CNN':
+        conf_thresholds = {
+            'Cephalization': 0.71,
+            'Kerley': 0.65,
+            'Effusion': 0.77,
+            'Bat': 0.62,
+            'Infiltrate': 0.99,
+        }
+    elif model_name == 'FSAF':
+        conf_thresholds = {
+            'Cephalization': 0.44,
+            'Kerley': 0.54,
+            'Effusion': 0.47,
+            'Bat': 0.45,
+            'Infiltrate': 0.39,
+        }
+    elif model_name == 'GFL':
+        conf_thresholds = {
+            'Cephalization': 0.32,
+            'Kerley': 0.60,
+            'Effusion': 0.51,
+            'Bat': 0.35,
+            'Infiltrate': 0.72,
+        }
+    elif model_name == 'PAA':
+        conf_thresholds = {
+            'Cephalization': 0.46,
+            'Kerley': 0.48,
+            'Effusion': 0.71,
+            'Bat': 0.56,
+            'Infiltrate': 0.71,
+        }
+    elif model_name == 'SABL':
+        conf_thresholds = {
+            'Cephalization': 0.37,
+            'Kerley': 0.53,
+            'Effusion': 0.77,
+            'Bat': 0.48,
+            'Infiltrate': 0.38,
+        }
+    elif model_name == 'TOOD':
+        conf_thresholds = {
+            'Cephalization': 0.25,
+            'Kerley': 0.41,
+            'Effusion': 0.36,
+            'Bat': 0.32,
+            'Infiltrate': 0.24,
+        }
+    else:
+        raise ValueError(f'Unknown model: {model_name}')
+
+    return conf_thresholds
+
+
 def combine_data(
     gt_path: str,
     pred_path: str,
@@ -162,11 +235,15 @@ def visualize(
 def main(cfg: DictConfig) -> None:
     log.info(f'Config:\n\n{OmegaConf.to_yaml(cfg)}')
 
+    # Get optimal thresholds
+    model_name = Path(cfg.pred_path).parent.name
+    conf_thresholds = get_conf_thresholds(model_name)
+
     # Combine ground truth and predictions
     dets = combine_data(
         gt_path=cfg.gt_path,
         pred_path=cfg.pred_path,
-        conf_thresholds=cfg.conf_thresholds,
+        conf_thresholds=conf_thresholds,
         include_features=cfg.include_features,
     )
 
