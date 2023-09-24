@@ -23,7 +23,7 @@ def get_conf_thresholds(
             'Bat': 0.21,
             'Infiltrate': 0.48,
         }
-    elif model_name == 'Cascade RPN':
+    elif model_name == 'Cascade_RPN':
         conf_thresholds = {
             'Cephalization': 0.42,
             'Kerley': 0.70,
@@ -31,7 +31,7 @@ def get_conf_thresholds(
             'Bat': 0.50,
             'Infiltrate': 0.75,
         }
-    elif model_name == 'Faster R-CNN':
+    elif model_name == 'Faster_RCNN':
         conf_thresholds = {
             'Cephalization': 0.71,
             'Kerley': 0.65,
