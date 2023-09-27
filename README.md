@@ -1,21 +1,60 @@
-# Explainable AI applied to Edema Quantification
+# Bridging the Gap: Explainable AI for Radiologists in the Detection and Classification of Radiographic Pulmonary Edema Features
 
-Nowadays machine learning models and artificial intelligence approaches demonstrate superior performance in many domains including the biomedical sphere. However, the key problem of ML-based solutions is their weak interpretability compared to traditional solutions. In this connection, we deal with and solve this problem in relation to the assessment and classification of pulmonary edema on chest X-ray images. The proposed solution is aimed at the localization of [objective radiological signs](https://radiologyassistant.nl/chest/chest-x-ray/heart-failure) which are used for subsequent classification and assessment of different stages of pulmonary edema. In our solution, we are striving to get a fully [explainable AI](https://en.wikipedia.org/wiki/Explainable_artificial_intelligence) (XAI) solution that works as a “[white box](https://en.wikipedia.org/wiki/White_box_(software_engineering))”. In contrast to the “[black box](https://en.wikipedia.org/wiki/Black_box)” concept where even its designers cannot explain why an AI arrived at a specific decision, we are developing an explainable AI system that assists clinicians and radiologists in making decisions. During the development, we try to put the three key principles of XAI into our solution, namely transparency, interpretability, and explainability. In that regard, the proposed system is designed to detect and localize objective and explicit radiological patterns, visualize them, and assist clinicians in the decision-making process.
+## ℹ️ Purpose
+
+This study aimed to develop a deep learning-based methodology for the detection and classification of radiographic features associated with pulmonary edema.
+
+## ℹ️ Data and Methods
+
+This retrospective study utilized a dataset from the MIMIC database comprising 1000 chest X-rays from 741 patients with suspected pulmonary edema. These images were manually annotated by an experienced radiologist, followed by lung segmentation using an ensemble of three segmentation networks. Subsequently, eight object detection networks were employed to identify radiological features categorized by severity. As a final step in the methodology, post-processing included box confidence filtering and soft non-maximum suppression. Descriptive statistics, including Average Precision (AP), mean Average Precision (mAP), and latency calculations, were used to evaluate performance, providing a comprehensive analysis of radiological features associated with pulmonary edema.
 
 <p align="center">
-  <img width="50%" height="50%" src="media/chest_x-ray.jpg" alt="Radiological signs">
+  <img width="100%" height="100%" src="media/annotation_method.png" alt="Annotation method">
+</p>
+
+<p align="left">
+    Figure 1. Annotation methodology for chest X-rays. Various radiological features indicative of pulmonary edema are meticulously annotated for comprehensive analysis. Cephalization, representing the redistribution of blood flow in the upper lung fields, is delineated by cyan polylines. Kerley lines, indicating interstitial edema, are represented by green lines. Pleural effusions, characterized by accumulation of fluid in the pleural space, are highlighted in purple areas. Infiltrates, indicating alveolar edema or inflammation, are visualized by blue areas. Finally, bat wings, suggesting a butterfly pattern of alveolar edema, are highlighted in yellow areas. This detailed annotation method provides essential visual cues for accurate detection and analysis of radiological features.
 </p>
 
 <p align="center">
-    Figure 1. A patient diagnosed with interstitial edema with detected and visualized objective radiological signs
+  <img width="100%" height="100%" src="media/proposed_method.png" alt="Proposed method">
 </p>
 
-## Requirements
+<p align="left">
+    Figure 2. Schematic representation of the proposed approach. The original CXR is fed into the first segmentation stage where a lung mask is predicted. The CXR is then cropped using the lung mask and is further fed into detection stage to identify radiological features that can be used for further clinical analysis.
+</p>
+
+## ℹ️ Results
+
+The SABL model emerged as the top performer, achieving the highest mAP of 0.568 and excelling in the detection of effusion, infiltrate and bat wings. Notably, the TOOD model demonstrated robust capabilities, particularly excelling in bat wing detection with an AP score of 0.918. The Cascade RPN and GFL models maintained consistently strong performance across all features. The PAA and FSAF models exhibited balanced performance, achieving mAP scores of 0.506 and 0.510, respectively. Surprisingly, the baseline Faster R-CNN model delivered competitive results with an mAP of 0.509. In addition, we evaluated the latency of these models, revealing processing times ranging from 42 ms to 104 ms per image. These latency values provide valuable insight into the real-time efficiency of each model, enhancing our understanding of their practical utility.
+
+<p align="center">
+  <img width="100%" height="100%" src="media/model_performance.png" alt="Model performance">
+</p>
+
+<p align="left">
+    Figure 3. Comparison of the networks based on their mAP scores, latency, and the number of parameters.
+</p>
+
+|                                         |                                                        |
+|:---------------------------------------:|:------------------------------------------------------:|
+| ![Bat](media/predictions_bat.png "Bat") | ![Effusion](media/predictions_effusion.png "Effusion") |
+|                 (a) Bat                 |                      (b) Effusion                      |
+
+<p align="center">
+    Figure 4.Comparison of predictions and their confidences: ground truth (purple boxes and masks) vs. network predictions (yellow boxes).
+</p>
+
+## ℹ️ Conclusion
+
+The proposed methodology effectively highlighted and classified pulmonary edema features, positioning it as a promising candidate for the development of a clinical support tool aimed at assisting radiologists in the diagnosis and severity assessment of pulmonary edema.
+
+## ℹ️ Requirements
 
 - Linux or macOS (Windows has not been officially tested)
 - Python 3.8.x
 
-## Installation
+## ℹ️ Installation
 
 Step 1: Download and install Miniconda
 ``` bash
