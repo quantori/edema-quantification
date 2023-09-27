@@ -32,7 +32,7 @@ The [SABL](https://arxiv.org/abs/1912.04260) model emerged as the top performer,
   <img width="100%" height="100%" src="media/model_performance.png" alt="Model performance">
 </p>
 
-<p align="left">
+<p align="center">
     Figure 3. Comparison of the networks based on their mAP scores, latency, and the number of parameters.
 </p>
 
