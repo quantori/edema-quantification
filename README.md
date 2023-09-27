@@ -26,7 +26,7 @@ This retrospective study utilized a dataset from the MIMIC database comprising 1
 
 ## ℹ️ Results
 
-The SABL model emerged as the top performer, achieving the highest mAP of 0.568 and excelling in the detection of effusion, infiltrate and bat wings. Notably, the TOOD model demonstrated robust capabilities, particularly excelling in bat wing detection with an AP score of 0.918. The Cascade RPN and GFL models maintained consistently strong performance across all features. The PAA and FSAF models exhibited balanced performance, achieving mAP scores of 0.506 and 0.510, respectively. Surprisingly, the baseline Faster R-CNN model delivered competitive results with an mAP of 0.509. In addition, we evaluated the latency of these models, revealing processing times ranging from 42 ms to 104 ms per image. These latency values provide valuable insight into the real-time efficiency of each model, enhancing our understanding of their practical utility.
+The [SABL](https://arxiv.org/abs/1912.04260) model emerged as the top performer, achieving the highest mAP of 0.568 and excelling in the detection of effusion, infiltrate and bat wings. Notably, the [TOOD](https://arxiv.org/abs/2108.07755) model demonstrated robust capabilities, particularly excelling in bat wing detection with an AP score of 0.918. The [Cascade RPN](https://arxiv.org/abs/1909.06720) and [GFL](https://arxiv.org/abs/2006.04388) models maintained consistently strong performance across all features. The [PAA](https://arxiv.org/abs/2007.08103) and [FSAF](https://arxiv.org/abs/1903.00621) models exhibited balanced performance, achieving mAP scores of 0.506 and 0.510, respectively. Surprisingly, the baseline [Faster R-CNN](https://arxiv.org/abs/1506.01497) model delivered competitive results with an mAP of 0.509. In addition, we evaluated the latency of these models, revealing processing times ranging from 42 ms to 104 ms per image. These latency values provide valuable insight into the real-time efficiency of each model, enhancing our understanding of their practical utility.
 
 <p align="center">
   <img width="100%" height="100%" src="media/model_performance.png" alt="Model performance">
@@ -36,9 +36,8 @@ The SABL model emerged as the top performer, achieving the highest mAP of 0.568 
     Figure 3. Comparison of the networks based on their mAP scores, latency, and the number of parameters.
 </p>
 
-|                                         |                                                        |
-|:---------------------------------------:|:------------------------------------------------------:|
 | ![Bat](media/predictions_bat.png "Bat") | ![Effusion](media/predictions_effusion.png "Effusion") |
+|:---------------------------------------:|:------------------------------------------------------:|
 |                 (a) Bat                 |                      (b) Effusion                      |
 
 <p align="center">
