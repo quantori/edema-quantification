@@ -1,10 +1,10 @@
 # Bridging the Gap: Explainable AI for Radiologists
 
-## ℹ️ Purpose
+## 🎯 Purpose
 
 This study aimed to develop a deep learning-based methodology for the detection and classification of radiographic features associated with pulmonary edema.
 
-## ℹ️ Data and Methods
+## 🛠️ Data and Methods
 
 This retrospective study utilized a dataset from the MIMIC database comprising 1000 chest X-rays from 741 patients with suspected pulmonary edema. These images were manually annotated by an experienced radiologist, followed by lung segmentation using an ensemble of three segmentation networks. Subsequently, eight object detection networks were employed to identify radiological features categorized by severity. As a final step in the methodology, post-processing included box confidence filtering and soft non-maximum suppression. Descriptive statistics, including Average Precision (AP), mean Average Precision (mAP), and latency calculations, were used to evaluate performance, providing a comprehensive analysis of radiological features associated with pulmonary edema.
 
@@ -24,7 +24,7 @@ This retrospective study utilized a dataset from the MIMIC database comprising 1
     Figure 2. Schematic representation of the proposed approach. The original CXR is fed into the first segmentation stage where a lung mask is predicted. The CXR is then cropped using the lung mask and is further fed into detection stage to identify radiological features that can be used for further clinical analysis.
 </p>
 
-## ℹ️ Results
+## 📈 Results
 
 The [SABL](https://arxiv.org/abs/1912.04260) model emerged as the top performer, achieving the highest mAP of 0.568 and excelling in the detection of effusion, infiltrate and bat wings. Notably, the [TOOD](https://arxiv.org/abs/2108.07755) model demonstrated robust capabilities, particularly excelling in bat wing detection with an AP score of 0.918. The [Cascade RPN](https://arxiv.org/abs/1909.06720) and [GFL](https://arxiv.org/abs/2006.04388) models maintained consistently strong performance across all features. The [PAA](https://arxiv.org/abs/2007.08103) and [FSAF](https://arxiv.org/abs/1903.00621) models exhibited balanced performance, achieving mAP scores of 0.506 and 0.510, respectively. Surprisingly, the baseline [Faster R-CNN](https://arxiv.org/abs/1506.01497) model delivered competitive results with an mAP of 0.509. In addition, we evaluated the latency of these models, revealing processing times ranging from 42 ms to 104 ms per image. These latency values provide valuable insight into the real-time efficiency of each model, enhancing our understanding of their practical utility.
 
@@ -44,16 +44,17 @@ The [SABL](https://arxiv.org/abs/1912.04260) model emerged as the top performer,
     Figure 4.Comparison of predictions and their confidences: ground truth (purple boxes and masks) vs. network predictions (yellow boxes).
 </p>
 
-## ℹ️ Conclusion
+## 🏁 Conclusion
 
 The proposed methodology effectively highlighted and classified pulmonary edema features, positioning it as a promising candidate for the development of a clinical support tool aimed at assisting radiologists in the diagnosis and severity assessment of pulmonary edema.
 
-## ℹ️ Requirements
+## 💻 Requirements
 
 - Linux or macOS (Windows has not been officially tested)
 - Python 3.8.x
+- Required core libraries: [dev.txt](https://github.com/quantori/edema-quantification/blob/main/requirements/dev.txt)
 
-## ℹ️ Installation
+## ⚙ Installation
 
 Step 1: Download and install Miniconda
 ``` bash
@@ -70,7 +71,7 @@ chmod +x create_env.sh
 source create_env.sh
 ```
 
-## ℹ️ Data Access
+## 📂 Data Access
 
 **1. To download the data, clone the repository:**
 ``` bash
