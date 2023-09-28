@@ -1,0 +1,6 @@
+wdir: ../..
+outs:
+- md5: d7b3811acf18687e05f89151412d677b.dir
+  size: 42831398
+  nfiles: 1984
+  path: mlruns
