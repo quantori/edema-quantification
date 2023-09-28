@@ -86,6 +86,8 @@ pip install dvc==2.58.2 dvc-s3==2.22.0
 
 Note: To download all datasets, models and research artifacts, we recommend using the [DVC framework](https://dvc.org/). However, the labeled dataset is also available on the Zenodo platform: https://zenodo.org/record/8383777.
 
+Table 1. Datasets used during the development of the proposed solution.
+
 |                                                                     Dataset                                                                      |                                                                                                                                         Description                                                                                                                                         | Size, Gb |              Download Command               |
 |:------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------:|:-------------------------------------------:|
 |              [SLY](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/sly.dvc)              | This dataset consists of 1,000 chest X-rays obtained from 741 patients, annotated by an experienced clinician using the [Supervisely](https://supervisely.com/) platform. The annotations are stored in JSON format, and the images consist of stacked frontal and horizontal chest X-rays. |   8.2    |       ```dvc pull dvc/data/sly.dvc```       |
@@ -97,7 +99,7 @@ Note: To download all datasets, models and research artifacts, we recommend usin
 
 **4. Download the models using DVC**
 
-Table 1. Lung segmentation models used during the first stage of the workflow.
+Table 2. Lung segmentation models used during the first stage of the workflow.
 
 |                                                                           Model                                                                            |       Task        | Dice Score  | Size, Mb |                      Download Command                      |
 |:----------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------:|:-----------:|:--------:|:----------------------------------------------------------:|
@@ -111,7 +113,7 @@ Table 1. Lung segmentation models used during the first stage of the workflow.
 |    [Unet++](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/Unet%2B%2B.dvc)    | Lung Segmentation |    94.6     |    37    |   ```dvc pull dvc/models/lung_segmentation/Unet++.dvc```   |
 |        [Unet](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/Unet.dvc)        | Lung Segmentation |    94.5     |   225    |    ```dvc pull dvc/models/lung_segmentation/Unet.dvc```    |
 
-Table 2. Radiographic feature detection models used during the second stage of the workflow.
+Table 3. Radiographic feature detection models used during the second stage of the workflow.
 
 |                                                                            Model                                                                            |       Task        | mAP  | Size, Mb |                      Download Command                       |
 |:-----------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------:|:----:|:--------:|:-----------------------------------------------------------:|
