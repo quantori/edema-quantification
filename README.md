@@ -1,5 +1,6 @@
 # Bridging the Gap: Explainable AI for Radiologists
 
+<a name="table-of-contents"></a>
 ## 📖 Table of Contents
 - [Purpose](#purpose)
 - [Data and Methods](#data-and-methods)
@@ -71,14 +72,14 @@ The proposed methodology effectively highlighted and classified pulmonary edema 
 <a name="installation"></a>
 ## ⚙ Installation
 
-Step 1: Download and install Miniconda
+**Step 1: Download and install Miniconda**
 ``` bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-py38_22.11.1-1-Linux-x86_64.sh
 chmod +x Miniconda3-latest-Linux-x86_64.sh
 ./Miniconda3-latest-Linux-x86_64.sh
 ```
 
-Step 2: Clone the repository, create a conda environment, and install the requirements
+**Step 2: Clone the repository, create a conda environment, and install the requirements**
 ``` bash
 git clone https://github.com/quantori/edema-quantification.git
 cd edema-quantification
@@ -89,17 +90,17 @@ source create_env.sh
 <a name="data-access"></a>
 ## 📂 Data Access
 
-**1. To download the data, clone the repository:**
+**Step 1. To download the data, clone the repository:**
 ``` bash
 git clone https://github.com/quantori/edema-quantification.git
 ```
 
-**2. Install DVC:**
+**Step 2. Install DVC:**
 ``` bash
 pip install dvc==2.58.2 dvc-s3==2.22.0
 ```
 
-**3. Download the datasets using DVC**
+**Step 3. Download the datasets using DVC**
 
 Note: To download all datasets, models and research artifacts, we recommend using the [DVC framework](https://dvc.org/). However, the labeled dataset is also available on the Zenodo platform: https://zenodo.org/record/8383777.
 
@@ -116,7 +117,7 @@ Note: To download all datasets, models and research artifacts, we recommend usin
 | [Healthy (stacked)](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/healthy_stacked.dvc) |                                                        This dataset consists of 4,269 stacked chest X-ray images obtained from healthy patients, obtained from [MIMIC database](https://physionet.org/content/mimic-cxr-jpg/2.0.0/).                                                        |   34.5   | ```dvc pull dvc/data/healthy_stacked.dvc``` |
 |             [Intermediate](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc.lock)              |                                                                                             These are intermediate datasets generated during the execution of the DVC data processing pipeline.                                                                                             |   10.2   |           ```dvc pull dvc.yaml```           |
 
-**4. Download the models using DVC**
+**Step 4. Download the models using DVC**
 
 <p align="right">
     Table 2. Lung segmentation models used during the first stage of the workflow.
