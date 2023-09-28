@@ -84,6 +84,8 @@ pip install dvc==2.58.2 dvc-s3==2.22.0
 
 3. Download the datasets using DVC
 
+Note: To download all datasets, models and research artifacts, we recommend using the [DVC framework](https://dvc.org/). However, the labeled dataset is also available on the Zenodo platform: https://zenodo.org/record/8383777.
+
 |                                                                     Dataset                                                                      |                                                                                                                                         Description                                                                                                                                         | Size, Gb |                   Command                   |
 |:------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------:|:-------------------------------------------:|
 |              [SLY](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/sly.dvc)              | This dataset consists of 1,000 chest X-rays obtained from 741 patients, annotated by an experienced clinician using the [Supervisely](https://supervisely.com/) platform. The annotations are stored in JSON format, and the images consist of stacked frontal and horizontal chest X-rays. |   8.2    |       ```dvc pull dvc/data/sly.dvc```       |
@@ -92,6 +94,8 @@ pip install dvc==2.58.2 dvc-s3==2.22.0
 |          [Healthy](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/healthy.dvc)          |                                                                This dataset comprises 3,136 chest X-ray studies of healthy patients, sourced from the [MIMIC database](https://physionet.org/content/mimic-cxr-jpg/2.0.0/).                                                                 |   13.9   |     ```dvc pull dvc/data/healthy.dvc```     |
 | [Healthy (stacked)](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/healthy_stacked.dvc) |                                                        This dataset consists of 4,269 stacked chest X-ray images obtained from healthy patients, obtained from [MIMIC database](https://physionet.org/content/mimic-cxr-jpg/2.0.0/).                                                        |   34.5   | ```dvc pull dvc/data/healthy_stacked.dvc``` |
 |             [Intermediate](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc.lock)              |                                                                                             These are intermediate datasets generated during the execution of the DVC data processing pipeline.                                                                                             |   10.2   |           ```dvc pull dvc.yaml```           |
+
+Note: The labeled dataset is also available on the Zenodo platform: https://zenodo.org/record/8383777
 
 # TODO: FIX models
 
