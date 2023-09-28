@@ -1,4 +1,4 @@
-# Bridging the Gap: Explainable AI for Radiologists in the Detection and Classification of Radiographic Pulmonary Edema Features
+# Bridging the Gap: Explainable AI for Radiologists
 
 ## ℹ️ Purpose
 
