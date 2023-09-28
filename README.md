@@ -74,7 +74,7 @@ source create_env.sh
 
 1. To download the data, clone the repository:
 ``` bash
-git clone https://github.com/ViacheslavDanilov/hsi_analysis.git
+git clone https://github.com/quantori/edema-quantification.git
 ```
 
 2. Install DVC:
