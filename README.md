@@ -1,3 +1,6 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8393566.svg)](https://doi.org/10.5281/zenodo.8393566)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8390417.svg)](https://doi.org/10.5281/zenodo.8390417)
+
 # Bridging the Gap: Explainable AI for Radiologists
 
 <a name="table-of-contents"></a>
@@ -90,7 +93,13 @@ source create_env.sh
 <a name="data-access"></a>
 ## 📂 Data Access
 
-**Step 1. To download the data, clone the repository:**
+You can find the labeled dataset and models on the Zenodo platform:
+- Dataset: https://doi.org/10.5281/zenodo.8383776
+- Models: https://doi.org/10.5281/zenodo.8393565
+
+To download all research artifacts, including intermediate and visualization datasets, we recommend using the  [DVC framework](https://dvc.org/). Please note that you may encounter errors while downloading datasets or models due to insufficient permissions for accessing data stored on AWS S3. If you experience any issues with downloading models, please contact [Viacheslav Danilov](https://github.com/ViacheslavDanilov) at <a href="mailto:viacheslav.v.danilov@gmail.com">viacheslav.v.danilov@gmail.com</a> to gain access to the DVC repository.
+
+**Step 1. To download the data via DVC, clone the repository:**
 ``` bash
 git clone https://github.com/quantori/edema-quantification.git
 ```
@@ -101,8 +110,6 @@ pip install dvc==2.58.2 dvc-s3==2.22.0
 ```
 
 **Step 3. Download the datasets using DVC**
-
-Note: To download all datasets, models and research artifacts, we recommend using the [DVC framework](https://dvc.org/). However, the labeled dataset is also available on the Zenodo platform: https://zenodo.org/record/8383777.
 
 <p align="right">
     Table 1. Datasets used during the development of the proposed solution.
@@ -149,5 +156,3 @@ Note: To download all datasets, models and research artifacts, we recommend usin
 |         [PAA](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/PAA.dvc)          | Feature Detection | 50.6 |   3070   |     ```dvc pull dvc/models/feature_detection/PAA.dvc```     |
 |        [SABL](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/SABL.dvc)         | Feature Detection | 56.8 |   3300   |    ```dvc pull dvc/models/feature_detection/SABL.dvc```     |
 |        [TOOD](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/TOOD.dvc)         | Feature Detection | 50.6 |   3210   |    ```dvc pull dvc/models/feature_detection/TOOD.dvc```     |
-
-NOTE: Since the data storage is organized through AWS S3, you may experience errors when downloading datasets or models. If you encounter problems downloading models, please contact [Viacheslav Danilov](https://github.com/ViacheslavDanilov) at <a href="mailto:viacheslav.v.danilov@gmail.com">viacheslav.v.danilov@gmail.com</a> to gain access to the DVC repository.
