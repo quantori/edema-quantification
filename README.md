@@ -99,7 +99,7 @@ You can find the labeled dataset and models on the Zenodo platform:
 
 To download all research artifacts, including intermediate and visualization datasets, we recommend using the  [DVC framework](https://dvc.org/). Please note that you may encounter errors while downloading datasets or models due to insufficient permissions for accessing data stored on AWS S3. If you experience any issues with downloading models, please contact [Viacheslav Danilov](https://github.com/ViacheslavDanilov) at <a href="mailto:viacheslav.v.danilov@gmail.com">viacheslav.v.danilov@gmail.com</a> to gain access to the DVC repository.
 
-**Step 1. To download the data, clone the repository:**
+**Step 1. To download the data via DVC, clone the repository:**
 ``` bash
 git clone https://github.com/quantori/edema-quantification.git
 ```
