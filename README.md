@@ -1,7 +1,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8393566.svg)](https://doi.org/10.5281/zenodo.8393566)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8390417.svg)](https://doi.org/10.5281/zenodo.8390417)
 
-# Bridging the Gap: Explainable AI for Radiologists
+# Detection and Classification of Radiographic Features Associated with Pulmonary Edema
 
 <a name="table-of-contents"></a>
 ## 📖 Table of Contents
