@@ -165,8 +165,6 @@ pip install dvc==2.58.2 dvc-s3==2.22.0
 <a name="how-to-cite"></a>
 ## 🖊️ How to Cite
 
-#### THIS SECTION WILL BE UPDATED SOON
-
 Please cite [our paper](https://doi.org/10.1093/radadv/umae003) if you found our data, methods, or results helpful for your research:
 
 > Danilov V.V., Makoveev A.O., Proutski A., Ryndova I., Karpovsky A., Gankin Y. (**2024**). _Explainable AI to identify radiographic features of pulmonary edema_. **Radiology Advances**. DOI: [https://doi.org/10.1093/radadv/umae003](https://doi.org/10.1093/radadv/umae003)
