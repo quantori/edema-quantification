@@ -98,8 +98,8 @@ source create_env.sh
 ## 🔐 Data Access
 
 You can find the labeled dataset and models on the Zenodo platform:
-- Dataset: https://doi.org/10.5281/zenodo.8383776
-- Models: https://doi.org/10.5281/zenodo.8393565
+- Dataset: [https://zenodo.org/doi/10.5281/zenodo.8383776](https://zenodo.org/doi/10.5281/zenodo.8383776)
+- Models: [https://zenodo.org/doi/10.5281/zenodo.8393565](https://zenodo.org/doi/10.5281/zenodo.8393565)
 
 To download all research artifacts, including intermediate and visualization datasets, we recommend using the  [DVC framework](https://dvc.org/). Please note that you may encounter errors while downloading datasets or models due to insufficient permissions for accessing data stored on AWS S3. If you experience any issues with downloading models, please contact [Viacheslav Danilov](https://github.com/ViacheslavDanilov) at <a href="mailto:viacheslav.v.danilov@gmail.com">viacheslav.v.danilov@gmail.com</a> to gain access to the DVC repository.
 
