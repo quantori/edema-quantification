@@ -167,6 +167,6 @@ pip install dvc==2.58.2 dvc-s3==2.22.0
 
 #### THIS SECTION WILL BE UPDATED SOON
 
-Please cite our paper if you found our data, methods, or results helpful for your research:
+Please cite [our paper](https://doi.org/10.1093/radadv/umae003) if you found our data, methods, or results helpful for your research:
 
-Danilov, V.V., De Landro, M., Felli, E., Barberio, M., Diana, M., & Saccomandi, P. (Year). Harnessing Machine Learning for Laser Ablation Assessment in Hyperspectral Imaging. [Journal/Conference Name], [Volume(Issue)], [Page Numbers]. DOI: [DOI]
+> Danilov V.V., Makoveev A.O., Proutski A., Ryndova I., Karpovsky A., Gankin Y. (**2024**). _Explainable AI to identify radiographic features of pulmonary edema_. **Radiology Advances**. DOI: [https://doi.org/10.1093/radadv/umae003](https://doi.org/10.1093/radadv/umae003)
