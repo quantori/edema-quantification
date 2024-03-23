@@ -1,10 +1,10 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8393566.svg)](https://doi.org/10.5281/zenodo.8393566)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8390417.svg)](https://doi.org/10.5281/zenodo.8390417)
 
-# Detection and Classification of Radiographic Features Associated with Pulmonary Edema
+# Explainable AI to identify radiographic features of pulmonary edema
 
 <a name="table-of-contents"></a>
-## 📖 Table of Contents
+## 📖 Contents
 - [Purpose](#purpose)
 - [Data and Methods](#data-and-methods)
 - [Results](#results)
@@ -12,6 +12,7 @@
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Data Access](#data-access)
+- [How to Cite](#how-to-cite)
 
 <a name="purpose"></a>
 ## 🎯 Purpose
@@ -19,7 +20,7 @@
 This study aimed to develop a deep learning-based methodology for the detection and classification of radiographic features associated with pulmonary edema.
 
 <a name="data-and-methods"></a>
-## 🛠️ Data and Methods
+## 🔬 Data and Methods
 
 This retrospective study utilized a dataset from the MIMIC database comprising 1000 chest X-rays from 741 patients with suspected pulmonary edema. These images were manually annotated by an experienced radiologist, followed by lung segmentation using an ensemble of three segmentation networks. Subsequently, eight object detection networks were employed to identify radiological features categorized by severity. As a final step in the methodology, post-processing included box confidence filtering and soft non-maximum suppression. Descriptive statistics, including Average Precision (AP), mean Average Precision (mAP), and latency calculations, were used to evaluate performance, providing a comprehensive analysis of radiological features associated with pulmonary edema.
 
@@ -68,9 +69,12 @@ The proposed methodology effectively highlighted and classified pulmonary edema 
 <a name="requirements"></a>
 ## 💻 Requirements
 
-- Linux or macOS (Windows has not been officially tested)
+- Operating System
+  - [x] macOS
+  - [x] Linux
+  - [x] Windows (limited testing carried out)
 - Python 3.8.x
-- Required core libraries: [dev.txt](https://github.com/quantori/edema-quantification/blob/main/requirements/dev.txt)
+- Required core packages: [dev.txt](https://github.com/quantori/edema-quantification/blob/main/requirements/dev.txt)
 
 <a name="installation"></a>
 ## ⚙ Installation
@@ -91,7 +95,7 @@ source create_env.sh
 ```
 
 <a name="data-access"></a>
-## 📂 Data Access
+## 🔐 Data Access
 
 You can find the labeled dataset and models on the Zenodo platform:
 - Dataset: https://doi.org/10.5281/zenodo.8383776
@@ -156,3 +160,12 @@ pip install dvc==2.58.2 dvc-s3==2.22.0
 |         [PAA](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/PAA.dvc)          | Feature Detection | 50.6 |   3070   |     ```dvc pull dvc/models/feature_detection/PAA.dvc```     |
 |        [SABL](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/SABL.dvc)         | Feature Detection | 56.8 |   3300   |    ```dvc pull dvc/models/feature_detection/SABL.dvc```     |
 |        [TOOD](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/TOOD.dvc)         | Feature Detection | 50.6 |   3210   |    ```dvc pull dvc/models/feature_detection/TOOD.dvc```     |
+
+<a name="how-to-cite"></a>
+## 🖊️ How to Cite
+
+#### THIS SECTION WILL BE UPDATED SOON
+
+Please cite our paper if you found our data, methods, or results helpful for your research:
+
+Danilov, V.V., De Landro, M., Felli, E., Barberio, M., Diana, M., & Saccomandi, P. (Year). Harnessing Machine Learning for Laser Ablation Assessment in Hyperspectral Imaging. [Journal/Conference Name], [Volume(Issue)], [Page Numbers]. DOI: [DOI]
