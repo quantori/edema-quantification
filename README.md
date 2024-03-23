@@ -1,6 +1,6 @@
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8393566.svg)](https://doi.org/10.5281/zenodo.8393566)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8390417.svg)](https://doi.org/10.5281/zenodo.8390417)
-[![DOI](https://img.shields.io/badge/DOI-10.1093/radadv/umae003-red.svg)](https://doi.org/10.1093/radadv/umae003)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8393566.svg)](https://doi.org/10.5281/zenodo.8393566)
+[![DOI](https://img.shields.io/badge/DOI-10.1093/radadv/umae003-red)](https://doi.org/10.1093/radadv/umae003)
 
 # Explainable AI to identify radiographic features of pulmonary edema
 
