@@ -4,7 +4,7 @@
 
 # Explainable AI to identify radiographic features of pulmonary edema
 
-<a name="table-of-contents"></a>
+<a name="contents"></a>
 ## 📖 Contents
 - [Purpose](#purpose)
 - [Data and Methods](#data-and-methods)
@@ -98,69 +98,9 @@ source create_env.sh
 <a name="data-access"></a>
 ## 🔐 Data Access
 
-You can find the labeled dataset and models on the Zenodo platform:
+All essential components of the study, including the curated dataset and trained models, have been made publicly available:
 - Dataset: [https://zenodo.org/doi/10.5281/zenodo.8383776](https://zenodo.org/doi/10.5281/zenodo.8383776)
 - Models: [https://zenodo.org/doi/10.5281/zenodo.8393565](https://zenodo.org/doi/10.5281/zenodo.8393565)
-
-To download all research artifacts, including intermediate and visualization datasets, we recommend using the  [DVC framework](https://dvc.org/). Please note that you may encounter errors while downloading datasets or models due to insufficient permissions for accessing data stored on AWS S3. If you experience any issues with downloading models, please contact [Viacheslav Danilov](https://github.com/ViacheslavDanilov) at <a href="mailto:viacheslav.v.danilov@gmail.com">viacheslav.v.danilov@gmail.com</a> to gain access to the DVC repository.
-
-**Step 1. To download the data via DVC, clone the repository:**
-``` bash
-git clone https://github.com/quantori/edema-quantification.git
-```
-
-**Step 2. Install DVC:**
-``` bash
-pip install dvc==2.58.2 dvc-s3==2.22.0
-```
-
-**Step 3. Download the datasets using DVC**
-
-<p align="right">
-    Table 1. Datasets used during the development of the proposed solution.
-</p>
-
-|                                                                     Dataset                                                                      |                                                                                                                                         Description                                                                                                                                         | Size, Gb |              Download Command               |
-|:------------------------------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--------:|:-------------------------------------------:|
-|              [SLY](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/sly.dvc)              | This dataset consists of 1,000 chest X-rays obtained from 741 patients, annotated by an experienced clinician using the [Supervisely](https://supervisely.com/) platform. The annotations are stored in JSON format, and the images consist of stacked frontal and horizontal chest X-rays. |   8.2    |       ```dvc pull dvc/data/sly.dvc```       |
-|            [Edema](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/edema.dvc)            |                                                     This dataset comprises 2,978 chest X-ray studies of patients diagnosed with pulmonary edema, sourced from the [MIMIC database](https://physionet.org/content/mimic-cxr-jpg/2.0.0/).                                                     |   12.4   |      ```dvc pull dvc/data/edema.dvc```      |
-|   [Edema (stacked)](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/edema_stacked.dvc)   |                                                  This dataset consists of 3,816 stacked chest X-ray images of patients diagnosed with pulmonary edema, obtained from [MIMIC database](https://physionet.org/content/mimic-cxr-jpg/2.0.0/).                                                  |   31.3   |  ```dvc pull dvc/data/edema_stacked.dvc```  |
-|          [Healthy](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/healthy.dvc)          |                                                                This dataset comprises 3,136 chest X-ray studies of healthy patients, sourced from the [MIMIC database](https://physionet.org/content/mimic-cxr-jpg/2.0.0/).                                                                 |   13.9   |     ```dvc pull dvc/data/healthy.dvc```     |
-| [Healthy (stacked)](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc/data/healthy_stacked.dvc) |                                                        This dataset consists of 4,269 stacked chest X-ray images obtained from healthy patients, obtained from [MIMIC database](https://physionet.org/content/mimic-cxr-jpg/2.0.0/).                                                        |   34.5   | ```dvc pull dvc/data/healthy_stacked.dvc``` |
-|             [Intermediate](https://github.com/quantori/edema-quantification/blob/3ddc1120a8dd58ce970380ef189f9238a0872013/dvc.lock)              |                                                                                             These are intermediate datasets generated during the execution of the DVC data processing pipeline.                                                                                             |   10.2   |           ```dvc pull dvc.yaml```           |
-
-**Step 4. Download the models using DVC**
-
-<p align="right">
-    Table 2. Lung segmentation models used during the first stage of the workflow.
-</p>
-
-|                                                                           Model                                                                            |       Task        | Dice Score  | Size, Mb |                      Download Command                      |
-|:----------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------:|:-----------:|:--------:|:----------------------------------------------------------:|
-| [DeepLabV3+](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/DeepLabV3%2B.dvc) | Lung Segmentation |    94.8     |    30    | ```dvc pull dvc/models/lung_segmentation/DeepLabV3+.dvc``` |
-|   [DeepLabV3](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/DeepLabV3.dvc)   | Lung Segmentation |    93.8     |    30    | ```dvc pull dvc/models/lung_segmentation/DeepLabV3.dvc```  |
-|         [FPN](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/FPN.dvc)         | Lung Segmentation |    94.9     |    23    |    ```dvc pull dvc/models/lung_segmentation/FPN.dvc```     |
-|     [Linknet](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/Linknet.dvc)     | Lung Segmentation |    94.6     |   118    |  ```dvc pull dvc/models/lung_segmentation/Linknet.dvc```   |
-|       [MAnet](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/MAnet.dvc)       | Lung Segmentation |    94.5     |    54    |   ```dvc pull dvc/models/lung_segmentation/MAnet.dvc```    |
-|         [PAN](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/PAN.dvc)         | Lung Segmentation |    94.1     |    17    |    ```dvc pull dvc/models/lung_segmentation/PAN.dvc```     |
-|      [PSPNet](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/PSPNet.dvc)      | Lung Segmentation |    94.0     |   120    |   ```dvc pull dvc/models/lung_segmentation/PSPNet.dvc```   |
-|    [Unet++](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/Unet%2B%2B.dvc)    | Lung Segmentation |    94.6     |    37    |   ```dvc pull dvc/models/lung_segmentation/Unet++.dvc```   |
-|        [Unet](https://github.com/quantori/edema-quantification/blob/2b29e80654aca5822bba433e3e265968473b8bc2/dvc/models/lung_segmentation/Unet.dvc)        | Lung Segmentation |    94.5     |   225    |    ```dvc pull dvc/models/lung_segmentation/Unet.dvc```    |
-
-<p align="right">
-    Table 3. Radiographic feature detection models used during the second stage of the workflow.
-</p>
-
-|                                                                            Model                                                                            |       Task        | mAP  | Size, Mb |                      Download Command                       |
-|:-----------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------:|:----:|:--------:|:-----------------------------------------------------------:|
-|        [ATSS](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/ATSS.dvc)         | Feature Detection | 53.2 |   3070   |    ```dvc pull dvc/models/feature_detection/ATSS.dvc```     |
-| [Cascade RPN](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/Cascade_RPN.dvc)  | Feature Detection | 54.0 |   2520   | ```dvc pull dvc/models/feature_detection/Cascade_RPN.dvc``` |
-| [Faster R-CNN](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/Faster_RCNN.dvc) | Feature Detection | 50.9 |   2490   | ```dvc pull dvc/models/feature_detection/Faster_RCNN.dvc``` |
-|        [FSAF](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/FSAF.dvc)         | Feature Detection | 51.0 |   5660   |    ```dvc pull dvc/models/feature_detection/FSAF.dvc```     |
-|         [GFL](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/GFL.dvc)          | Feature Detection | 53.4 |   3200   |     ```dvc pull dvc/models/feature_detection/GFL.dvc```     |
-|         [PAA](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/PAA.dvc)          | Feature Detection | 50.6 |   3070   |     ```dvc pull dvc/models/feature_detection/PAA.dvc```     |
-|        [SABL](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/SABL.dvc)         | Feature Detection | 56.8 |   3300   |    ```dvc pull dvc/models/feature_detection/SABL.dvc```     |
-|        [TOOD](https://github.com/quantori/edema-quantification/blob/34b6e234e3efc8b01cdcd921d6766e9864fea515/dvc/models/feature_detection/TOOD.dvc)         | Feature Detection | 50.6 |   3210   |    ```dvc pull dvc/models/feature_detection/TOOD.dvc```     |
 
 <a name="how-to-cite"></a>
 ## 🖊️ How to Cite
