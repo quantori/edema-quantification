@@ -87,14 +87,14 @@ The proposed methodology effectively highlighted and classified pulmonary edema 
 <a name="installation"></a>
 ## ⚙ Installation
 
-**Step 1: Download and install Miniconda**
+**Step 1:** Download and install Miniconda
 ``` bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-py38_22.11.1-1-Linux-x86_64.sh
 chmod +x Miniconda3-latest-Linux-x86_64.sh
 ./Miniconda3-latest-Linux-x86_64.sh
 ```
 
-**Step 2: Clone the repository, create a conda environment, and install the requirements**
+**Step 2:** Clone the repository, create a conda environment, and install the requirements
 ``` bash
 git clone https://github.com/quantori/edema-quantification.git
 cd edema-quantification
@@ -106,8 +106,8 @@ source create_env.sh
 ## 🔐 Data Access
 
 All essential components of the study, including the curated dataset and trained models, have been made publicly available:
-- Dataset: [https://zenodo.org/doi/10.5281/zenodo.8383776](https://zenodo.org/doi/10.5281/zenodo.8383776)
-- Models: [https://zenodo.org/doi/10.5281/zenodo.8393565](https://zenodo.org/doi/10.5281/zenodo.8393565)
+- **Dataset:** [https://zenodo.org/doi/10.5281/zenodo.8383776](https://zenodo.org/doi/10.5281/zenodo.8383776)
+- **Models:** [https://zenodo.org/doi/10.5281/zenodo.8393565](https://zenodo.org/doi/10.5281/zenodo.8393565)
 
 <a name="how-to-cite"></a>
 ## 🖊️ How to Cite
