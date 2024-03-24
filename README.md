@@ -18,7 +18,6 @@
 
 <a name="introduction"></a>
 ## 🎯 Introduction
-
 This repository contains the research and findings of our study on the automated detection of pulmonary edema from chest X-ray images using advanced machine learning techniques. Pulmonary edema, a condition characterized by fluid accumulation in the lungs, is a critical indicator of various underlying health issues, including congestive heart failure. The timely and accurate diagnosis of this condition is crucial for effective patient management and treatment planning.
 
 <a name="data"></a>
@@ -51,7 +50,6 @@ In the detection stage, the study evaluated eight different object detection net
 
 <a name="results"></a>
 ## 📈 Results
-
 The [SABL](https://arxiv.org/abs/1912.04260) model emerged as the top performer, achieving the highest mAP of 0.568 and excelling in the detection of effusion, infiltrate and bat wings (<a href="#figure-3">Figure 3</a>). Notably, the [TOOD](https://arxiv.org/abs/2108.07755) model demonstrated robust capabilities, particularly excelling in bat wing detection with an AP score of 0.918. The [Cascade RPN](https://arxiv.org/abs/1909.06720) and [GFL](https://arxiv.org/abs/2006.04388) models maintained consistently strong performance across all features. The [PAA](https://arxiv.org/abs/2007.08103) and [FSAF](https://arxiv.org/abs/1903.00621) models exhibited balanced performance, achieving mAP scores of 0.506 and 0.510, respectively. Surprisingly, the baseline [Faster R-CNN](https://arxiv.org/abs/1506.01497) model delivered competitive results with an mAP of 0.509. In addition, we evaluated the latency of these models, revealing processing times ranging from 42 ms to 104 ms per image. These latency values provide valuable insight into the real-time efficiency of each model, enhancing our understanding of their practical utility.
 
 <p align="center">
@@ -72,7 +70,6 @@ The [SABL](https://arxiv.org/abs/1912.04260) model emerged as the top performer,
 
 <a name="conclusion"></a>
 ## 🏁 Conclusion
-
 The proposed methodology effectively highlighted and classified pulmonary edema features, positioning it as a promising candidate for the development of a clinical support tool aimed at assisting radiologists in the diagnosis and severity assessment of pulmonary edema.
 
 <a name="requirements"></a>
