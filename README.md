@@ -18,7 +18,8 @@
 
 <a name="introduction"></a>
 ## 🎯 Introduction
-This study aimed to develop a deep learning-based methodology for the detection and classification of radiographic features associated with pulmonary edema.
+
+This repository contains the research and findings of our study on the automated detection of pulmonary edema from chest X-ray images using advanced machine learning techniques. Pulmonary edema, a condition characterized by fluid accumulation in the lungs, is a critical indicator of various underlying health issues, including congestive heart failure. The timely and accurate diagnosis of this condition is crucial for effective patient management and treatment planning.
 
 <a name="data"></a>
 ## 📁 Data
