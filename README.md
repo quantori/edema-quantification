@@ -13,6 +13,7 @@
 - [Conclusion](#conclusion)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [How to Run](#how-to-run)
 - [Data Access](#data-access)
 - [How to Cite](#how-to-cite)
 
@@ -98,6 +99,16 @@ git clone https://github.com/quantori/edema-quantification.git
 cd edema-quantification
 chmod +x create_env.sh
 source create_env.sh
+```
+
+<a name="how-to-run"></a>
+## 🚀 How to Run
+
+Specify the **data_dir** and **save_dir** parameters in the [predict.yaml](configs/predict.yaml) configuration file. By default, all images within the specified **data_dir** will be processed and saved to the **save_dir** directory.
+
+To run the pipeline, execute [predict.py](src/predict.py) from your IDE or command prompt with:
+``` bash
+python src/predict.py
 ```
 
 <a name="data-access"></a>
