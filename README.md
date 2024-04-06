@@ -81,7 +81,7 @@ The proposed methodology effectively highlighted and classified pulmonary edema 
   - [x] Linux
   - [x] Windows (limited testing carried out)
 - Python 3.8.x
-- Required core packages: [dev.txt](https://github.com/quantori/edema-quantification/blob/main/requirements/dev.txt)
+- Required core packages: [dev.txt](requirements/dev.txt)
 
 <a name="installation"></a>
 ## ⚙ Installation
