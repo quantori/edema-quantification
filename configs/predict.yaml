@@ -2,8 +2,8 @@ defaults:
 - main
 - _self_
 
-data_dir: data/interim
-save_dir: data/interim_predict/SABL
+data_dir: data/demo/input
+save_dir: data/demo/output
 
 # Segmentation settings
 seg_model_dirs:
@@ -25,13 +25,8 @@ lung_extension: [50, 50, 50, 150]
 nms_method: soft      # soft or standard
 iou_threshold: 0.5
 conf_thresholds:
-  Cephalization: 0.0
-  Artery: 0.0
-  Heart: 0.0
-  Kerley: 0.0
-  Bronchus: 0.0
-  Effusion: 0.0
-  Bat: 0.0
-  Infiltrate: 0.0
-  Cuffing: 0.0
-  Lungs: 0.0
+  Cephalization: 0.37
+  Kerley: 0.53
+  Effusion: 0.77
+  Bat: 0.48
+  Infiltrate: 0.38

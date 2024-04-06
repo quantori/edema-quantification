@@ -100,7 +100,7 @@ def main(cfg: DictConfig) -> None:
     )
 
     df = pd.DataFrame()
-    for img_path in tqdm(img_paths, desc='Prediction', unit=' images'):
+    for img_path in tqdm(img_paths, desc='Prediction', unit='image'):
         log.info(f'Processing: {Path(img_path).stem}')
         df_img = edema_net.predict(
             img_path=img_path,
