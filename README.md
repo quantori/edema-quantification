@@ -114,9 +114,10 @@ python src/predict.py
 <a name="data-access"></a>
 ## 🔐 Data Access
 
-All essential components of the study, including the curated dataset and trained models, have been made publicly available:
-- **Dataset:** [https://zenodo.org/doi/10.5281/zenodo.8383776](https://zenodo.org/doi/10.5281/zenodo.8383776)
-- **Models:** [https://zenodo.org/doi/10.5281/zenodo.8393565](https://zenodo.org/doi/10.5281/zenodo.8393565)
+All essential components of the study, including the curated source code, dataset, and trained models, are publicly available:
+- **Source code:** https://github.com/ViacheslavDanilov/edema_quantification
+- **Dataset:** https://zenodo.org/doi/10.5281/zenodo.8383776
+- **Models:** https://zenodo.org/doi/10.5281/zenodo.8393565
 
 <a name="how-to-cite"></a>
 ## 🖊️ How to Cite
